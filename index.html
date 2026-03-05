@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ניהול פיננסי — לוח בקרה</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
 :root{--bg:#0d0f14;--surface:#141720;--surface2:#1c2030;--border:#252a3a;--accent:#4f8ef7;--accent2:#7c3aed;--green:#22c55e;--red:#ef4444;--orange:#f59e0b;--text:#e2e8f0;--text-dim:#8892a4;--text-faint:#3a4254;--gold:#d4a843}
@@ -188,18 +189,18 @@ tr.dr:hover td{background:var(--surface2)}
       <div class="pin-dot" id="pd3"></div>
     </div>
     <div class="pin-pad">
-      <button class="pin-key" onclick="pinKey('1')">1</button>
-      <button class="pin-key" onclick="pinKey('2')">2</button>
-      <button class="pin-key" onclick="pinKey('3')">3</button>
-      <button class="pin-key" onclick="pinKey('4')">4</button>
-      <button class="pin-key" onclick="pinKey('5')">5</button>
-      <button class="pin-key" onclick="pinKey('6')">6</button>
-      <button class="pin-key" onclick="pinKey('7')">7</button>
-      <button class="pin-key" onclick="pinKey('8')">8</button>
       <button class="pin-key" onclick="pinKey('9')">9</button>
-      <button class="pin-key" style="visibility:hidden"></button>
-      <button class="pin-key" onclick="pinKey('0')">0</button>
+      <button class="pin-key" onclick="pinKey('8')">8</button>
+      <button class="pin-key" onclick="pinKey('7')">7</button>
+      <button class="pin-key" onclick="pinKey('6')">6</button>
+      <button class="pin-key" onclick="pinKey('5')">5</button>
+      <button class="pin-key" onclick="pinKey('4')">4</button>
+      <button class="pin-key" onclick="pinKey('3')">3</button>
+      <button class="pin-key" onclick="pinKey('2')">2</button>
+      <button class="pin-key" onclick="pinKey('1')">1</button>
       <button class="pin-key" onclick="pinBack()" style="color:var(--text-dim)">⌫</button>
+      <button class="pin-key" onclick="pinKey('0')">0</button>
+      <button class="pin-key" style="visibility:hidden"></button>
     </div>
     <div class="pin-err" id="pinErr"></div>
   </div>
@@ -430,6 +431,7 @@ tr.dr:hover td{background:var(--surface2)}
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
       <button class="btn btn-primary" onclick="manualSync()">🔄 סנכרן עכשיו</button>
       <button class="btn btn-ghost" onclick="testConnection()">🔍 בדוק חיבור</button>
+      <button class="btn btn-ghost" onclick="showQR()" style="border-color:var(--accent2);color:var(--accent2)">📲 צור QR / קישור גישה</button>
     </div>
   </div>
 
@@ -445,6 +447,27 @@ tr.dr:hover td{background:var(--surface2)}
       <button class="btn btn-primary" onclick="changePin()">שנה PIN</button>
       <span id="pinChangeStatus" style="font-size:12px"></span>
     </div>
+  </div>
+</div>
+
+
+<!-- QR ACCESS MODAL -->
+<div class="modal-overlay" id="qrOverlay" onclick="if(event.target===this)closeQR()" style="display:none">
+  <div class="modal" style="max-width:380px;text-align:center">
+    <div class="modal-title"><span>🔗 קישור גישה מהיר</span><button class="modal-close" onclick="closeQR()">✕</button></div>
+    <p style="font-size:12px;color:var(--text-dim);margin-bottom:16px;line-height:1.6">
+      סרוק את ה-QR עם הטלפון, או העתק את הקישור.<br>
+      פתיחתו בכל מכשיר תכניס Token + Gist ID אוטומטית.
+    </p>
+    <div id="qrCanvas" style="display:flex;justify-content:center;margin-bottom:16px;background:#fff;padding:12px;border-radius:10px;display:inline-block"></div>
+    <div style="margin:12px 0">
+      <input id="qrLink" type="text" readonly style="width:100%;padding:8px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-size:10px;font-family:'Space Mono',monospace;text-align:left;direction:ltr">
+    </div>
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="copyQrLink()">📋 העתק קישור</button>
+      <button class="btn btn-ghost" onclick="closeQR()">סגור</button>
+    </div>
+    <p style="font-size:10px;color:var(--red);margin-top:14px">⚠️ הקישור מכיל את ה-Token שלך — שמור אותו בטוח. אל תשלח לאחרים.</p>
   </div>
 </div>
 
@@ -1741,6 +1764,69 @@ const _origBootApp=bootApp;
 ['click','keydown','touchstart','mousemove','scroll'].forEach(ev=>{
   document.addEventListener(ev, resetAutoLock, {passive:true});
 });
+
+
+// ══════════════════════════════════════════════════════════════════
+// QR CODE + SHAREABLE LINK
+// ══════════════════════════════════════════════════════════════════
+function buildAccessLink(){
+  const token=getToken(), gistId=getGistId();
+  if(!token||!gistId)return null;
+  // Encode as base64 to avoid exposing plaintext in URL bar
+  const payload=btoa(JSON.stringify({t:token,g:gistId}));
+  const base=window.location.href.split('#')[0].split('?')[0];
+  return base+'#access='+payload;
+}
+
+function showQR(){
+  const token=getToken(), gistId=getGistId();
+  if(!token||!gistId){
+    alert('יש להגדיר Token ו-Gist ID תחילה (בסנכרון ענן למעלה)');
+    return;
+  }
+  const link=buildAccessLink();
+  // Show modal
+  document.getElementById('qrOverlay').style.display='flex';
+  document.getElementById('qrLink').value=link;
+  // Generate QR
+  const container=document.getElementById('qrCanvas');
+  container.innerHTML='';
+  try{
+    new QRCode(container,{text:link,width:200,height:200,colorDark:'#000000',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
+  }catch(e){container.textContent='לא ניתן ליצור QR';}
+}
+
+function copyQrLink(){
+  const link=document.getElementById('qrLink').value;
+  navigator.clipboard.writeText(link).then(()=>{
+    const btn=event.target;btn.textContent='✅ הועתק!';
+    setTimeout(()=>btn.textContent='📋 העתק קישור',2000);
+  }).catch(()=>{
+    document.getElementById('qrLink').select();
+    document.execCommand('copy');
+  });
+}
+
+function closeQR(){
+  document.getElementById('qrOverlay').style.display='none';
+}
+
+// Auto-load token+gist from URL hash on page load
+function checkUrlAccess(){
+  const hash=window.location.hash;
+  if(!hash.startsWith('#access='))return;
+  try{
+    const payload=JSON.parse(atob(hash.slice(8)));
+    if(payload.t&&payload.g){
+      localStorage.setItem('fin26_token',payload.t);
+      localStorage.setItem('fin26_gist',payload.g);
+      // Clean URL (remove hash so it's not visible)
+      history.replaceState(null,'',window.location.pathname+window.location.search);
+    }
+  }catch(e){console.warn('Invalid access hash');}
+}
+// Run immediately before PIN screen
+checkUrlAccess();
 
 // App starts after PIN is entered — see bootApp()
 </script>
