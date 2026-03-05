@@ -155,6 +155,9 @@ tr.dr:hover td{background:var(--surface2)}
 .pin-key:active{transform:scale(.95)}
 .pin-key.zero{grid-column:2}
 .pin-err{font-size:12px;color:var(--red);height:16px;transition:opacity .3s}
+.pin-biometric{width:100%;padding:12px;border-radius:10px;border:1px solid var(--accent2);background:rgba(124,58,237,.1);color:var(--accent2);font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;font-family:'Rubik',sans-serif;margin-top:8px;display:none}
+.pin-biometric:hover{background:rgba(124,58,237,.2)}
+.pin-biometric.visible{display:block}
 /* ── GIST SYNC STATUS ── */
 #syncStatus{font-size:11px;padding:3px 10px;border-radius:20px;transition:all .3s}
 #syncStatus.syncing{background:rgba(245,158,11,.15);color:var(--orange)}
@@ -189,20 +192,23 @@ tr.dr:hover td{background:var(--surface2)}
       <div class="pin-dot" id="pd3"></div>
     </div>
     <div class="pin-pad">
-      <button class="pin-key" onclick="pinKey('9')">9</button>
-      <button class="pin-key" onclick="pinKey('8')">8</button>
-      <button class="pin-key" onclick="pinKey('7')">7</button>
-      <button class="pin-key" onclick="pinKey('6')">6</button>
-      <button class="pin-key" onclick="pinKey('5')">5</button>
-      <button class="pin-key" onclick="pinKey('4')">4</button>
       <button class="pin-key" onclick="pinKey('3')">3</button>
       <button class="pin-key" onclick="pinKey('2')">2</button>
       <button class="pin-key" onclick="pinKey('1')">1</button>
-      <button class="pin-key" onclick="pinBack()" style="color:var(--text-dim)">⌫</button>
-      <button class="pin-key" onclick="pinKey('0')">0</button>
+      <button class="pin-key" onclick="pinKey('6')">6</button>
+      <button class="pin-key" onclick="pinKey('5')">5</button>
+      <button class="pin-key" onclick="pinKey('4')">4</button>
+      <button class="pin-key" onclick="pinKey('9')">9</button>
+      <button class="pin-key" onclick="pinKey('8')">8</button>
+      <button class="pin-key" onclick="pinKey('7')">7</button>
       <button class="pin-key" style="visibility:hidden"></button>
+      <button class="pin-key" onclick="pinKey('0')">0</button>
+      <button class="pin-key" onclick="pinBack()" style="color:var(--text-dim)">⌫</button>
     </div>
     <div class="pin-err" id="pinErr"></div>
+    <button class="pin-biometric" id="biometricBtn" onclick="biometricAuth()">
+      <span id="biometricIcon">🔒</span> <span id="biometricLabel">כניסה עם Face ID / טביעת אצבע</span>
+    </button>
   </div>
 </div>
 
@@ -443,10 +449,13 @@ tr.dr:hover td{background:var(--surface2)}
       <div class="mg"><label>PIN חדש</label><input type="password" id="pinNew" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="••••"></div>
       <div class="mg"><label>אימות PIN חדש</label><input type="password" id="pinConfirm" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="••••"></div>
     </div>
-    <div style="margin-top:10px;display:flex;align-items:center;gap:12px">
+    <div style="margin-top:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
       <button class="btn btn-primary" onclick="changePin()">שנה PIN</button>
+      <button class="btn btn-ghost" id="biometricSetupBtn" onclick="setupBiometric()" style="border-color:var(--accent2);color:var(--accent2)">🔒 הפעל Face ID / ביומטרי</button>
+      <button class="btn btn-ghost" onclick="disableBiometric()" style="font-size:11px;color:var(--text-dim)">בטל ביומטרי</button>
       <span id="pinChangeStatus" style="font-size:12px"></span>
     </div>
+    <div id="biometricSettingStatus" style="font-size:12px;margin-top:6px;color:var(--text-dim)"></div>
   </div>
 </div>
 
@@ -1247,6 +1256,7 @@ function renderSettings(){
   const gistEl=document.getElementById('setGistId');
   if(tokenEl){const t=getToken();tokenEl.value=t?'••••••••••••••••••••':'';document.getElementById('tokenStatus').textContent=t?'✓ Token מוגדר':'לא מוגדר';}
   if(gistEl){const g=getGistId();gistEl.value=g||'';document.getElementById('gistStatus').textContent=g?`✓ Gist: ${g.slice(0,8)}...`:'לא מוגדר';}
+  updateBiometricButton();
   document.getElementById('tracksBody').innerHTML=S.tracks.map(t=>`<tr class="dr">
     <td><strong>${t.name}</strong></td>
     <td class="td-num" style="color:var(--green)">${t.rate.toFixed(1)}%</td>
@@ -1625,6 +1635,120 @@ document.addEventListener('keydown',e=>{
   }
 });
 
+
+// ══════════════════════════════════════════════════════════════════
+// WEBAUTHN — Face ID / Fingerprint
+// ══════════════════════════════════════════════════════════════════
+const WA_RP_ID = window.location.hostname||'localhost';
+const WA_RP_NAME = 'לוח בקרה פיננסי';
+const WA_USER_ID = new Uint8Array([1,2,3,4,5,6,7,8]); // fixed user
+
+function waSupported(){
+  return window.PublicKeyCredential &&
+         typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function';
+}
+
+async function waPlatformAvailable(){
+  if(!waSupported())return false;
+  try{return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();}
+  catch(e){return false;}
+}
+
+// Register biometric credential
+async function setupBiometric(){
+  const statusEl=document.getElementById('biometricSettingStatus');
+  if(!await waPlatformAvailable()){
+    statusEl.textContent='❌ מכשיר זה אינו תומך ב-Face ID / ביומטרי';
+    statusEl.style.color='var(--red)';
+    return;
+  }
+  statusEl.textContent='ממתין לאימות ביומטרי...';
+  statusEl.style.color='var(--orange)';
+  try{
+    const challenge=crypto.getRandomValues(new Uint8Array(32));
+    const cred=await navigator.credentials.create({publicKey:{
+      challenge,
+      rp:{id:WA_RP_ID,name:WA_RP_NAME},
+      user:{id:WA_USER_ID,name:'user',displayName:'משתמש'},
+      pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
+      authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required'},
+      timeout:60000,
+      attestation:'none'
+    }});
+    // Store credential ID in localStorage
+    const credId=Array.from(new Uint8Array(cred.rawId));
+    localStorage.setItem('fin26_wa_cred',JSON.stringify(credId));
+    statusEl.textContent='✅ Face ID / ביומטרי הופעל בהצלחה!';
+    statusEl.style.color='var(--green)';
+    updateBiometricButton();
+  }catch(e){
+    if(e.name==='NotAllowedError'){statusEl.textContent='בוטל על ידי המשתמש';}
+    else{statusEl.textContent='❌ שגיאה: '+e.message;}
+    statusEl.style.color='var(--red)';
+  }
+}
+
+function disableBiometric(){
+  localStorage.removeItem('fin26_wa_cred');
+  const s=document.getElementById('biometricSettingStatus');
+  if(s){s.textContent='ביומטרי בוטל';s.style.color='var(--text-dim)';}
+  updateBiometricButton();
+}
+
+// Authenticate with biometric
+async function biometricAuth(){
+  const credIdArr=JSON.parse(localStorage.getItem('fin26_wa_cred')||'null');
+  if(!credIdArr){alert('יש להפעיל Face ID תחילה בהגדרות');return;}
+  const btn=document.getElementById('biometricBtn');
+  const origLabel=document.getElementById('biometricLabel').textContent;
+  document.getElementById('biometricLabel').textContent='ממתין לאימות...';
+  try{
+    const challenge=crypto.getRandomValues(new Uint8Array(32));
+    const credId=new Uint8Array(credIdArr);
+    await navigator.credentials.get({publicKey:{
+      challenge,
+      allowCredentials:[{type:'public-key',id:credId.buffer}],
+      userVerification:'required',
+      timeout:60000
+    }});
+    // Success — unlock app
+    pinUnlocked=true;
+    document.getElementById('pinOverlay').classList.add('hidden');
+    bootApp();
+  }catch(e){
+    document.getElementById('biometricLabel').textContent=origLabel;
+    if(e.name!=='NotAllowedError'){
+      document.getElementById('pinErr').textContent='שגיאת אימות ביומטרי';
+      setTimeout(()=>document.getElementById('pinErr').textContent='',2000);
+    }
+  }
+}
+
+// Show/hide biometric button based on availability
+async function updateBiometricButton(){
+  const btn=document.getElementById('biometricBtn');
+  if(!btn)return;
+  const hasCred=!!localStorage.getItem('fin26_wa_cred');
+  const available=await waPlatformAvailable();
+  if(hasCred&&available){
+    btn.classList.add('visible');
+    // Detect platform for icon
+    const ua=navigator.userAgent;
+    const isIOS=/iPhone|iPad|Mac/.test(ua);
+    const isAndroid=/Android/.test(ua);
+    document.getElementById('biometricIcon').textContent=isIOS?'🪪':isAndroid?'👆':'🔑';
+    document.getElementById('biometricLabel').textContent=
+      isIOS?'כניסה עם Face ID':isAndroid?'כניסה עם טביעת אצבע':'כניסה ביומטרית';
+  } else {
+    btn.classList.remove('visible');
+  }
+  // Update settings button
+  const setupBtn=document.getElementById('biometricSetupBtn');
+  if(setupBtn){
+    setupBtn.textContent=hasCred?'✅ ביומטרי פעיל — עדכן':'🔒 הפעל Face ID / ביומטרי';
+  }
+}
+
 // ══════════════════════════════════════════════════════════════════
 // BOOT: after PIN is entered
 // ══════════════════════════════════════════════════════════════════
@@ -1827,6 +1951,7 @@ function checkUrlAccess(){
 }
 // Run immediately before PIN screen
 checkUrlAccess();
+updateBiometricButton();
 
 // App starts after PIN is entered — see bootApp()
 </script>
