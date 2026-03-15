@@ -1649,7 +1649,7 @@ function showPage(name,btn){
   else if(name==='savings')renderSavings();
   else if(name==='forecast')calcForecast();
   else if(name==='settings')renderSettings();
-  else if(name==='ai'){renderAIMarketGrid();}
+  else if(name==='ai'){renderAIMarketGrid();loadSavedAIAnalysis();}
 }
 
 // ===================== INIT =====================
@@ -1662,29 +1662,30 @@ function renderAll(){
 
 // ══════════════════════════════════════════════════════════════════
 // MARKET TICKER DATA
-// Multiple proxy fallbacks + localStorage cache for last known values
+// Stooq.com — open CSV API, no key, direct CORS, includes Israeli indices
 // ══════════════════════════════════════════════════════════════════
+
+// Stooq symbols: Israeli indices use ^ prefix, commodities/forex standard
 const MARKET_SYMBOLS = [
-  {sym:'TA35.TA',  label:'ת"א 35',   type:'index'},
-  {sym:'BANK.TA',  label:'ת"א בנקים', type:'index'},
-  {sym:'TA125.TA', label:'ת"א 125',   type:'index'},
-  {sym:'GC=F',     label:'זהב',       type:'commodity'},
-  {sym:'CL=F',     label:'נפט',       type:'commodity'},
-  {sym:'^GSPC',    label:'S&P 500',   type:'index'},
-  {sym:'^IXIC',    label:'Nasdaq',    type:'index'},
-  {sym:'USDILS=X', label:'USD/ILS',   type:'fx'},
+  {sym:'^ta35',    stooq:'^ta35',    label:'ת"א 35',    fmt:'pts'},
+  {sym:'^tabk',    stooq:'^tabk',    label:'ת"א בנקים', fmt:'pts'},
+  {sym:'^ta125',   stooq:'^ta125',   label:'ת"א 125',   fmt:'pts'},
+  {sym:'xauusd',   stooq:'xauusd',   label:'זהב',       fmt:'usd'},
+  {sym:'clusd',    stooq:'clusd',    label:'נפט',       fmt:'usd2'},
+  {sym:'^spx',     stooq:'^spx',     label:'S&P 500',   fmt:'pts'},
+  {sym:'^ndq',     stooq:'^ndq',     label:'Nasdaq',    fmt:'pts'},
+  {sym:'usdils',   stooq:'usdils',   label:'USD/ILS',   fmt:'ils'},
 ];
 
 const MARKET_CACHE_KEY = 'fin26_market';
 let marketData = {};
-let marketDataDate = null; // date string of last successful fetch
+let marketDataDate = null;
 let tickerRefreshTimer = null;
 
-// Load last known values from localStorage immediately
 function loadMarketCache(){
   try{
     const c = JSON.parse(localStorage.getItem(MARKET_CACHE_KEY)||'null');
-    if(c && c.data){
+    if(c && c.data && Object.keys(c.data).length > 0){
       marketData = c.data;
       marketDataDate = c.date||null;
       return true;
@@ -1700,59 +1701,106 @@ function saveMarketCache(){
   }catch(e){}
 }
 
-async function tryFetchProxy(proxyUrl, timeout=8000){
-  const r = await fetch(proxyUrl, {signal:AbortSignal.timeout(timeout)});
-  const outer = await r.json();
-  // allorigins wraps in {contents:...}, corsproxy returns raw
-  const raw = outer.contents !== undefined ? outer.contents : JSON.stringify(outer);
-  const d = JSON.parse(raw);
-  return d?.quoteResponse?.result||[];
+// ── Source 1: Stooq CSV (direct CORS, no key) ────────────────────
+async function fetchStooq(sym){
+  const url = `https://stooq.com/q/l/?s=${sym}&f=sd2t2ohlcv&h&e=csv`;
+  const r = await fetch(url, {signal:AbortSignal.timeout(6000)});
+  const text = await r.text();
+  const lines = text.trim().split('\n');
+  if(lines.length < 2) return null;
+  const parts = lines[1].split(',');
+  const close = parseFloat(parts[6]);
+  const open  = parseFloat(parts[3]);
+  if(isNaN(close)||close<=0) return null;
+  const change = close - open;
+  const changePct = open > 0 ? (change/open)*100 : 0;
+  return {price:close, change, changePct, prevClose:open, live:true};
 }
 
-async function fetchMarketData(){
-  const syms = MARKET_SYMBOLS.map(s=>s.sym).join(',');
-  const yahooUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(syms)}&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketPreviousClose,shortName`;
-  const yahoo2Url = `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(syms)}&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketPreviousClose,shortName`;
-
+// ── Source 2: Yahoo Finance via multiple CORS proxies ─────────────
+async function fetchYahooProxy(syms){
+  const fields = 'regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketPreviousClose';
+  const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/spark?symbols=${encodeURIComponent(syms)}&range=1d&interval=5m`;
+  const quoteUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(syms)}&fields=${fields}`;
   const proxies = [
-    `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl)}`,
-    `https://api.allorigins.win/get?url=${encodeURIComponent(yahoo2Url)}`,
-    `https://corsproxy.io/?url=${encodeURIComponent(yahooUrl)}`,
-    `https://thingproxy.freeboard.io/fetch/${yahooUrl}`,
+    `https://api.allorigins.win/get?url=${encodeURIComponent(quoteUrl)}`,
+    `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(quoteUrl)}`,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(quoteUrl)}`,
   ];
-
   for(const proxy of proxies){
     try{
-      const results = await tryFetchProxy(proxy, 7000);
-      if(results.length > 0){
-        results.forEach(q=>{
-          marketData[q.symbol]={
+      const r = await fetch(proxy, {signal:AbortSignal.timeout(7000)});
+      const outer = await r.json();
+      const raw = outer.contents || outer.quoteResponse ? JSON.stringify(outer) : (typeof outer === 'string' ? outer : JSON.stringify(outer));
+      const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      const results = parsed?.quoteResponse?.result||[];
+      if(results.length > 0) return results;
+    }catch(e){ /* try next proxy */ }
+  }
+  return [];
+}
+
+// Yahoo symbol mapping (some stooq symbols differ from Yahoo)
+const YAHOO_SYM = {
+  '^ta35':   'TA35.TA',
+  '^tabk':   'BANK.TA',
+  '^ta125':  'TA125.TA',
+  'xauusd':  'GC=F',
+  'clusd':   'CL=F',
+  '^spx':    '^GSPC',
+  '^ndq':    '^IXIC',
+  'usdils':  'USDILS=X',
+};
+
+async function fetchMarketData(){
+  let anySuccess = false;
+
+  // Try Stooq for all symbols in parallel first (fastest, most reliable)
+  const stooqResults = await Promise.allSettled(
+    MARKET_SYMBOLS.map(async ({sym, stooq})=>{
+      try{
+        const d = await fetchStooq(stooq);
+        if(d){ marketData[sym]=d; anySuccess=true; }
+      }catch(e){}
+    })
+  );
+
+  // For any symbol that Stooq failed, try Yahoo proxy
+  const missing = MARKET_SYMBOLS.filter(s => !marketData[s.sym]);
+  if(missing.length > 0){
+    try{
+      const yahooSyms = missing.map(s=>YAHOO_SYM[s.stooq]||s.sym).join(',');
+      const results = await fetchYahooProxy(yahooSyms);
+      // Map Yahoo results back to our symbol keys
+      results.forEach(q=>{
+        const entry = missing.find(s=>(YAHOO_SYM[s.stooq]||s.sym)===q.symbol);
+        if(entry){
+          marketData[entry.sym]={
             price: q.regularMarketPrice,
             change: q.regularMarketChange,
             changePct: q.regularMarketChangePercent,
             prevClose: q.regularMarketPreviousClose,
-            name: q.shortName||q.symbol,
             live: true
           };
-        });
-        saveMarketCache();
-        return true;
-      }
-    }catch(e){
-      console.warn('Proxy failed:', proxy.slice(0,40), e.message);
-    }
+          anySuccess = true;
+        }
+      });
+    }catch(e){ console.warn('Yahoo fallback failed:', e.message); }
   }
-  console.warn('All market proxies failed — using cached data');
-  return false;
+
+  if(anySuccess) saveMarketCache();
+  else console.warn('All market sources failed — using cache');
+  return anySuccess;
 }
 
 function fmtMarketPrice(sym, price){
   if(!price&&price!==0)return '—';
-  // Israeli stocks — show in points
-  if(sym.endsWith('.TA')) return Math.round(price).toLocaleString();
-  if(sym==='GC=F') return '$'+Math.round(price).toLocaleString();
-  if(sym==='CL=F') return '$'+price.toFixed(2);
-  if(sym==='USDILS=X') return '₪'+price.toFixed(3);
+  const info = MARKET_SYMBOLS.find(s=>s.sym===sym);
+  const fmt = info?.fmt||'pts';
+  if(fmt==='pts')   return Math.round(price).toLocaleString();
+  if(fmt==='usd')   return '$'+Math.round(price).toLocaleString();
+  if(fmt==='usd2')  return '$'+price.toFixed(2);
+  if(fmt==='ils')   return '₪'+price.toFixed(3);
   return price.toLocaleString(undefined,{maximumFractionDigits:2});
 }
 
@@ -1828,6 +1876,29 @@ async function initMarketTicker(){
 // AI PORTFOLIO ADVISOR — uses Claude API
 // ══════════════════════════════════════════════════════════════════
 let aiLastAnalysis = null;
+
+function loadSavedAIAnalysis(){
+  const responseEl = document.getElementById('aiResponse');
+  if(!responseEl) return;
+  // Don't overwrite a freshly-run analysis
+  if(aiLastAnalysis) return;
+  try{
+    const saved = JSON.parse(localStorage.getItem('fin26_ai_analysis')||'null');
+    if(!saved||!saved.text) return;
+    aiLastAnalysis = saved;
+    const analyzeBtn = document.getElementById('aiAnalyzeBtn');
+    if(analyzeBtn) analyzeBtn.innerHTML = '<span>🔄</span> נתח שוב';
+    const htmlContent = mdToHtml(saved.text);
+    responseEl.className = 'ai-response';
+    responseEl.innerHTML = `
+      <div style="background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.25);border-radius:8px;padding:8px 14px;margin-bottom:16px;font-size:11px;color:var(--accent2);display:flex;align-items:center;gap:8px">
+        <span>📂</span>
+        <span>ניתוח שמור מ-${saved.time} — לחץ "נתח שוב" לעדכון</span>
+      </div>
+      <div>${htmlContent}</div>
+      <div class="ai-timestamp">נוצר ע"י Gemini 2.5 Flash · ${saved.time}</div>`;
+  }catch(e){ console.warn('Could not load saved AI analysis:', e); }
+}
 
 function buildPortfolioSummary(){
   const liq = liquidTotal(), ill = illiqTotal(), re = reTotal();
@@ -1932,6 +2003,7 @@ async function runAIAnalysis(){
 
   btn.disabled = true;
   btn.innerHTML = '<div class="ai-spinner" style="width:16px;height:16px;border-width:2px"></div> מנתח...';
+  aiLastAnalysis = null; // clear so fresh result shows
   responseEl.className = 'ai-response loading';
   responseEl.innerHTML = '<div class="ai-spinner"></div><div>Gemini מנתח את התיק שלך...</div>';
 
@@ -1976,6 +2048,8 @@ ${portfolio}
     responseEl.className = 'ai-response';
     responseEl.innerHTML = `<div>${mdToHtml(text)}</div><div class="ai-timestamp">נוצר ע"י Gemini 2.5 Flash · ${now}</div>`;
     aiLastAnalysis = {text, time:now};
+    // Persist to localStorage so it survives page refresh
+    try{ localStorage.setItem('fin26_ai_analysis', JSON.stringify(aiLastAnalysis)); }catch(e){}
 
   }catch(e){
     responseEl.className = 'ai-response';
