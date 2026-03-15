@@ -197,7 +197,7 @@ tr.dr:hover td{background:var(--surface2)}
 .ai-btn{padding:10px 20px;border-radius:8px;border:none;background:linear-gradient(135deg,var(--accent2),var(--accent));color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:'Rubik',sans-serif;transition:all .2s;display:flex;align-items:center;gap:8px}
 .ai-btn:hover{opacity:.85;transform:translateY(-1px)}
 .ai-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
-.ai-response{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;line-height:1.8;font-size:13px;min-height:200px;position:relative}
+.ai-response{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;line-height:1.8;font-size:13px;min-height:200px;position:relative;max-height:70vh;overflow-y:auto}
 .ai-response.loading{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:var(--text-dim)}
 .ai-spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -1902,7 +1902,7 @@ ${portfolio}
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         contents:[{parts:[{text: prompt}]}],
-        generationConfig:{maxOutputTokens:2000, temperature:0.7}
+        generationConfig:{maxOutputTokens:8192, temperature:0.7}
       })
     });
     if(!resp.ok){
