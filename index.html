@@ -1844,9 +1844,8 @@ function mdToHtml(text){
     .replace(/(<li>[\s\S]*?<\/li>)(\s*<li>)/g,'$1$2')
     .replace(/(<li>.*<\/li>)/g,'<ul>$1</ul>')
     .replace(/<\/ul>\s*<ul>/g,'')
-    .replace(/
-{2,}/g,'</p><p>')
-    .replace(/^(?!<[hup\/])/gm,'<p>')
+    .replace(/\n{2,}/g,'</p><p>')
+    .replace(/\n/g,' ')
     .replace(/<p><\/p>/g,'')
     .replace(/<p>(<[hul])/g,'$1')
     .replace(/(<\/[hul][^>]*>)<\/p>/g,'$1');
