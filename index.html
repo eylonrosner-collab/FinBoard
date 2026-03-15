@@ -232,19 +232,19 @@ tr.dr:hover td{background:var(--surface2)}
       <div class="pin-dot" id="pd2"></div>
       <div class="pin-dot" id="pd3"></div>
     </div>
-    <div class="pin-pad">
-      <button class="pin-key" onclick="pinKey('3')">3</button>
-      <button class="pin-key" onclick="pinKey('2')">2</button>
-      <button class="pin-key" onclick="pinKey('1')">1</button>
-      <button class="pin-key" onclick="pinKey('6')">6</button>
-      <button class="pin-key" onclick="pinKey('5')">5</button>
-      <button class="pin-key" onclick="pinKey('4')">4</button>
-      <button class="pin-key" onclick="pinKey('9')">9</button>
-      <button class="pin-key" onclick="pinKey('8')">8</button>
-      <button class="pin-key" onclick="pinKey('7')">7</button>
+    <div class="pin-pad" id="pinPad">
+      <button class="pin-key" data-key="3">3</button>
+      <button class="pin-key" data-key="2">2</button>
+      <button class="pin-key" data-key="1">1</button>
+      <button class="pin-key" data-key="6">6</button>
+      <button class="pin-key" data-key="5">5</button>
+      <button class="pin-key" data-key="4">4</button>
+      <button class="pin-key" data-key="9">9</button>
+      <button class="pin-key" data-key="8">8</button>
+      <button class="pin-key" data-key="7">7</button>
       <button class="pin-key" style="visibility:hidden"></button>
-      <button class="pin-key" onclick="pinKey('0')">0</button>
-      <button class="pin-key" onclick="pinBack()" style="color:var(--text-dim)">⌫</button>
+      <button class="pin-key" data-key="0">0</button>
+      <button class="pin-key" data-key="back" style="color:var(--text-dim)">⌫</button>
     </div>
     <div class="pin-err" id="pinErr"></div>
     <button class="pin-biometric" id="biometricBtn" onclick="biometricAuth()">
@@ -1990,6 +1990,23 @@ function updatePinDots(){
   }
 }
 
+// PIN pad — event delegation (works on mobile/desktop, no 300ms delay)
+document.addEventListener('DOMContentLoaded', ()=>{
+  const pad = document.getElementById('pinPad');
+  if(pad){
+    const handlePin = (e)=>{
+      const btn = e.target.closest('[data-key]');
+      if(!btn) return;
+      e.preventDefault();
+      const k = btn.dataset.key;
+      if(k === 'back') pinBack();
+      else pinKey(k);
+    };
+    pad.addEventListener('touchstart', handlePin, {passive:false});
+    pad.addEventListener('click', handlePin);
+  }
+});
+
 // Keyboard support
 document.addEventListener('keydown',e=>{
   if(!pinUnlocked){
@@ -2253,7 +2270,6 @@ function lockApp(){
 }
 
 // Re-show content when unlocked
-const _origBootApp=bootApp;
 
 ['click','keydown','touchstart','mousemove','scroll'].forEach(ev=>{
   document.addEventListener(ev, resetAutoLock, {passive:true});
@@ -2321,7 +2337,8 @@ function checkUrlAccess(){
 }
 // Run immediately before PIN screen
 checkUrlAccess();
-updateBiometricButton();
+// Defer biometric check to avoid blocking PIN rendering
+setTimeout(()=>{ try{updateBiometricButton();}catch(e){} }, 100);
 
 // App starts after PIN is entered — see bootApp()
 </script>
