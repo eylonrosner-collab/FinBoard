@@ -1896,7 +1896,7 @@ ${portfolio}
 דבר בעברית, ישיר וקונקרטי. הימנע מניסוחים כלליים ובנאליים.`;
 
   try{
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent?key=${apiKey}`;
     const resp = await fetch(url, {
       method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -1913,7 +1913,7 @@ ${portfolio}
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text||'לא התקבלה תשובה';
     const now = new Date().toLocaleString('he-IL');
     responseEl.className = 'ai-response';
-    responseEl.innerHTML = `<div>${mdToHtml(text)}</div><div class="ai-timestamp">נוצר ע"י Gemini 2.0 Flash · ${now}</div>`;
+    responseEl.innerHTML = `<div>${mdToHtml(text)}</div><div class="ai-timestamp">נוצר ע"י Gemini 2.5 Flash · ${now}</div>`;
     aiLastAnalysis = {text, time:now};
 
   }catch(e){
