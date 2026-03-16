@@ -1701,93 +1701,103 @@ function saveMarketCache(){
   }catch(e){}
 }
 
-// ── Source 1: Stooq CSV (direct CORS, no key) ────────────────────
-async function fetchStooq(sym){
-  const url = `https://stooq.com/q/l/?s=${sym}&f=sd2t2ohlcv&h&e=csv`;
-  const r = await fetch(url, {signal:AbortSignal.timeout(6000)});
-  const text = await r.text();
-  const lines = text.trim().split('\n');
-  if(lines.length < 2) return null;
-  const parts = lines[1].split(',');
-  const close = parseFloat(parts[6]);
-  const open  = parseFloat(parts[3]);
-  if(isNaN(close)||close<=0) return null;
-  const change = close - open;
-  const changePct = open > 0 ? (change/open)*100 : 0;
-  return {price:close, change, changePct, prevClose:open, live:true};
+// ── Fetch one symbol via Yahoo Finance chart API (v8) ────────────
+// v8/chart is more permissive with CORS than v7/quote
+async function fetchYahooChart(yahooSym){
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSym)}?interval=1d&range=5d`;
+  const r = await fetch(url, {signal:AbortSignal.timeout(8000)});
+  if(!r.ok) throw new Error(r.status);
+  const d = await r.json();
+  const meta = d?.chart?.result?.[0]?.meta;
+  if(!meta) return null;
+  const price = meta.regularMarketPrice;
+  const prevClose = meta.chartPreviousClose || meta.previousClose || price;
+  const change = price - prevClose;
+  const changePct = prevClose ? (change/prevClose)*100 : 0;
+  return {price, change, changePct, prevClose, live:true};
 }
 
-// ── Source 2: Yahoo Finance via multiple CORS proxies ─────────────
-async function fetchYahooProxy(syms){
-  const fields = 'regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketPreviousClose';
-  const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/spark?symbols=${encodeURIComponent(syms)}&range=1d&interval=5m`;
-  const quoteUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(syms)}&fields=${fields}`;
+// ── Try via CORS proxy if direct fetch fails ──────────────────────
+async function fetchYahooViaProxy(yahooSym){
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSym)}?interval=1d&range=5d`;
   const proxies = [
-    `https://api.allorigins.win/get?url=${encodeURIComponent(quoteUrl)}`,
-    `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(quoteUrl)}`,
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(quoteUrl)}`,
+    `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+    `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+    `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
   ];
   for(const proxy of proxies){
     try{
-      const r = await fetch(proxy, {signal:AbortSignal.timeout(7000)});
+      const r = await fetch(proxy, {signal:AbortSignal.timeout(8000)});
       const outer = await r.json();
-      const raw = outer.contents || outer.quoteResponse ? JSON.stringify(outer) : (typeof outer === 'string' ? outer : JSON.stringify(outer));
-      const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-      const results = parsed?.quoteResponse?.result||[];
-      if(results.length > 0) return results;
-    }catch(e){ /* try next proxy */ }
+      const raw = outer.contents !== undefined ? outer.contents : JSON.stringify(outer);
+      const d = JSON.parse(raw);
+      const meta = d?.chart?.result?.[0]?.meta;
+      if(!meta) continue;
+      const price = meta.regularMarketPrice;
+      const prevClose = meta.chartPreviousClose || meta.previousClose || price;
+      const change = price - prevClose;
+      const changePct = prevClose ? (change/prevClose)*100 : 0;
+      return {price, change, changePct, prevClose, live:true};
+    }catch(e){ /* next proxy */ }
   }
-  return [];
+  return null;
 }
 
-// Yahoo symbol mapping (some stooq symbols differ from Yahoo)
+// Yahoo symbols for each of our market items
 const YAHOO_SYM = {
-  '^ta35':   'TA35.TA',
-  '^tabk':   'BANK.TA',
-  '^ta125':  'TA125.TA',
-  'xauusd':  'GC=F',
-  'clusd':   'CL=F',
-  '^spx':    '^GSPC',
-  '^ndq':    '^IXIC',
-  'usdils':  'USDILS=X',
+  '^ta35':  'TA35.TA',
+  '^tabk':  'BANK.TA',
+  '^ta125': 'TA125.TA',
+  'xauusd': 'GC%3DF',   // GC=F encoded
+  'clusd':  'CL%3DF',   // CL=F encoded
+  '^spx':   '%5EGSPC',  // ^GSPC encoded
+  '^ndq':   '%5EIXIC',  // ^IXIC encoded
+  'usdils': 'USDILS%3DX',
 };
 
+async function fetchOneSym({sym, stooq}){
+  const yahooSym = YAHOO_SYM[stooq] || stooq;
+  // Try direct Yahoo first
+  try{
+    const d = await fetchYahooChart(decodeURIComponent(yahooSym));
+    if(d) return {sym, data:d};
+  }catch(e){}
+  // Fallback: via proxy
+  try{
+    const d = await fetchYahooViaProxy(decodeURIComponent(yahooSym));
+    if(d) return {sym, data:d};
+  }catch(e){}
+  // Last resort: Stooq direct
+  try{
+    const url = `https://stooq.com/q/l/?s=${stooq}&f=sd2t2ohlcv&h&e=csv`;
+    const r = await fetch(url, {signal:AbortSignal.timeout(6000)});
+    const text = await r.text();
+    const lines = text.trim().split('\n');
+    if(lines.length >= 2){
+      const parts = lines[1].split(',');
+      const close = parseFloat(parts[6]);
+      const open  = parseFloat(parts[3]);
+      if(!isNaN(close)&&close>0){
+        const change=close-open, changePct=open?(change/open)*100:0;
+        return {sym, data:{price:close,change,changePct,prevClose:open,live:true}};
+      }
+    }
+  }catch(e){}
+  return null;
+}
+
 async function fetchMarketData(){
-  let anySuccess = false;
-
-  // Try Stooq for all symbols in parallel first (fastest, most reliable)
-  const stooqResults = await Promise.allSettled(
-    MARKET_SYMBOLS.map(async ({sym, stooq})=>{
-      try{
-        const d = await fetchStooq(stooq);
-        if(d){ marketData[sym]=d; anySuccess=true; }
-      }catch(e){}
-    })
+  // Fetch all in parallel
+  const results = await Promise.allSettled(
+    MARKET_SYMBOLS.map(s => fetchOneSym(s))
   );
-
-  // For any symbol that Stooq failed, try Yahoo proxy
-  const missing = MARKET_SYMBOLS.filter(s => !marketData[s.sym]);
-  if(missing.length > 0){
-    try{
-      const yahooSyms = missing.map(s=>YAHOO_SYM[s.stooq]||s.sym).join(',');
-      const results = await fetchYahooProxy(yahooSyms);
-      // Map Yahoo results back to our symbol keys
-      results.forEach(q=>{
-        const entry = missing.find(s=>(YAHOO_SYM[s.stooq]||s.sym)===q.symbol);
-        if(entry){
-          marketData[entry.sym]={
-            price: q.regularMarketPrice,
-            change: q.regularMarketChange,
-            changePct: q.regularMarketChangePercent,
-            prevClose: q.regularMarketPreviousClose,
-            live: true
-          };
-          anySuccess = true;
-        }
-      });
-    }catch(e){ console.warn('Yahoo fallback failed:', e.message); }
-  }
-
+  let anySuccess = false;
+  results.forEach(r=>{
+    if(r.status==='fulfilled' && r.value){
+      marketData[r.value.sym] = r.value.data;
+      anySuccess = true;
+    }
+  });
   if(anySuccess) saveMarketCache();
   else console.warn('All market sources failed — using cache');
   return anySuccess;
