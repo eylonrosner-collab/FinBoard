@@ -395,14 +395,14 @@ tr.dr:hover td{background:var(--surface2)}
         <label style="display:flex;align-items:center;gap:5px">ביטחון בחסכון (%)
           <span title="100% = חסכון מלא כפי שהוזן. 0% = אין חסכון כלל (לא תופקד שקל). ביניהם — אחוז יחסי מהחסכון המתוכנן." style="cursor:help;color:var(--accent2);font-size:12px;border:1px solid var(--accent2);border-radius:50%;width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">?</span>
         </label>
-        <input type="number" id="rSav" value="100" min="0" max="100" step="5" oninput="calcForecast()">
+        <input type="number" id="rSav" value="50" min="0" max="100" step="5" oninput="calcForecast()">
         <div class="hint" id="rSavHint">100% = חסכון מלא כמתוכנן</div>
       </div>
       <div class="ig">
         <label style="display:flex;align-items:center;gap:5px">ביטחון בתשואה (%)
           <span title="100% = תשואה מלאה לפי המסלולים. 0% = אפס תשואה — ההון לא צומח. ביניהם — אחוז יחסי מהתשואה הצפויה." style="cursor:help;color:var(--accent2);font-size:12px;border:1px solid var(--accent2);border-radius:50%;width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">?</span>
         </label>
-        <input type="number" id="rRet" value="100" min="0" max="100" step="5" oninput="calcForecast()">
+        <input type="number" id="rRet" value="50" min="0" max="100" step="5" oninput="calcForecast()">
         <div class="hint" id="rRetHint">100% = תשואה מלאה לפי מסלולים</div>
       </div>
       <div class="ig">
@@ -521,6 +521,25 @@ tr.dr:hover td{background:var(--surface2)}
     </div>
   </div>
 
+  <!-- ── FINNHUB MARKET KEY ── -->
+  <div class="section-title" style="margin-top:28px">📊 נתוני שוק — Finnhub API Key (אופציונלי)</div>
+  <div class="fp">
+    <div class="modal-grid">
+      <div class="mg full">
+        <label>Finnhub API Key</label>
+        <div style="display:flex;gap:8px">
+          <input type="password" id="setFinnhubKey" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" style="flex:1;font-family:Arial,sans-serif;font-size:12px">
+          <button class="btn btn-primary" onclick="saveFinnhubKey()">שמור</button>
+        </div>
+        <div class="hint" id="finnhubKeyStatus" style="margin-top:6px"></div>
+        <div class="hint" style="margin-top:4px">
+          Key חינמי ב: <a href="https://finnhub.io/register" target="_blank" style="color:var(--accent)">finnhub.io/register</a>
+          · ללא key — ינסה Stooq.com אוטומטית
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ── CHANGE PIN ── -->
   <div class="section-title" style="margin-top:28px">🔐 שינוי קוד PIN</div>
   <div class="fp">
@@ -571,7 +590,13 @@ tr.dr:hover td{background:var(--surface2)}
     </div>
 
     <!-- Live market mini-grid -->
-    <div class="section-title" style="margin-bottom:12px">📊 מדדים עכשיו</div>
+    <div class="section-title" style="margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">
+      <span>📊 מדדים עכשיו</span>
+      <div style="display:flex;gap:8px">
+        <span id="tickerDebugStatus" style="font-size:11px;color:var(--text-dim)"></span>
+        <button class="edit-btn" style="font-size:11px" onclick="debugMarketFetch()">🔍 בדוק מקורות</button>
+      </div>
+    </div>
     <div class="ai-market-grid" id="aiMarketGrid">
       <div class="ticker-loading">טוען...</div>
     </div>
@@ -1365,11 +1390,13 @@ function renderSettings(){
   if(gistEl){const g=getGistId();gistEl.value=g||'';document.getElementById('gistStatus').textContent=g?`✓ Gist: ${g.slice(0,8)}...`:'לא מוגדר';}
   updateBiometricButton();
   // Finnhub key status
-  const finnhubEl=document.getElementById('finnhubKeyStatus');
-  if(finnhubEl){const k=getFinnhubKey();finnhubEl.textContent=k?'✅ Key מוגדר — מדדי S&P/Nasdaq/זהב/נפט/דולר פעילים':'לא מוגדר — רק מדדי ת"א זמינים';finnhubEl.style.color=k?'var(--green)':'var(--text-dim)';}
+  const finnhubEl1=document.getElementById('finnhubKeyStatus');
+  if(finnhubEl1){const k=getFinnhubKey();finnhubEl1.textContent=k?'✅ Key מוגדר — מדדי S&P/Nasdaq/זהב/נפט/דולר פעילים':'לא מוגדר — רק מדדי ת"א זמינים';finnhubEl1.style.color=k?'var(--green)':'var(--text-dim)';}
   // Gemini key status
   const geminiEl=document.getElementById('geminiKeyStatus');
   if(geminiEl){const k=getGeminiKey();geminiEl.textContent=k?'✅ Key מוגדר':'לא מוגדר — נדרש לשימוש ביועץ AI';geminiEl.style.color=k?'var(--green)':'var(--text-dim)';}
+  const finnhubEl2=document.getElementById('finnhubKeyStatus');
+  if(finnhubEl2){const k=getFinnhubKey();finnhubEl2.textContent=k?'✅ Key מוגדר — נתוני שוק חיים':'לא מוגדר — משתמש ב-Stooq (ללא key)';finnhubEl2.style.color=k?'var(--green)':'var(--text-dim)';}
   document.getElementById('tracksBody').innerHTML=S.tracks.map(t=>`<tr class="dr">
     <td><strong>${t.name}</strong></td>
     <td class="td-num" style="color:var(--green)">${t.rate.toFixed(1)}%</td>
@@ -1861,6 +1888,51 @@ function renderAIMarketGrid(){
   }).join('');
 }
 
+async function debugMarketFetch(){
+  const statusEl = document.getElementById('tickerDebugStatus');
+  if(statusEl) statusEl.textContent = 'בודק...';
+  const key = getFinnhubKey();
+  const results = [];
+  
+  // Test 1: Finnhub
+  if(key){
+    try{
+      const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=CBOE:SPX&token=${key}`, {signal:AbortSignal.timeout(5000)});
+      const d = await r.json();
+      results.push(`✅ Finnhub: S&P=${d.c||'?'}`);
+    }catch(e){ results.push(`❌ Finnhub: ${e.message}`); }
+  } else {
+    results.push('⚠️ Finnhub: אין key');
+  }
+  
+  // Test 2: allorigins proxy
+  try{
+    const url = 'https://query1.finance.yahoo.com/v8/finance/chart/GC%3DF?interval=1d&range=2d';
+    const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+    const r = await fetch(proxy, {signal:AbortSignal.timeout(8000)});
+    const outer = await r.json();
+    const raw = outer.contents;
+    const d = JSON.parse(raw);
+    const price = d?.chart?.result?.[0]?.meta?.regularMarketPrice;
+    results.push(`✅ allorigins→Yahoo: זהב=${price||'?'}`);
+  }catch(e){ results.push(`❌ allorigins: ${e.message}`); }
+  
+  // Test 3: codetabs proxy
+  try{
+    const url = 'https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?interval=1d&range=2d';
+    const proxy = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`;
+    const r = await fetch(proxy, {signal:AbortSignal.timeout(8000)});
+    const d = await r.json();
+    const price = d?.chart?.result?.[0]?.meta?.regularMarketPrice;
+    results.push(`✅ codetabs→Yahoo: S&P=${price||'?'}`);
+  }catch(e){ results.push(`❌ codetabs: ${e.message}`); }
+
+  const msg = results.join(' | ');
+  console.log('Market debug:', msg);
+  if(statusEl) statusEl.textContent = '';
+  alert('תוצאות בדיקת מקורות:\n\n' + results.join('\n'));
+}
+
 async function initMarketTicker(){
   // Show cached data immediately while fetching live
   const hasCached = loadMarketCache();
@@ -1963,6 +2035,16 @@ function saveFinnhubKey(){
   document.getElementById('finnhubKeyStatus').textContent='✅ Key נשמר — נתוני שוק יתעדכנו בפתיחה הבאה';
   document.getElementById('finnhubKeyStatus').style.color='var(--green)';
   setTimeout(()=>document.getElementById('finnhubKeyStatus').textContent='',4000);
+}
+
+function saveFinnhubKey(){
+  const val = document.getElementById('setFinnhubKey').value.trim();
+  if(!val){document.getElementById('finnhubKeyStatus').textContent='הכנס key';return;}
+  localStorage.setItem('fin26_finnhub', val);
+  document.getElementById('setFinnhubKey').value='';
+  document.getElementById('finnhubKeyStatus').textContent='✅ Key נשמר';
+  document.getElementById('finnhubKeyStatus').style.color='var(--green)';
+  setTimeout(()=>document.getElementById('finnhubKeyStatus').textContent='',3000);
 }
 
 function saveGeminiKey(){
@@ -2210,11 +2292,13 @@ async function setupBiometric(){
     statusEl.style.color='var(--green)';
     updateBiometricButton();
   // Finnhub key status
-  const finnhubEl=document.getElementById('finnhubKeyStatus');
-  if(finnhubEl){const k=getFinnhubKey();finnhubEl.textContent=k?'✅ Key מוגדר — מדדי S&P/Nasdaq/זהב/נפט/דולר פעילים':'לא מוגדר — רק מדדי ת"א זמינים';finnhubEl.style.color=k?'var(--green)':'var(--text-dim)';}
+  const finnhubEl3=document.getElementById('finnhubKeyStatus');
+  if(finnhubEl3){const k=getFinnhubKey();finnhubEl3.textContent=k?'✅ Key מוגדר — מדדי S&P/Nasdaq/זהב/נפט/דולר פעילים':'לא מוגדר — רק מדדי ת"א זמינים';finnhubEl3.style.color=k?'var(--green)':'var(--text-dim)';}
   // Gemini key status
   const geminiEl=document.getElementById('geminiKeyStatus');
   if(geminiEl){const k=getGeminiKey();geminiEl.textContent=k?'✅ Key מוגדר':'לא מוגדר — נדרש לשימוש ביועץ AI';geminiEl.style.color=k?'var(--green)':'var(--text-dim)';}
+  const finnhubEl4=document.getElementById('finnhubKeyStatus');
+  if(finnhubEl4){const k=getFinnhubKey();finnhubEl4.textContent=k?'✅ Key מוגדר — נתוני שוק חיים':'לא מוגדר — משתמש ב-Stooq (ללא key)';finnhubEl4.style.color=k?'var(--green)':'var(--text-dim)';}
   }catch(e){
     if(e.name==='NotAllowedError'){statusEl.textContent='בוטל על ידי המשתמש';}
     else{statusEl.textContent='❌ שגיאה: '+e.message;}
@@ -2228,11 +2312,13 @@ function disableBiometric(){
   if(s){s.textContent='ביומטרי בוטל';s.style.color='var(--text-dim)';}
   updateBiometricButton();
   // Finnhub key status
-  const finnhubEl=document.getElementById('finnhubKeyStatus');
-  if(finnhubEl){const k=getFinnhubKey();finnhubEl.textContent=k?'✅ Key מוגדר — מדדי S&P/Nasdaq/זהב/נפט/דולר פעילים':'לא מוגדר — רק מדדי ת"א זמינים';finnhubEl.style.color=k?'var(--green)':'var(--text-dim)';}
+  const finnhubEl5=document.getElementById('finnhubKeyStatus');
+  if(finnhubEl5){const k=getFinnhubKey();finnhubEl5.textContent=k?'✅ Key מוגדר — מדדי S&P/Nasdaq/זהב/נפט/דולר פעילים':'לא מוגדר — רק מדדי ת"א זמינים';finnhubEl5.style.color=k?'var(--green)':'var(--text-dim)';}
   // Gemini key status
   const geminiEl=document.getElementById('geminiKeyStatus');
   if(geminiEl){const k=getGeminiKey();geminiEl.textContent=k?'✅ Key מוגדר':'לא מוגדר — נדרש לשימוש ביועץ AI';geminiEl.style.color=k?'var(--green)':'var(--text-dim)';}
+  const finnhubEl6=document.getElementById('finnhubKeyStatus');
+  if(finnhubEl6){const k=getFinnhubKey();finnhubEl6.textContent=k?'✅ Key מוגדר — נתוני שוק חיים':'לא מוגדר — משתמש ב-Stooq (ללא key)';finnhubEl6.style.color=k?'var(--green)':'var(--text-dim)';}
 }
 
 // Authenticate with biometric
