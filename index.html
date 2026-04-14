@@ -816,9 +816,20 @@ function loadState(){
   S={tracks:clone(DEF_TRACKS),investments:clone(DEF_INV),loans:clone(DEF_LOANS),slog:clone(DEF_SLOG),set:clone(DEF_SET)};
 }
 function saveState(){
+  // Stamp the time of last manual save
+  S.lastUpdated = new Date().toISOString();
   // Debounce: save to Gist max once per 3 seconds
   clearTimeout(_saveTimer);
   _saveTimer=setTimeout(()=>gistSave(),600);
+}
+
+function fmtLastUpdated(iso){
+  if(!iso) return '—';
+  try{
+    const d = new Date(iso);
+    return d.toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',year:'numeric'})
+      + ' · ' + d.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
+  }catch(e){return '—';}
 }
 
 // ── SETUP WIZARD ─────────────────────────────────────────────────
@@ -984,7 +995,8 @@ function renderOverview(){
     <div><div class="si-label">נדל"ן</div><div class="si-val" style="color:var(--gold)">${fmt(re)}</div></div>
     <div><div class="si-label">התחייבויות</div><div class="si-val" style="color:var(--red)">${fmt(loans)}</div></div>
     <div><div class="si-label">מאזן נטו כולל</div><div class="si-val" style="color:var(--green)">${fmt(net)}</div></div>
-    <div><div class="si-label">יחס שוטף</div><div class="si-val" style="color:var(--green)">${ratio.toFixed(2)}×</div></div>`;
+    <div><div class="si-label">יחס שוטף</div><div class="si-val" style="color:var(--green)">${ratio.toFixed(2)}×</div></div>
+    <div style="margin-right:auto"><div class="si-label">עדכון אחרון</div><div class="si-val" style="color:var(--text-dim);font-size:12px">${fmtLastUpdated(S.lastUpdated)}</div></div>`;
   const wr=weightedReturn();
   const bycat=(cat)=>S.investments.filter(i=>i.cat===cat).reduce((s,i)=>s+i.bal,0);
   document.getElementById('ovKpis').innerHTML=`
