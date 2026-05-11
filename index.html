@@ -8,6 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>ניהול פיננסי — לוח בקרה</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 
@@ -200,6 +201,18 @@ tr.dr:hover td{background:var(--surface2)}
 .ai-btn{padding:10px 20px;border-radius:8px;border:none;background:linear-gradient(135deg,var(--accent2),var(--accent));color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:Arial,sans-serif;transition:all .2s;display:flex;align-items:center;gap:8px}
 .ai-btn:hover{opacity:.85;transform:translateY(-1px)}
 .ai-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+
+/* ── HISTORY POPUP ── */
+#histOverlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:600;display:flex;align-items:center;justify-content:center;padding:16px}
+#histOverlay.hidden{display:none}
+.hist-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;width:min(680px,98vw);max-height:90vh;overflow-y:auto}
+.hist-title{font-size:15px;font-weight:700;color:var(--accent);margin-bottom:16px;display:flex;justify-content:space-between;align-items:center}
+.hist-close{background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer;padding:0 4px}
+.hist-table-wrap{overflow-x:auto;margin-top:14px}
+.hist-table-wrap table{width:100%;border-collapse:collapse;font-size:12px}
+.hist-table-wrap th{text-align:right;color:var(--text-dim);font-weight:600;font-size:10px;letter-spacing:.5px;padding:6px 10px;border-bottom:1px solid var(--border)}
+.hist-table-wrap td{padding:6px 10px;border-bottom:1px solid var(--border);font-family:Arial,sans-serif}
+.hist-chart-wrap{height:220px;margin-bottom:4px}
 .ai-response{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;line-height:1.8;font-size:13px;min-height:200px;position:relative;max-height:70vh;overflow-y:auto}
 .ai-response.loading{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:var(--text-dim)}
 .ai-spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
@@ -328,8 +341,7 @@ tr.dr:hover td{background:var(--surface2)}
     <div class="chart-card"><div class="chart-title">התפלגות נכסים — לפי מכשיר</div><div class="chart-wrap"><canvas id="pieChart"></canvas></div></div>
     <div class="chart-card"><div class="chart-title">התפלגות נכסים — לפי מסלול / סוג נכס</div><div class="chart-wrap"><canvas id="trackPieChart"></canvas></div></div>
     <div class="chart-card" style="grid-column:1/-1"><div class="chart-title">מגמת הון נזיל + קה"ש/קופ"ג לאורך זמן</div><div class="chart-wrap" style="height:240px"><canvas id="trendChart"></canvas></div></div>
-    <div class="chart-card"><div class="chart-title">קצב גידול הון (% שינוי בין מדידות)</div><div class="chart-wrap"><canvas id="growthChart"></canvas></div></div>
-    <div class="chart-card"><div class="chart-title">גמל להשקעה — לאורך זמן</div><div class="chart-wrap"><canvas id="gamelChart"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title">קצב גידול הון — גידול יומי ממוצע (₪/יום)</div><div class="chart-wrap"><canvas id="growthChart"></canvas></div></div>
     <div class="chart-card"><div class="chart-title">ירידת הלוואות</div><div class="chart-wrap"><canvas id="loanChart"></canvas></div></div>
   </div>
 </div>
@@ -564,8 +576,8 @@ tr.dr:hover td{background:var(--surface2)}
   <div style="margin-top:32px;padding:14px 18px;background:var(--surface);border:1px solid var(--border);border-radius:10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
     <div>
       <div style="font-size:10px;color:var(--text-dim);letter-spacing:.5px;margin-bottom:4px">גרסה</div>
-      <div style="font-family:Arial,sans-serif;font-size:15px;font-weight:700;color:var(--accent)">v1.1.0</div>
-      <div style="font-size:10px;color:var(--text-faint);margin-top:3px">עדכון אחרון: 15/04/2026 — הוסף שדה "עדכון אחרון"</div>
+      <div style="font-family:Arial,sans-serif;font-size:15px;font-weight:700;color:var(--accent)">v1.2.0</div>
+      <div style="font-size:10px;color:var(--text-faint);margin-top:3px">עדכון אחרון: 10/05/2026 — היסטוריית השקעות, גרף מנורמל לפי ימים, ציר X ליניארי</div>
     </div>
     <div style="text-align:left;direction:ltr">
       <div style="font-size:10px;color:var(--text-faint)">FinBoard · לוח בקרה פיננסי</div>
@@ -573,6 +585,23 @@ tr.dr:hover td{background:var(--surface2)}
   </div>
 </div>
 
+
+<!-- HISTORY POPUP -->
+<div id="histOverlay" class="hidden" onclick="if(event.target===this)closeHistModal()">
+  <div class="hist-box">
+    <div class="hist-title">
+      <span id="histTitle">היסטוריה</span>
+      <button class="hist-close" onclick="closeHistModal()">✕</button>
+    </div>
+    <div class="hist-chart-wrap"><canvas id="histChart"></canvas></div>
+    <div class="hist-table-wrap">
+      <table>
+        <thead><tr><th>תאריך</th><th>יתרה (₪)</th><th>שינוי (₪)</th><th>שינוי (%)</th></tr></thead>
+        <tbody id="histBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
 
 <!-- QR ACCESS MODAL -->
 <div class="modal-overlay" id="qrOverlay" onclick="if(event.target===this)closeQR()" style="display:none">
@@ -635,6 +664,7 @@ tr.dr:hover td{background:var(--surface2)}
     <div class="modal-footer">
       <button class="btn btn-primary" id="mSaveBtn" onclick="saveModal()">שמור</button>
       <button class="btn btn-ghost" onclick="closeModal()">ביטול</button>
+      <button class="btn btn-ghost" id="mHistBtn" style="display:none;border-color:var(--accent2);color:var(--accent2)" onclick="openHistModal(mCtx.id)">📈 היסטוריה</button>
       <button class="btn btn-danger" id="mDelBtn" style="margin-right:auto;display:none" onclick="deleteModal()">מחק</button>
     </div>
   </div>
@@ -955,47 +985,83 @@ function renderCharts(){
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:CF,padding:8,boxWidth:10}},tooltip:{callbacks:{label:c=>`${c.label}: ${fmt(c.raw)} (${(c.raw/gData.reduce((a,b)=>a+b,0)*100).toFixed(1)}%)`}}}}});
 
   // TREND: merge HIST + real snapshots + today
-  const todayStr=new Date().toLocaleDateString('he-IL',{year:'numeric',month:'short'});
+  // Map the Hebrew HIST.dates to real ISO dates for a linear X axis
+  const HIST_ISO_DATES=[
+    '2021-03-01','2021-04-01','2021-05-01','2021-06-01','2021-07-01','2021-09-01',
+    '2024-03-01','2024-04-01','2024-06-01','2024-08-01','2024-10-01','2024-12-01',
+    '2025-02-01','2025-05-01','2025-07-01','2025-08-01','2025-09-01','2025-12-01','2026-03-01'
+  ];
   const curLiq=liquidTotal(),curTotal=liquidTotal()+illiqTotal();
-  const trendDates=[...HIST.dates];
+  const todayISO=new Date().toISOString().slice(0,10);
+  const trendDates=[...HIST_ISO_DATES];
   const trendLiq=[...HIST.liq];
   const trendTotal=[...HIST_TOTAL];
   // Inject real snapshots from localStorage
   try{
     const snaps=JSON.parse(localStorage.getItem('fin26_snaps')||'[]');
     snaps.forEach(s=>{
-      const d=new Date(s.d).toLocaleDateString('he-IL',{year:'numeric',month:'short'});
+      const d=new Date(s.d).toISOString().slice(0,10);
       if(!trendDates.includes(d)){trendDates.push(d);trendLiq.push(0);trendTotal.push(s.v);}
     });
   }catch(e){}
   // Append/update today
-  if(trendDates[trendDates.length-1]!==todayStr){
-    trendDates.push(todayStr);trendLiq.push(curLiq);trendTotal.push(curTotal);
+  if(trendDates[trendDates.length-1]!==todayISO){
+    trendDates.push(todayISO);trendLiq.push(curLiq);trendTotal.push(curTotal);
   } else {
     trendLiq[trendLiq.length-1]=curLiq;
     trendTotal[trendTotal.length-1]=curTotal;
   }
-  mkChart('trendChart',{type:'line',data:{labels:trendDates,datasets:[
-    {label:'הון נזיל',data:trendLiq,borderColor:'#4f8ef7',backgroundColor:'rgba(79,142,247,.05)',fill:true,tension:.4,pointRadius:2,pointBackgroundColor:'#4f8ef7'},
-    {label:'נזיל + קה"ש/קופ"ג',data:trendTotal,borderColor:'#a78bfa',backgroundColor:'rgba(167,139,250,.06)',fill:true,tension:.4,pointRadius:2,pointBackgroundColor:'#a78bfa'},
+  // Sort all three arrays together by date
+  const trendZipped=trendDates.map((d,i)=>({d,liq:trendLiq[i],tot:trendTotal[i]}));
+  trendZipped.sort((a,b)=>a.d.localeCompare(b.d));
+  const sortedDates=trendZipped.map(x=>x.d);
+  const sortedLiq=trendZipped.map(x=>x.liq);
+  const sortedTotal=trendZipped.map(x=>x.tot);
+
+  mkChart('trendChart',{type:'line',data:{labels:sortedDates,datasets:[
+    {label:'הון נזיל',data:sortedLiq,borderColor:'#4f8ef7',backgroundColor:'rgba(79,142,247,.05)',fill:true,tension:.4,pointRadius:2,pointBackgroundColor:'#4f8ef7'},
+    {label:'נזיל + קה"ש/קופ"ג',data:sortedTotal,borderColor:'#a78bfa',backgroundColor:'rgba(167,139,250,.06)',fill:true,tension:.4,pointRadius:2,pointBackgroundColor:'#a78bfa'},
   ]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:CF,boxWidth:10,padding:12}},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${fmt(c.raw)}`}}},
-      scales:{y:{ticks:{font:CF,callback:v=>fmtS(v)},grid:{color:'#1c2030'}},x:{ticks:{font:CF}}}}});
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{font:CF,boxWidth:10,padding:12}},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${fmt(c.raw)}`}}},
+      scales:{
+        y:{ticks:{font:CF,callback:v=>fmtS(v)},grid:{color:'#1c2030'}},
+        x:{type:'time',time:{unit:'month',tooltipFormat:'dd/MM/yyyy',displayFormats:{month:'MM/yyyy',year:'yyyy'}},
+           ticks:{font:CF,maxTicksLimit:12},grid:{color:'#1c2030'}}
+      }}});
 
-  mkChart('gamelChart',{type:'line',data:{labels:HIST.gd,datasets:[{label:'שרון',data:HIST.sh,borderColor:'#4f8ef7',tension:.4,pointRadius:2},{label:'עומרי',data:HIST.om,borderColor:'#7c3aed',tension:.4,pointRadius:2},{label:'בר',data:HIST.ba,borderColor:'#22c55e',tension:.4,pointRadius:2}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:CF}},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${fmt(c.raw)}`}}},scales:{y:{ticks:{font:CF,callback:v=>fmtS(v)},grid:{color:'#1c2030'}},x:{ticks:{font:CF}}}}});
-  mkChart('loanChart',{type:'line',data:{labels:HIST.dates,datasets:[{label:'הלוואות',data:HIST.loans,borderColor:'#ef4444',backgroundColor:'rgba(239,68,68,.07)',fill:true,tension:.4,pointRadius:2}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmt(c.raw)}}},scales:{y:{ticks:{font:CF,callback:v=>fmtS(v)},grid:{color:'#1c2030'}},x:{ticks:{font:CF}}}}});
+  // Filter loan chart to last 3 years
+  const threeYearsAgo=new Date();threeYearsAgo.setFullYear(threeYearsAgo.getFullYear()-3);
+  const loanZipped=HIST_ISO_DATES.map((d,i)=>({d,v:HIST.loans[i]})).filter(x=>new Date(x.d)>=threeYearsAgo);
+  mkChart('loanChart',{type:'line',data:{labels:loanZipped.map(x=>x.d),datasets:[{label:'הלוואות',data:loanZipped.map(x=>x.v),borderColor:'#ef4444',backgroundColor:'rgba(239,68,68,.07)',fill:true,tension:.4,pointRadius:2}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmt(c.raw)}}},
+      scales:{
+        y:{ticks:{font:CF,callback:v=>fmtS(v)},grid:{color:'#1c2030'}},
+        x:{type:'time',time:{unit:'month',tooltipFormat:'MM/yyyy',displayFormats:{month:'MM/yyyy',year:'yyyy'}},ticks:{font:CF,maxTicksLimit:10},grid:{color:'#1c2030'}}
+      }}});
 
-  // GROWTH RATE: compute QoQ growth from trendTotal
-  if(trendTotal.length>=2){
-    const growthLabels=trendDates.slice(1);
-    const growthData=trendTotal.slice(1).map((v,i)=>parseFloat(((v-trendTotal[i])/trendTotal[i]*100).toFixed(2)));
-    mkChart('growthChart',{type:'bar',data:{labels:growthLabels,datasets:[{label:'שינוי %',data:growthData,
+  // GROWTH RATE: daily ₪ increase in total volume (normalized per day) — last 3 years only
+  if(sortedTotal.length>=2){
+    const allGrowthLabels=sortedDates.slice(1);
+    const allGrowthData=sortedTotal.slice(1).map((v,i)=>{
+      const prev=sortedTotal[i];
+      const daysDiff=Math.max(1,(new Date(sortedDates[i+1])-new Date(sortedDates[i]))/(1000*60*60*24));
+      return Math.round((v-prev)/daysDiff);
+    });
+    // Filter to last 3 years
+    const growthZipped=allGrowthLabels.map((d,i)=>({d,v:allGrowthData[i]})).filter(x=>new Date(x.d)>=threeYearsAgo);
+    const growthLabels=growthZipped.map(x=>x.d);
+    const growthData=growthZipped.map(x=>x.v);
+    mkChart('growthChart',{type:'bar',data:{labels:growthLabels,datasets:[{label:'גידול יומי ממוצע (₪)',data:growthData,
       backgroundColor:growthData.map(v=>v>=0?'rgba(34,197,94,.6)':'rgba(239,68,68,.6)'),
       borderColor:growthData.map(v=>v>=0?'#22c55e':'#ef4444'),borderWidth:1,borderRadius:3}]},
-      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw>0?'+':''}${c.raw}%`}}},
-        scales:{y:{ticks:{font:CF,callback:v=>v+'%'},grid:{color:'#1c2030'}},x:{ticks:{font:CF}}}}});
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw>=0?'+':''}${fmt(c.raw)}/יום`}}},
+        scales:{
+          y:{ticks:{font:CF,callback:v=>fmtS(v)},grid:{color:'#1c2030'}},
+          x:{type:'time',time:{unit:'month',tooltipFormat:'MM/yyyy',displayFormats:{month:'MM/yyyy',year:'yyyy'}},ticks:{font:CF,maxTicksLimit:12},grid:{color:'#1c2030'}}
+        }}});
   }
 }
 
@@ -1022,7 +1088,7 @@ function renderOverview(){
     <div class="kpi-card blue"><div class="kpi-label">מט"ח ומניות</div><div class="kpi-value">${fmt(bycat('forex'))}</div></div>
     <div class="kpi-card gold"><div class="kpi-label">קריפטו</div><div class="kpi-value">${fmt(bycat('crypto'))}</div></div>
     <div class="kpi-card green"><div class="kpi-label">תשואה משוקללת</div><div class="kpi-value" style="color:var(--green)">${wr.toFixed(1)}%</div><div class="kpi-sub">ממוצע לפי מסלולים</div></div>
-    <div class="kpi-card red"><div class="kpi-label">קיטון יומי הלוואות</div><div class="kpi-value" style="color:var(--green)">-${fmt(S.set.daily||297)}</div><div class="kpi-sub">${fmt((S.set.daily||297)*365)}/שנה</div></div>
+    <div class="kpi-card red"><div class="kpi-label">קיטון יומי הלוואות</div><div class="kpi-value" style="color:var(--green);direction:ltr;text-align:right">-${fmt(S.set.daily||297)}</div><div class="kpi-sub">${fmt((S.set.daily||297)*365)}/שנה</div></div>
     <div class="kpi-card gold"><div class="kpi-label">נדל"ן</div><div class="kpi-value">${fmt(re)}</div></div>`;
   document.getElementById('hLiq').textContent=fmt(liq);
   document.getElementById('hNet').textContent=fmt(net);
@@ -1611,6 +1677,9 @@ function openModal(type,id,cat){
       </div>`;
   }
   document.getElementById('modalOverlay').classList.add('open');
+  // Show history button only for existing investments
+  const histBtn=document.getElementById('mHistBtn');
+  if(histBtn) histBtn.style.display=(type==='inv'&&id)?'inline-flex':'none';
 }
 function closeModal(){document.getElementById('modalOverlay').classList.remove('open');mCtx={type:null,id:null,cat:null};}
 function saveModal(){
@@ -1620,10 +1689,21 @@ function saveModal(){
     const d={name:g('fn'),cat:g('fc'),track:g('ft'),bal:parseFloat(g('fb'))||0,inst:g('fi'),owner:g('fo'),accNum:g('fa'),notes:g('fn2'),currency:g('fcur')||'ILS',foreignAmt:parseFloat(g('ffx'))||0,cryptoSymbol:g('fcsym')||'',cryptoAmt:parseFloat(g('fcamt'))||0};
     if(id){
       const inv=S.investments.find(x=>x.id===id);
-      if(inv){prevBals[id]=inv.bal; changedIds.add(id);}
+      if(inv){
+        prevBals[id]=inv.bal; changedIds.add(id);
+        // Record history snapshot if balance changed
+        const newBal=d.bal;
+        if(newBal!==inv.bal){
+          if(!inv.history)inv.history=[];
+          inv.history.push({date:new Date().toISOString().slice(0,10),bal:newBal});
+        }
+      }
       Object.assign(inv,d);
     }
-    else { const newInv={id:uid(),...d}; S.investments.push(newInv); changedIds.add(newInv.id); }
+    else {
+      const newInv={id:uid(),...d,history:[{date:new Date().toISOString().slice(0,10),bal:d.bal}]};
+      S.investments.push(newInv); changedIds.add(newInv.id);
+    }
   }else if(type==='loan'){
     const d={name:g('fn'),inst:g('fi'),bal:parseFloat(g('fb'))||0,origBal:parseFloat(g('fo2'))||0,monthlyPay:parseFloat(g('fm'))||0,annualPay:parseFloat(g('fa2'))||0,rate:parseFloat(g('fr'))||0,closed:g('fc')==='true',notes:g('fn2')};
     if(id){const l=S.loans.find(x=>x.id===id);Object.assign(l,d);}
@@ -1643,6 +1723,66 @@ function deleteModal(){
   else if(type==='loan')S.loans=S.loans.filter(x=>x.id!==id);
   else if(type==='saving'){S.slog=S.slog.filter(x=>x.id!==id);recalcSlog();}
   saveState();closeModal();renderAll();
+}
+
+// ===================== INVESTMENT HISTORY MODAL =====================
+let _histChart=null;
+function openHistModal(invId){
+  const inv=S.investments.find(x=>x.id===invId);
+  if(!inv)return;
+  const hist=(inv.history||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
+  document.getElementById('histTitle').textContent=`📈 היסטוריית ערכים — ${inv.name}`;
+
+  // Build table rows
+  document.getElementById('histBody').innerHTML=hist.map((h,i)=>{
+    const prev=i>0?hist[i-1].bal:h.bal;
+    const diff=h.bal-prev;
+    const pct=prev?((diff/prev)*100).toFixed(1):0;
+    const clr=diff>0?'var(--green)':diff<0?'var(--red)':'var(--text-dim)';
+    const sign=diff>=0?'+':'';
+    return `<tr>
+      <td>${h.date}</td>
+      <td style="text-align:right;font-family:Arial,sans-serif">${fmt(h.bal)}</td>
+      <td style="text-align:right;color:${clr};font-family:Arial,sans-serif">${i===0?'—':sign+fmt(diff)}</td>
+      <td style="text-align:right;color:${clr}">${i===0?'—':sign+pct+'%'}</td>
+    </tr>`;
+  }).reverse().join('');  // newest first in table
+
+  // Build chart (chronological)
+  if(_histChart){_histChart.destroy();_histChart=null;}
+  const ctx=document.getElementById('histChart');
+  if(ctx&&hist.length>=1){
+    _histChart=new Chart(ctx,{
+      type:'line',
+      data:{
+        labels:hist.map(h=>h.date),
+        datasets:[{
+          label:'יתרה (₪)',
+          data:hist.map(h=>h.bal),
+          borderColor:'#4f8ef7',
+          backgroundColor:'rgba(79,142,247,.08)',
+          fill:true,tension:.35,
+          pointRadius:hist.length<30?4:2,
+          pointBackgroundColor:'#4f8ef7'
+        }]
+      },
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmt(c.raw)}}},
+        scales:{
+          x:{type:'time',time:{unit:'month',tooltipFormat:'yyyy-MM-dd',displayFormats:{month:'MM/yyyy',year:'yyyy'}},
+             ticks:{font:CF,maxTicksLimit:10},grid:{color:'#1c2030'},
+             adapters:{date:{locale:'he'}}},
+          y:{ticks:{font:CF,callback:v=>fmtS(v)},grid:{color:'#1c2030'}}
+        }
+      }
+    });
+  }
+  document.getElementById('histOverlay').classList.remove('hidden');
+}
+function closeHistModal(){
+  document.getElementById('histOverlay').classList.add('hidden');
+  if(_histChart){_histChart.destroy();_histChart=null;}
 }
 
 function openTrackModal(id){
@@ -1670,6 +1810,8 @@ function openTrackModal(id){
     document.getElementById('mSaveBtn').onclick=saveModal;document.getElementById('mDelBtn').onclick=deleteModal;
   };
   document.getElementById('modalOverlay').classList.add('open');
+  const histBtn=document.getElementById('mHistBtn');
+  if(histBtn) histBtn.style.display='none';
 }
 
 // FX modal helpers
