@@ -1898,52 +1898,59 @@ function openPortfolioHistModal(){
 
   document.getElementById('portHistOverlay').classList.remove('hidden');
 
+  // Pre-compute cumulative values from baseline for all dates
+  let runSav=0;
+  const cumData=portByDate.map(({date,total},i)=>{
+    runSav+=savByDate[i];
+    const diffFromBase=total-PORTFOLIO_BASELINE_VAL;       // שינוי בתיק מצטבר מ-2026
+    const cumSavVal=runSav;                                 // חסכון מצטבר מ-2026
+    const profit=diffFromBase-cumSavVal;                    // רווח הוני = שינוי בתיק פחות חסכון
+    return {date,total,diffFromBase,cumSavVal,profit};
+  });
+
   // Build table (newest first)
-  document.getElementById('portHistBody').innerHTML=portByDate.map(({date,total},i)=>{
-    const sav=savByDate[i];
-    const prev=i>0?portByDate[i-1].total:total;
-    const diff=total-prev;
-    // רווח הוני = שינוי בתיק פחות חסכון שהוזרם באותה תקופה
-    const profit=i===0?0:diff-sav;
+  document.getElementById('portHistBody').innerHTML=cumData.map(({date,total,diffFromBase,cumSavVal,profit},i)=>{
     const sign=v=>v>=0?'+':'';
     const clr=v=>v>0?'var(--green)':v<0?'var(--red)':'var(--text-dim)';
     const [y,m,d]=date.split('-');
     const dispDate=`${d}-${m}-${y}`;
+    const prevProfit=i>0?cumData[i-1].profit:null;
+    const profitDelta=prevProfit!==null?profit-prevProfit:null;
+    const profitDeltaHtml=profitDelta!==null
+      ? ` <span style="font-size:11px;color:${clr(profitDelta)}">(${sign(profitDelta)}${fmt(profitDelta)})</span>`
+      : '';
     return `<tr>
       <td style="white-space:nowrap;direction:ltr;text-align:right">${dispDate}</td>
       <td style="text-align:right;font-family:Arial,sans-serif;color:var(--accent)">${fmt(total)}</td>
-      <td style="text-align:right;font-family:Arial,sans-serif;color:${clr(diff)}">${i===0?'—':sign(diff)+fmt(diff)}</td>
-      <td style="text-align:right;font-family:Arial,sans-serif;color:var(--text-dim)">${i===0?'—':sign(sav)+fmt(sav)}</td>
-      <td style="text-align:right;font-family:Arial,sans-serif;color:${clr(profit)}">${i===0?'—':sign(profit)+fmt(profit)}</td>
+      <td style="text-align:right;font-family:Arial,sans-serif;color:${clr(diffFromBase)}">${i===0?'—':sign(diffFromBase)+fmt(diffFromBase)}</td>
+      <td style="text-align:right;font-family:Arial,sans-serif;color:var(--text-dim)">${fmt(cumSavVal)}</td>
+      <td style="text-align:right;font-family:Arial,sans-serif;color:${clr(profit)}">${i===0?'—':sign(profit)+fmt(profit)}${i===0?'':profitDeltaHtml}</td>
     </tr>`;
   }).reverse().join('');
 
-  // Build chart
+  // Build chart — straight lines (tension:0), all cumulative from 2026
   if(_portChart){_portChart.destroy();_portChart=null;}
   const ctx=document.getElementById('portHistChart');
-  if(ctx&&portByDate.length>=1){
-    const msRange=portByDate.length>=2
-      ?new Date(sortedDates[sortedDates.length-1])-new Date(sortedDates[0]):0;
+  if(ctx&&cumData.length>=1){
+    const msRange=cumData.length>=2
+      ?new Date(cumData[cumData.length-1].date)-new Date(cumData[0].date):0;
     const dayRange=msRange/(1000*60*60*24);
     const unit=dayRange<=60?'day':dayRange<=365?'month':'year';
-    // Build cumulative savings for chart (baseline + accumulated per-period savings)
-    let cumSav=0;
-    const cumSavByDate=savByDate.map(s=>{cumSav+=s;return PORTFOLIO_BASELINE_VAL+cumSav;});
-    // Profit per period cumulated: total - (baseline + cumulative savings injected)
-    const profitData=portByDate.map((x,i)=>x.total-cumSavByDate[i]);
     try{
       _portChart=new Chart(ctx,{
-        type:'bar',
+        type:'line',
         data:{
-          labels:portByDate.map(x=>x.date),
+          labels:cumData.map(x=>x.date),
           datasets:[
-            {label:'שינוי בתיק',data:portByDate.map((x,i)=>i===0?0:x.total-portByDate[i-1].total),
-             backgroundColor:'rgba(13,110,253,.7)',borderColor:'#0d6efd',borderWidth:1,borderRadius:3,order:1},
-            {label:'חסכון מצטבר (תקופה)',data:savByDate,
-             backgroundColor:'rgba(102,16,242,.6)',borderColor:'#6610f2',borderWidth:1,borderRadius:3,order:2},
-            {label:'רווח הוני',data:portByDate.map((x,i)=>i===0?0:(x.total-portByDate[i-1].total)-savByDate[i]),
-             type:'line',borderColor:'#0a8a4a',backgroundColor:'rgba(10,138,74,.08)',
-             fill:true,tension:.4,pointRadius:4,pointBackgroundColor:'#0a8a4a',borderWidth:2,order:0}
+            {label:'שינוי בתיק מצטבר',data:cumData.map(x=>x.diffFromBase),
+             borderColor:'#0d6efd',backgroundColor:'rgba(13,110,253,.06)',
+             fill:false,tension:0,pointRadius:4,pointBackgroundColor:'#0d6efd',borderWidth:2},
+            {label:'חסכון מצטבר מ-2026',data:cumData.map(x=>x.cumSavVal),
+             borderColor:'#6610f2',backgroundColor:'rgba(102,16,242,.05)',
+             fill:false,tension:0,pointRadius:3,pointBackgroundColor:'#6610f2',borderDash:[6,3],borderWidth:1.5},
+            {label:'רווח הוני מצטבר',data:cumData.map(x=>x.profit),
+             borderColor:'#0a8a4a',backgroundColor:'rgba(10,138,74,.07)',
+             fill:true,tension:0,pointRadius:4,pointBackgroundColor:'#0a8a4a',borderWidth:2}
           ]
         },
         options:{
@@ -1953,7 +1960,7 @@ function openPortfolioHistModal(){
             tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${fmt(c.raw)}`}}
           },
           scales:{
-            x:portByDate.length>=2
+            x:cumData.length>=2
               ?{type:'time',time:{unit,tooltipFormat:'dd/MM/yyyy',displayFormats:{day:'dd/MM',month:'MM/yyyy',year:'yyyy'}},
                 ticks:{font:CF,maxTicksLimit:10},grid:{color:'#b3d4ef'},adapters:{date:{}}}
               :{ticks:{font:CF},grid:{color:'#b3d4ef'}},
@@ -2731,6 +2738,47 @@ async function updateBiometricButton(){
 // ══════════════════════════════════════════════════════════════════
 // BOOT: after PIN is entered
 // ══════════════════════════════════════════════════════════════════
+function animateCountUp(duration=3000){
+  // Find all elements containing ₪ values and animate them
+  const selectors=['.si-val','.kpi-value','.kpi-sub','#invGrandTotal','.td-num','.td-pos','.td-neg'];
+  const els=document.querySelectorAll(selectors.join(','));
+  const shekelRe=/₪[\d,]+(\.\d+)?/g;
+
+  els.forEach(el=>{
+    const original=el.innerHTML;
+    // Extract all ₪ numbers from this element
+    const matches=[...original.matchAll(/₪([\d,]+(\.\d+)?)/g)];
+    if(!matches.length)return;
+
+    // Parse target values
+    const targets=matches.map(m=>parseFloat(m[1].replace(/,/g,''))||0);
+    if(targets.every(t=>t===0))return;
+
+    const start=performance.now();
+    // Easing: ease-out cubic
+    function easeOut(t){return 1-Math.pow(1-t,3);}
+
+    function tick(now){
+      const elapsed=now-start;
+      const progress=Math.min(elapsed/duration,1);
+      const eased=easeOut(progress);
+
+      let html=original;
+      matches.forEach((m,i)=>{
+        const val=Math.round(targets[i]*eased);
+        const formatted='₪'+val.toLocaleString('he-IL');
+        // Replace first occurrence of this exact match
+        html=html.replace(m[0],formatted);
+      });
+      el.innerHTML=html;
+
+      if(progress<1)requestAnimationFrame(tick);
+      else el.innerHTML=original; // restore exact original at end
+    }
+    requestAnimationFrame(tick);
+  });
+}
+
 async function bootApp(){
   const token=getToken();
   const gistId=getGistId();
@@ -2770,6 +2818,8 @@ async function bootApp(){
 
   renderAll();
   initMarketTicker();
+  // Animate all monetary values counting up from 0 over 3 seconds
+  animateCountUp(3000);
 }
 
 
