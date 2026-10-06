@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>FinBoard 2.0 — אב-טיפוס עיצוב חדש</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<style>
+:root{
+  --bg:#0b1220;--bg2:#0f172a;--card:#121c2f;--card2:#16223a;--line:#22304b;--line2:#2c3d5e;
+  --text:#e6edf7;--dim:#93a4bf;--faint:#5f7090;
+  --pri:#5b8cff;--pri2:#8b6cff;--pos:#22c55e;--neg:#f05252;--warn:#f5a524;--info:#38bdf8;--gold:#e7b84a;
+  --shadow:0 1px 2px rgba(0,0,0,.25),0 8px 24px rgba(0,0,0,.18);--r:14px;
+}
+[data-theme=light]{
+  --bg:#f4f6fb;--bg2:#eef2f9;--card:#ffffff;--card2:#f7f9fd;--line:#e3e8f2;--line2:#d3dbea;
+  --text:#0f1b2d;--dim:#5a6b85;--faint:#94a3b8;
+  --pri:#3366ff;--pri2:#7048e8;--pos:#16a34a;--neg:#dc2626;--warn:#d97706;--info:#0284c7;--gold:#b7861d;
+  --shadow:0 1px 2px rgba(16,24,40,.05),0 6px 18px rgba(16,24,40,.06);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--text);font-family:Heebo,"Segoe UI",Arial,sans-serif;font-size:14px;line-height:1.5}
+a{color:var(--pri)}
+.m,.num{direction:ltr;unicode-bidi:isolate;font-variant-numeric:tabular-nums;white-space:nowrap}
+body.privacy .m{filter:blur(7px);user-select:none}
+/* layout */
+.app{display:grid;grid-template-columns:232px 1fr;min-height:100vh}
+.side{position:sticky;top:0;height:100vh;background:var(--bg2);border-left:1px solid var(--line);padding:18px 12px;display:flex;flex-direction:column;gap:4px}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 10px 18px}
+.brand-logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--pri),var(--pri2));display:grid;place-items:center;color:#fff;font-weight:800}
+.brand-name{font-weight:800;font-size:17px}.brand-sub{font-size:11px;color:var(--dim)}
+.nav-btn{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;color:var(--dim);background:none;border:0;font:inherit;cursor:pointer;text-align:right;width:100%}
+.nav-btn:hover{background:var(--card);color:var(--text)}
+.nav-btn.active{background:var(--card);color:var(--text);box-shadow:inset -3px 0 0 var(--pri)}
+.nav-ic{width:20px;text-align:center}
+.side-foot{margin-top:auto;font-size:11px;color:var(--faint);padding:10px}
+.main{min-width:0;padding:0 28px 60px}
+.topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line);margin-bottom:18px}
+.page-title{font-size:20px;font-weight:700}
+.page-sub{font-size:12px;color:var(--dim)}
+.top-actions{margin-right:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12px;border:1px solid var(--line2);color:var(--dim);background:var(--card)}
+.chip.ex{border-color:color-mix(in srgb,var(--warn) 55%,transparent);color:var(--warn);background:color-mix(in srgb,var(--warn) 10%,transparent)}
+.chip.real{border-color:color-mix(in srgb,var(--pos) 55%,transparent);color:var(--pos);background:color-mix(in srgb,var(--pos) 10%,transparent)}
+.icon-btn{border:1px solid var(--line2);background:var(--card);color:var(--text);border-radius:10px;height:34px;min-width:34px;padding:0 10px;cursor:pointer;font:inherit}
+.icon-btn:hover{border-color:var(--pri)}
+.banner{border:1px dashed color-mix(in srgb,var(--warn) 60%,transparent);background:color-mix(in srgb,var(--warn) 8%,transparent);color:var(--text);border-radius:12px;padding:10px 14px;margin-bottom:16px;font-size:13px}
+.banner b{color:var(--warn)}
+.banner.info{border-color:color-mix(in srgb,var(--info) 55%,transparent);background:color-mix(in srgb,var(--info) 8%,transparent)}
+.banner.err{border-color:color-mix(in srgb,var(--neg) 55%,transparent);background:color-mix(in srgb,var(--neg) 8%,transparent)}
+.chip.gist{border-color:color-mix(in srgb,var(--info) 55%,transparent);color:var(--info);background:color-mix(in srgb,var(--info) 10%,transparent)}
+.page{display:none}.page.active{display:block;animation:fade .25s ease}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1}}
+/* cards */
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}.g3{grid-template-columns:repeat(3,minmax(0,1fr))}.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.g-2-1{grid-template-columns:minmax(0,2fr) minmax(0,1fr)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:16px 18px;min-width:0}
+.card h3{font-size:14px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.card h3 .sub{font-weight:400;color:var(--dim);font-size:12px}
+.card-head{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.card-head h3{margin:0}
+.card-head .tools{margin-right:auto;display:flex;gap:6px;flex-wrap:wrap}
+.mt{margin-top:16px}.mb{margin-bottom:16px}
+.kpi .lbl{font-size:12px;color:var(--dim);display:flex;gap:6px;align-items:center}
+.kpi .val{font-size:24px;font-weight:700;margin-top:2px}
+.kpi .foot{font-size:12px;color:var(--dim);margin-top:4px}
+.hero{background:linear-gradient(135deg,color-mix(in srgb,var(--pri) 22%,var(--card)),var(--card) 60%);}
+.hero .val{font-size:34px}
+.pos{color:var(--pos)}.neg{color:var(--neg)}.warn{color:var(--warn)}.dim{color:var(--dim)}.faint{color:var(--faint)}
+.split{height:10px;border-radius:99px;overflow:hidden;display:flex;background:var(--line);margin:10px 0 6px}
+.split>div{height:100%}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--dim)}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-left:5px;vertical-align:middle}
+.periods{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.period{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.period .p-l{font-size:12px;color:var(--dim)}.period .p-v{font-size:18px;font-weight:700}.period .p-s{font-size:11px;color:var(--dim)}
+.seg{display:inline-flex;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
+.seg button{border:0;background:none;color:var(--dim);font:inherit;font-size:12px;padding:4px 10px;border-radius:7px;cursor:pointer}
+.seg button.on{background:var(--pri);color:#fff}
+.chart{position:relative;height:280px}.chart.sm{height:220px}.chart.lg{height:360px}
+/* tables */
+.tbl-wrap{overflow-x:auto;margin:0 -4px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{font-weight:500;color:var(--dim);text-align:right;padding:8px;border-bottom:1px solid var(--line);white-space:nowrap;font-size:12px}
+td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+td.n,th.n{text-align:left}
+.bar-cell{min-width:90px}
+.mini-bar{height:6px;border-radius:9px;background:var(--line);overflow:hidden}.mini-bar>div{height:100%;background:var(--pri)}
+.tag{display:inline-block;font-size:11px;padding:1px 8px;border-radius:99px;background:var(--card2);border:1px solid var(--line);color:var(--dim)}
+.tag.pos{color:var(--pos);border-color:color-mix(in srgb,var(--pos) 40%,transparent)}
+.tag.neg{color:var(--neg);border-color:color-mix(in srgb,var(--neg) 40%,transparent)}
+.tag.warn{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 40%,transparent)}
+/* forms */
+.form{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px}
+.field label{display:block;font-size:12px;color:var(--dim);margin-bottom:4px}
+.field input,.field select{width:100%;height:36px;border-radius:9px;border:1px solid var(--line2);background:var(--card2);color:var(--text);padding:0 10px;font:inherit}
+.field input:focus,.field select:focus{outline:2px solid color-mix(in srgb,var(--pri) 50%,transparent);border-color:var(--pri)}
+.field .hint{font-size:11px;color:var(--faint);margin-top:3px}
+.chk{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--dim);cursor:pointer;margin:4px 0}
+.field input[type=checkbox],.chk input{width:16px!important;height:16px!important;accent-color:var(--pri);flex:0 0 auto}
+.chips-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.qchip{border:1px solid var(--line2);background:var(--card2);color:var(--dim);border-radius:99px;font:inherit;font-size:12px;padding:3px 10px;cursor:pointer}
+.qchip:hover{color:var(--text);border-color:var(--pri)}
+.btn{border:0;border-radius:10px;background:var(--pri);color:#fff;font:inherit;font-weight:600;padding:8px 14px;cursor:pointer}
+.btn.ghost{background:var(--card2);color:var(--text);border:1px solid var(--line2)}
+.btn:disabled{opacity:.5;cursor:default}
+/* forecast */
+.big-result{font-size:38px;font-weight:800;letter-spacing:-.5px}
+.stack{display:flex;height:16px;border-radius:99px;overflow:hidden;margin:12px 0 8px}
+.scen{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.scen>div{border:1px solid var(--line);border-radius:12px;padding:10px;background:var(--card2)}
+.scen .s-l{font-size:12px;color:var(--dim)}.scen .s-v{font-weight:700;font-size:17px}
+.formula{font-family:ui-monospace,Consolas,monospace;direction:ltr;text-align:left;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--dim);white-space:pre-wrap}
+/* recommendations */
+.rec{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:var(--card);display:grid;grid-template-columns:36px 1fr;gap:12px;box-shadow:var(--shadow)}
+.rec+.rec{margin-top:10px}
+.rec .ic{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-size:17px}
+.rec.high .ic{background:color-mix(in srgb,var(--neg) 16%,transparent)}
+.rec.med .ic{background:color-mix(in srgb,var(--warn) 16%,transparent)}
+.rec.info .ic{background:color-mix(in srgb,var(--info) 16%,transparent)}
+.rec.good .ic{background:color-mix(in srgb,var(--pos) 16%,transparent)}
+.rec .t{font-weight:600}.rec .why{font-size:13px;color:var(--dim);margin-top:4px}
+.rec .act{font-size:13px;margin-top:6px}
+.rec details{margin-top:6px;font-size:12px;color:var(--faint)}
+.rec summary{cursor:pointer}
+.sev{font-size:11px;padding:1px 8px;border-radius:99px;margin-right:6px;vertical-align:middle}
+.sev.high{background:color-mix(in srgb,var(--neg) 18%,transparent);color:var(--neg)}
+.sev.med{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}
+.sev.info{background:color-mix(in srgb,var(--info) 18%,transparent);color:var(--info)}
+.sev.good{background:color-mix(in srgb,var(--pos) 18%,transparent);color:var(--pos)}
+.disclaimer{font-size:12px;color:var(--dim);border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--card2)}
+pre.json{max-height:320px;overflow:auto;direction:ltr;text-align:left;font-size:11px;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:10px;color:var(--dim)}
+.ai-out{font-size:13px;line-height:1.7}.ai-out h2,.ai-out h3{font-size:15px;margin:12px 0 4px}
+.bottom-nav{display:none}
+.empty{color:var(--faint);text-align:center;padding:30px 0}
+/* responsive */
+@media (max-width:1100px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g-2-1,.g3{grid-template-columns:1fr}}
+@media (max-width:760px){
+  .app{grid-template-columns:1fr}.side{display:none}
+  .main{padding:0 12px 90px}
+  .g2,.g4{grid-template-columns:1fr}
+  .periods{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .periods .period:last-child{grid-column:1/-1}
+  .hero .val{font-size:28px}.big-result{font-size:30px}
+  .scen{grid-template-columns:1fr}
+  .hide-m{display:none}
+  .topbar{padding:10px 0}.page-title{font-size:17px}
+  .bottom-nav{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:30;background:var(--bg2);border-top:1px solid var(--line);overflow-x:auto;padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
+  .bottom-nav button{flex:1 0 auto;min-width:64px;border:0;background:none;color:var(--dim);font:inherit;font-size:11px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px;cursor:pointer}
+  .bottom-nav button.active{color:var(--pri)}
+  .bottom-nav .nav-ic{font-size:17px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side" id="side">
+    <div class="brand"><div class="brand-logo">F</div><div><div class="brand-name">FinBoard</div><div class="brand-sub">2.0 · אב-טיפוס</div></div></div>
+    <nav id="navList"></nav>
+    <div class="side-foot">FinBoard 2.0 — הצעת עיצוב.<br>אינו ייעוץ השקעות.</div>
+  </aside>
+  <main class="main">
+    <div class="topbar">
+      <div><div class="page-title" id="pageTitle">סקירה</div><div class="page-sub" id="pageSub"></div></div>
+      <div class="top-actions">
+        <span class="chip" id="srcChip">—</span>
+        <button class="icon-btn" id="privBtn" title="מצב פרטיות — טשטוש סכומים">👁</button>
+        <button class="icon-btn" id="themeBtn" title="מצב בהיר/כהה">🌓</button>
+      </div>
+    </div>
+    <div id="srcMsg" class="banner info" style="display:none"></div>
+    <div id="exBanner" class="banner" style="display:none"><b>נתוני דוגמה.</b> כל המספרים במסך זה הם נתונים לדוגמה בלבד (לא הנתונים האמיתיים שלך). כדי לראות את הנתונים שלך: פתח את הדף באותו דפדפן שבו האתר המקורי מחובר, או הזן Gist ID בעמוד <a href="#settings">הגדרות</a>.</div>
+
+    <!-- OVERVIEW -->
+    <section class="page" id="p-overview">
+      <div class="grid g4">
+        <div class="card kpi hero"><div class="lbl">שווי נקי (נכסים − התחייבויות)</div><div class="val" id="ovNet"></div><div class="foot" id="ovNetFoot"></div></div>
+        <div class="card kpi"><div class="lbl">הון פיננסי</div><div class="val" id="ovFin"></div>
+          <div class="split" id="ovFinSplit"></div><div class="legend" id="ovFinLeg"></div></div>
+        <div class="card kpi"><div class="lbl">רווח מצטבר מתחילת המעקב</div><div class="val" id="ovGain"></div><div class="foot" id="ovGainFoot"></div></div>
+        <div class="card kpi"><div class="lbl">התחייבויות</div><div class="val neg" id="ovDebt"></div><div class="foot" id="ovDebtFoot"></div></div>
+      </div>
+      <div class="card mt">
+        <div class="card-head"><h3>תשואה לפי תקופה <span class="sub">מנוטרלת מהפקדות (Modified Dietz)</span></h3></div>
+        <div class="periods" id="ovPeriods"></div>
+      </div>
+      <div class="grid g-2-1 mt">
+        <div class="card">
+          <div class="card-head"><h3>הון פיננסי לאורך זמן מול סך ההפקדות</h3>
+            <div class="tools"><div class="seg" id="ovRange"><button data-r="12">שנה</button><button data-r="36">3 שנים</button><button data-r="0" class="on">הכל</button></div></div></div>
+          <div class="chart" ><canvas id="cNet"></canvas></div>
+          <div class="legend mt" style="margin-top:8px">הפער בין הקווים = רווח שוק (תשואה), לא הפקדות.</div>
+        </div>
+        <div class="card">
+          <h3>הקצאה לפי סוג נכס</h3>
+          <div class="chart sm"><canvas id="cOvAlloc"></canvas></div>
+          <div id="ovDrift" class="mt" style="font-size:12px"></div>
+        </div>
+      </div>
+      <div class="grid g2 mt">
+        <div class="card"><div class="card-head"><h3>3 תובנות עיקריות</h3><div class="tools"><button class="qchip" data-go="recs">לכל ההמלצות ←</button></div></div><div id="ovRecs"></div></div>
+        <div class="card"><div class="card-head"><h3>תחזית מהירה</h3><div class="tools"><button class="qchip" data-go="forecast">לתחזית המלאה ←</button></div></div><div id="ovFc"></div></div>
+      </div>
+    </section>
+
+    <!-- ALLOCATION -->
+    <section class="page" id="p-alloc">
+      <div class="card mb">
+        <div class="card-head"><h3>היקף הניתוח</h3>
+          <div class="tools"><div class="seg" id="alScope"><button data-s="fin" class="on">כל ההון הפיננסי</button><button data-s="liq">נזיל בלבד</button></div></div></div>
+        <div class="dim" style="font-size:12px">נדל"ן מוצג במאזן אך לא נכלל באיזון התיק (לא סחיר). מסלולים מעורבים מפורקים לרכיביהם לפי טבלת ההנחות בהגדרות.</div>
+      </div>
+      <div class="grid g3">
+        <div class="card"><h3>סוג נכס</h3><div class="chart sm"><canvas id="cCls"></canvas></div></div>
+        <div class="card"><h3>חשיפה מטבעית</h3><div class="chart sm"><canvas id="cCcy"></canvas></div></div>
+        <div class="card"><h3>גאוגרפיה</h3><div class="chart sm"><canvas id="cGeo"></canvas></div></div>
+      </div>
+      <div class="card mt">
+        <div class="card-head"><h3>הקצאת יעד, סטייה והצעת איזון</h3>
+          <div class="tools"><label class="chk"><input type="checkbox" id="rbNewMoney"> איזון באמצעות הפקדות חדשות בלבד (בלי מכירות)</label></div></div>
+        <div class="tbl-wrap"><table id="tblDrift"></table></div>
+        <div id="rbNote" class="dim mt" style="font-size:12px"></div>
+      </div>
+      <div class="grid g2 mt">
+        <div class="card"><h3>ריכוזיות — אחזקות</h3><div id="concHold"></div></div>
+        <div class="card"><h3>ריכוזיות — גופים מנהלים</h3><div id="concInst"></div></div>
+      </div>
+      <div class="card mt kpi"><div class="lbl">סיכון משוער של התיק (סטיית תקן שנתית, לפי ההקצאה)</div><div class="val" id="riskVal"></div><div class="foot" id="riskFoot"></div></div>
+    </section>
+
+    <!-- PERFORMANCE -->
+    <section class="page" id="p-perf">
+      <div class="grid g4" id="perfKpis"></div>
+      <div class="grid g2 mt">
+        <div class="card"><h3>תשואה לפי אחזקה</h3><div class="chart lg"><canvas id="cPerf"></canvas></div></div>
+        <div class="card"><h3>תרומה לרווח הכולל (₪)</h3><div class="chart lg"><canvas id="cContrib"></canvas></div></div>
+      </div>
+      <div class="card mt"><div class="card-head"><h3>פירוט אחזקות</h3><span class="sub dim" style="font-size:12px" id="perfMethod"></span></div>
+        <div class="tbl-wrap"><table id="tblPerf"></table></div></div>
+    </section>
+
+    <!-- FORECAST -->
+    <section class="page" id="p-forecast">
+      <div class="card">
+        <div class="card-head"><h3>תחזית חיסכון ותשואה לתאריך</h3>
+          <div class="tools"><div class="seg" id="fcMode"><button data-m="fv" class="on">כמה יהיה לי בתאריך?</button><button data-m="goal">כמה צריך לחסוך ליעד?</button></div></div></div>
+        <div class="form" id="fcForm">
+          <div class="field"><label>תאריך יעד</label><input type="date" id="fDate"><div class="chips-row" id="fDateChips"></div></div>
+          <div class="field"><label>הון התחלתי — מה נכלל</label><select id="fScope"><option value="fin">כל ההון הפיננסי (נזיל + קופות)</option><option value="liq">נזיל בלבד</option></select><div class="hint" id="fScopeHint"></div></div>
+          <div class="field"><label>הפקדה חודשית (₪)</label><input type="number" id="fMonthly" step="500"><div class="hint" id="fMonthlyHint"></div></div>
+          <div class="field"><label>עליית הפקדה שנתית (%)</label><input type="number" id="fGrowth" step="0.5"><div class="hint">למשל עליית שכר</div></div>
+          <div class="field"><label>תשואה שנתית צפויה (%)</label><input type="number" id="fRet" step="0.1"><div class="chips-row" id="fRetChips"></div></div>
+          <div class="field"><label>דמי ניהול שנתיים (%)</label><input type="number" id="fFee" step="0.05"><div class="hint" id="fFeeHint"></div></div>
+          <div class="field"><label>מרווח תרחישים (± נק' אחוז)</label><input type="number" id="fSpread" step="0.5"><div class="hint">שמרני / אופטימי</div></div>
+          <div class="field"><label>אינפלציה שנתית (%)</label><input type="number" id="fInfl" step="0.1"><div class="hint">לחישוב ערך ריאלי (בכסף של היום)</div></div>
+          <div class="field" id="goalFields" style="display:none"><label>סכום יעד (₪)</label><input type="number" id="fGoal" step="10000"><label class="chk" style="margin-top:6px"><input type="checkbox" id="fGoalReal" checked> היעד בכסף של היום</label></div>
+          <div class="field"><label>&nbsp;</label><label class="chk"><input type="checkbox" id="fTax"> הצג אחרי מס רווח הון (25%)</label><label class="chk"><input type="checkbox" id="fShowReal" checked> הצג קו ריאלי בגרף</label></div>
+        </div>
+      </div>
+      <div class="grid g-2-1 mt">
+        <div class="card" id="fcResult"></div>
+        <div class="card" id="fcSide"></div>
+      </div>
+      <div class="card mt">
+        <div class="card-head"><h3>מהיום ועד תאריך היעד</h3><span class="legend">רצועה מוצללת = טווח 10%–90% בסימולציית מונטה-קרלו (2,000 מסלולים)</span></div>
+        <div class="chart lg"><canvas id="cFc"></canvas></div>
+      </div>
+      <div class="card mt"><h3>אבני דרך שנתיות</h3><div class="tbl-wrap"><table id="tblFc"></table></div></div>
+      <div class="card mt"><h3>איך זה מחושב</h3><div id="fcMath"></div></div>
+    </section>
+
+    <!-- RECOMMENDATIONS -->
+    <section class="page" id="p-recs">
+      <div class="disclaimer mb">⚖️ התובנות כאן מבוססות כללים פשוטים ושקופים על הנתונים שלך. <b>זה אינו ייעוץ השקעות מורשה</b> ואינו מתחשב במצבך האישי המלא (מיסוי, ביטוחים, יעדים, סבילות סיכון). לפני פעולה מהותית — התייעץ עם יועץ/מתכנן פיננסי מורשה.</div>
+      <div id="recList"></div>
+      <div class="card mt">
+        <div class="card-head"><h3>🤖 ניתוח AI על בסיס סיכום מובנה</h3>
+          <div class="tools"><button class="btn ghost" id="aiCopy">העתק סיכום</button><button class="btn" id="aiRun">נתח עם Gemini</button></div></div>
+        <div class="dim" style="font-size:12px;margin-bottom:8px">במקום לשלוח ל-AI טקסט חופשי, האתר שולח JSON מובנה: סכומים, הקצאה מול יעד, תשואות לתקופה, הלוואות, תחזית ותוצאות הכללים — בלי מספרי חשבון. ה-AI מתבקש לבקר את הכללים ולתעדף, לא להמציא מספרים.</div>
+        <pre class="json" id="aiJson"></pre>
+        <div class="ai-out mt" id="aiOut"></div>
+      </div>
+    </section>
+
+    <!-- LOANS -->
+    <section class="page" id="p-loans">
+      <div class="grid g4" id="loanKpis"></div>
+      <div class="card mt"><h3>הלוואות פעילות</h3><div class="tbl-wrap"><table id="tblLoans"></table></div></div>
+      <div class="grid g-2-1 mt">
+        <div class="card"><h3>לוח סילוק — יתרה לאורך זמן</h3><div class="chart lg"><canvas id="cLoans"></canvas></div></div>
+        <div class="card"><h3>סימולטור פירעון מוקדם</h3>
+          <div class="form" style="grid-template-columns:1fr 1fr">
+            <div class="field" style="grid-column:1/-1"><label>הלוואה</label><select id="ppLoan"></select></div>
+            <div class="field"><label>תוספת חודשית (₪)</label><input type="number" id="ppExtra" value="1000" step="250"></div>
+            <div class="field"><label>פירעון חד-פעמי (₪)</label><input type="number" id="ppLump" value="0" step="5000"></div>
+          </div>
+          <div id="ppOut" class="mt"></div>
+        </div>
+      </div>
+      <div class="card mt"><h3>הלוואות שנסגרו</h3><div class="tbl-wrap"><table id="tblClosed"></table></div></div>
+    </section>
+
+    <!-- SAVINGS -->
+    <section class="page" id="p-savings">
+      <div class="grid g4" id="savKpis"></div>
+      <div class="grid g-2-1 mt">
+        <div class="card"><h3>הפקדות נטו לפי חודש <span class="sub">+ ממוצע נע 12 חודשים</span></h3><div class="chart"><canvas id="cSavM"></canvas></div></div>
+        <div class="card"><h3>לפי חשבון (12 חודשים אחרונים)</h3><div class="chart"><canvas id="cSavAcc"></canvas></div></div>
+      </div>
+      <div class="grid g2 mt">
+        <div class="card"><h3>הפקדות לפי שנה</h3><div class="chart sm"><canvas id="cSavY"></canvas></div></div>
+        <div class="card"><h3>מצטבר</h3><div class="chart sm"><canvas id="cSavCum"></canvas></div></div>
+      </div>
+      <div class="card mt"><div class="card-head"><h3>יומן הפקדות</h3><div class="tools"><select id="savYear" class="icon-btn"></select></div></div><div class="tbl-wrap"><table id="tblSav"></table></div></div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="page" id="p-settings">
+      <div class="grid g2">
+        <div class="card"><h3>מקור נתונים</h3><div id="setSrc" style="font-size:13px"></div></div>
+        <div class="card"><h3>פרמטרים לתובנות</h3>
+          <div class="form">
+            <div class="field"><label>הוצאות חודשיות (₪)</label><input type="number" id="sExp" step="1000"><div class="hint">לחישוב קרן חירום</div></div>
+            <div class="field"><label>קרן חירום רצויה (חודשים)</label><input type="number" id="sEmMonths" step="1"></div>
+            <div class="field"><label>סף ריכוזיות לאחזקה (%)</label><input type="number" id="sConc" step="1"></div>
+            <div class="field"><label>סף סטייה מהיעד (נק' %)</label><input type="number" id="sDrift" step="1"></div>
+            <div class="field"><label>סף דמי ניהול גבוהים (%)</label><input type="number" id="sFee" step="0.05"></div>
+          </div></div>
+      </div>
+      <div class="card mt" id="gistCard"><h3>☁ חיבור Gist — קריאה בלבד</h3>
+        <div id="gistStatus" style="font-size:13px;margin-bottom:10px"></div>
+        <div class="form">
+          <div class="field"><label>Gist ID</label><input id="gId" autocomplete="off" spellcheck="false" placeholder="a1b2c3d4…" style="direction:ltr"></div>
+          <div class="field"><label>GitHub token (אופציונלי)</label><input id="gTok" type="password" autocomplete="off" placeholder="ghp_… / github_pat_…" style="direction:ltr"><div class="hint">Gist סודי נגיש לפי ID גם בלי token; token רק מעלה את מכסת ה-API.</div></div>
+          <div class="field"><label>&nbsp;</label><button class="btn" id="gSave">בדוק וטען (קריאה בלבד)</button></div>
+        </div>
+        <div class="chips-row" style="margin-top:10px"><button class="btn ghost" id="gReload">טען מחדש מה-Gist</button><button class="btn ghost" id="gForget">שכח פרטי Gist של v2</button></div>
+        <div id="gMsg" class="mt" style="font-size:13px"></div>
+        <div class="faint mt" style="font-size:11px">FinBoard 2.0 מבצע רק בקשות GET ל-<span class="num">api.github.com/gists/{id}</span>. הוא לעולם לא כותב ל-Gist ולא למפתחות של האתר המקורי (<span class="num">fin26*</span>). פרטים שהוזנו כאן נשמרים רק ב-<span class="num">fin26_v2</span>. אם האתר המקורי כבר מחובר בדפדפן הזה, נעשה שימוש אוטומטי ב-<span class="num">fin26_token</span>/<span class="num">fin26_gist</span> שלו (קריאה בלבד). קישור גישה מהאתר המקורי (<span class="num">#access=…</span>) נתמך גם בכתובת v2.</div>
+      </div>
+      <div class="card mt"><h3>הקצאת יעד והנחות לפי סוג נכס</h3>
+        <div class="tbl-wrap"><table id="tblTargets"></table></div>
+        <div class="dim mt" style="font-size:12px" id="tgtSum"></div></div>
+      <div class="card mt"><h3>מיפוי מסלולים (look-through)</h3><div class="dim" style="font-size:12px;margin-bottom:8px">כך כל מסלול מפורק לסוג נכס/מטבע/גאוגרפיה. אלו הנחות — ניתן לעדכן בקוד (LOOK).</div><div class="tbl-wrap"><table id="tblLook"></table></div></div>
+      <div class="card mt"><h3>איפוס</h3><button class="btn ghost" id="resetPrefs">אפס הגדרות FinBoard 2.0 (לא נוגע בנתוני fin26)</button></div>
+    </section>
+  </main>
+</div>
+<nav class="bottom-nav" id="bottomNav"></nav>
+<script>
+'use strict';
+/* =====================================================================
+   FinBoard 2.0 — prototype. Reads the SAME localStorage keys as v1:
+   'fin26' (state S), 'fin26_snaps' (daily totals), 'fin26_gemini' (AI key).
+   It NEVER writes to them. Its own prefs live in 'fin26_v2'.
+   ===================================================================== */
+const KEY_STATE='fin26', KEY_SNAPS='fin26_snaps', KEY_GEMINI='fin26_gemini', KEY_V2='fin26_v2';
+const LIQ_CATS=['gamel','forex','cash','crypto'];
+const CATS={gamel:'גמל להשקעה',kupa:'קה"ש וקופ"ג',forex:'מט"ח ומניות',cash:'מזומן ופיקדונות',crypto:'קריפטו',realestate:'נדל"ן'};
+const CLASSES={
+  equity:{n:'מניות',c:'#5b8cff'}, bonds:{n:'אג"ח',c:'#22c55e'}, cash:{n:'מזומן/כספית',c:'#f5a524'},
+  crypto:{n:'קריפטו',c:'#f97316'}, other:{n:'אחר',c:'#94a3b8'}
+};
+const CCY_COL={ILS:'#38bdf8',USD:'#22c55e',EUR:'#a78bfa',GBP:'#f472b6',OTHER:'#94a3b8'};
+const GEO={IL:{n:'ישראל',c:'#38bdf8'},US:{n:'ארה"ב',c:'#5b8cff'},Global:{n:'גלובלי (לא ארה"ב)',c:'#a78bfa'},Crypto:{n:'קריפטו (ללא גאוגרפיה)',c:'#f97316'}};
+/* Look-through assumptions per track name (same track names as v1 DEF_TRACKS). */
+const LOOK={
+  'S&P 500':{cls:{equity:1},geo:{US:1},ccy:{USD:1}},
+  'SP500,NASDAQ,AI':{cls:{equity:1},geo:{US:1},ccy:{USD:1}},
+  'מניות':{cls:{equity:1},geo:{US:.45,Global:.25,IL:.30},ccy:{USD:.55,ILS:.30,EUR:.15}},
+  'כללי':{cls:{equity:.45,bonds:.45,cash:.10},geo:{IL:.55,US:.30,Global:.15},ccy:{ILS:.60,USD:.32,EUR:.08}},
+  '50% מניות + S&P 50%':{cls:{equity:.75,bonds:.20,cash:.05},geo:{US:.55,IL:.30,Global:.15},ccy:{USD:.60,ILS:.40}},
+  'ת"א 35':{cls:{equity:1},geo:{IL:1},ccy:{ILS:1}},
+  'אגח':{cls:{bonds:1},geo:{IL:1},ccy:{ILS:1}},
+  'כספית':{cls:{cash:1},geo:{IL:1},ccy:{ILS:1}},
+  'USD':{cls:{cash:1},geo:{US:1},ccy:{USD:1}},
+  'Bitcoin':{cls:{crypto:1},geo:{Crypto:1},ccy:{USD:1}},
+  'Ethereum':{cls:{crypto:1},geo:{Crypto:1},ccy:{USD:1}},
+  'אחר':{cls:{other:1},geo:{IL:1},ccy:{ILS:1}}
+};
+const CAT_FALLBACK={gamel:'כללי',kupa:'כללי',forex:'S&P 500',cash:'כספית',crypto:'Bitcoin'};
+/* Long-term class assumptions (nominal, annual) — editable in Settings. */
+const DEF_ASSUME={equity:{ret:7.5,vol:16},bonds:{ret:4.0,vol:6},cash:{ret:3.5,vol:1},crypto:{ret:8,vol:65},other:{ret:4,vol:8}};
+const DEF_TARGETS={equity:65,bonds:15,cash:15,crypto:5,other:0};
+
+/* ---------------- utils ---------------- */
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const nf=new Intl.NumberFormat('he-IL',{maximumFractionDigits:0});
+const sgn=v=>v<0?'−':'';
+const ilsT=v=>sgn(v)+'₪'+nf.format(Math.abs(Math.round(v||0)));
+const ils=v=>`<span class="m">${ilsT(v)}</span>`;
+const ilsSigned=v=>`<span class="m ${v>=0?'pos':'neg'}">${v>=0?'+':'−'}₪${nf.format(Math.abs(Math.round(v)))}</span>`;
+const short=v=>{const a=Math.abs(v);return sgn(v)+'₪'+(a>=1e6?(a/1e6).toFixed(2)+'M':a>=1e3?Math.round(a/1e3)+'K':Math.round(a));};
+const pctT=(v,d=1)=>(v>=0?'+':'−')+Math.abs(v*100).toFixed(d)+'%';
+const pct=(v,d=1)=>`<span class="m ${v>=0?'pos':'neg'}">${pctT(v,d)}</span>`;
+const pctPlain=(v,d=1)=>`<span class="m">${(v*100).toFixed(d)}%</span>`;
+const D=x=>(typeof x==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(x))?new Date(+x.slice(0,4),+x.slice(5,7)-1,+x.slice(8,10),12):new Date(x);
+const iso=d=>{const x=D(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');};
+const heDate=d=>D(d).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',year:'numeric'});
+const heMonth=d=>D(d).toLocaleDateString('he-IL',{month:'short',year:'numeric'});
+const addMonths=(d,m)=>{const x=D(d);x.setMonth(x.getMonth()+m);return x;};
+const monthsBetween=(a,b)=>{a=D(a);b=D(b);return (b.getFullYear()-a.getFullYear())*12+(b.getMonth()-a.getMonth())+(b.getDate()>=a.getDate()?0:-1);};
+const daysBetween=(a,b)=>(D(b)-D(a))/864e5;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function gauss(r){let u=0,v=0;while(!u)u=r();while(!v)v=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+const TODAY=new Date(); TODAY.setHours(12,0,0,0);
+
+/* ---------------- EXAMPLE DATA (clearly synthetic, same shapes as v1) ---------------- */
+function makeExample(){
+  const R=rng(20261006);
+  const tracks=[
+    {id:'sp500',name:'S&P 500',rate:10.5,note:'ממוצע היסטורי 30 שנה'},{id:'intl50',name:'50% מניות + S&P 50%',rate:8.0,note:'ממוצע מעורב'},
+    {id:'gen',name:'כללי',rate:7.0,note:'מסלול כללי מגוון'},{id:'bonds',name:'אגח',rate:4.0,note:'אגרות חוב'},
+    {id:'money',name:'כספית',rate:4.5,note:'קרן כספית'},{id:'stocks',name:'מניות',rate:9.0,note:'מניות בלבד'},
+    {id:'nasdaq',name:'SP500,NASDAQ,AI',rate:11.0,note:'מדדי טכנולוגיה'},{id:'ta35',name:'ת"א 35',rate:7.5,note:'מדד ישראלי'},
+    {id:'btc',name:'Bitcoin',rate:40.0,note:'תנודתיות גבוהה מאוד'},{id:'eth',name:'Ethereum',rate:35.0,note:'תנודתיות גבוהה מאוד'},
+    {id:'usd',name:'USD',rate:2.0,note:'מטבע זר'},{id:'re',name:'נדל"ן',rate:6.0,note:''},{id:'other',name:'אחר',rate:5.0,note:''}];
+  // savings log: monthly deposits Jan-2023 .. last month
+  const slog=[];let id=1;
+  for(let d=new Date(2023,0,8);d<new Date(TODAY.getFullYear(),TODAY.getMonth(),1);d=addMonths(d,1)){
+    const base=d.getFullYear()===2023?9000:d.getFullYear()===2024?11000:d.getFullYear()===2025?13000:12000;
+    const amt=Math.round((base+(R()-.5)*6000)/100)*100;
+    slog.push({id:'x'+id++,date:iso(d),acc:R()<.6?'חשבון א (דוגמה)':'חשבון ב (דוגמה)',amount:amt,total:0,note:'הפקדה (דוגמה)'});
+    if(R()<.12){const w=-Math.round((8000+R()*15000)/100)*100;const d2=new Date(d);d2.setDate(20);
+      slog.push({id:'x'+id++,date:iso(d2),acc:'חשבון א (דוגמה)',amount:w,total:0,note:'משיכה (דוגמה)'});}
+  }
+  // monthly total-financial-asset series (synthetic market path)
+  const snaps=[];let V=780000;const start=new Date(2023,0,1);
+  for(let d=new Date(start);d<=TODAY;d=addMonths(d,1)){
+    snaps.push({d:iso(d),v:Math.round(V)});
+    const mk=iso(d).slice(0,7);const c=slog.filter(s=>s.date.slice(0,7)===mk).reduce((a,s)=>a+s.amount,0);
+    V=V*(1+0.0062+gauss(R)*0.022)+c;
+  }
+  const Vnow=V;
+  const H=[ // weight, costBasis gain, fee, days since last update
+    ['gamel','גמל להשקעה — S&P 500','בית השקעות א','S&P 500','בן/בת זוג',.15,.31,.60,12],
+    ['gamel','גמל להשקעה — כללי','בית השקעות א','כללי','ילד/ה',.08,.13,.65,12],
+    ['kupa','קרן השתלמות ותיקה — מניות','בית השקעות ב','מניות','אני',.15,.42,.72,40],
+    ['kupa','קרן השתלמות — כללי','בית השקעות א','כללי','בן/בת זוג',.09,.21,.78,40],
+    ['kupa','קופת גמל — 50/50','בית השקעות ב','50% מניות + S&P 50%','אני',.08,.29,.55,98],
+    ['forex','תיק ברוקר אמריקאי','Broker (דוגמה)','SP500,NASDAQ,AI','משותף',.22,.37,.07,5,'USD'],
+    ['forex','עו"ש דולרי','בנק (דוגמה)','USD','אני',.015,-.03,0,5,'USD'],
+    ['cash','קרן כספית','בנק (דוגמה)','כספית','משותף',.13,.06,.25,5],
+    ['cash','עו"ש','בנק (דוגמה)','אחר','משותף',.03,0,0,5],
+    ['crypto','Bitcoin','ארנק (דוגמה)','Bitcoin','',.025,.85,0,3],
+    ['crypto','Ethereum','ארנק (דוגמה)','Ethereum','',.01,-.18,0,3]];
+  const wsum=H.reduce((a,h)=>a+h[5],0);
+  const investments=H.map((h,i)=>{
+    const bal=Math.round(Vnow*h[5]/wsum);
+    const hist=[];for(let k=18;k>=0;k--){const d=addMonths(TODAY,-k);d.setDate(d.getDate()-h[8]);const p=snaps.find(s=>s.d.slice(0,7)===iso(d).slice(0,7))||snaps[snaps.length-1];
+      hist.push({date:iso(d),bal:Math.round(bal*(k===0?1:p.v/Vnow*(1+(R()-.5)*.04)))});}
+    const o={id:'e'+(i+1),cat:h[0],name:h[1],inst:h[2],track:h[3],owner:h[4],accNum:'',bal,notes:'נתוני דוגמה',
+      history:hist,lastChange:0,lastChangePct:0,costBasis:Math.round(bal/(1+h[6])),feePct:h[7]};
+    if(h[9]){o.currency=h[9];o.foreignAmt=Math.round(bal/3.7);}
+    if(h[0]==='crypto'){o.cryptoSymbol=h[1]==='Bitcoin'?'BTC':'ETH';}
+    return o;});
+  investments.push({id:'e99',cat:'realestate',name:'דירת מגורים (דוגמה)',inst:'',track:'נדל"ן',owner:'',accNum:'',bal:2850000,notes:''});
+  const loans=[
+    {id:'xl1',name:'משכנתא (דוגמה)',inst:'בנק (דוגמה)',bal:742000,origBal:1000000,monthlyPay:5900,annualPay:70800,rate:4.6,notes:'',closed:false},
+    {id:'xl2',name:'הלוואת רכב (דוגמה)',inst:'חברת מימון (דוגמה)',bal:48000,origBal:90000,monthlyPay:2100,annualPay:25200,rate:8.9,notes:'',closed:false},
+    {id:'xl3',name:'הלוואה ע"ח קופה (דוגמה)',inst:'בית השקעות ב',bal:15000,origBal:40000,monthlyPay:1000,annualPay:12000,rate:4.2,notes:'',closed:false},
+    {id:'xl4',name:'הלוואה ישנה (דוגמה)',inst:'',bal:0,origBal:120000,monthlyPay:0,annualPay:0,rate:5.5,notes:'נסגרה 2024',closed:true}];
+  let r=0;slog.sort((a,b)=>a.date.localeCompare(b.date)).forEach(x=>{r+=x.amount;x.total=r;});
+  return {S:{tracks,investments,loans,slog,set:{retAge:67,birthYear:1982,tax:25,daily:0},lastUpdated:new Date().toISOString()},snaps};
+}
+
+/* ---------------- LOAD (read-only) ---------------- */
+let S,SNAPS=[],SRC='example',SRC_NOTE='',SRC_MSG='',SRC_MSG_KIND='info',GIST_META=null,ACCESS_MSG='';
+const GIST_FILENAME='finance_data.json'; // same file name the original site uses
+const KEY_TOKEN='fin26_token', KEY_GIST='fin26_gist'; // original keys — READ ONLY here
+function v2raw(){try{return JSON.parse(localStorage.getItem(KEY_V2)||'{}')||{};}catch(e){return {};}}
+function v2patch(fn){const v=v2raw();fn(v);try{localStorage.setItem(KEY_V2,JSON.stringify(v));}catch(e){console.warn('fin26_v2 write failed',e);}if(P){const keep=v;P.auth=keep.auth;P.cache=keep.cache;}}
+/* Credentials: original site's keys first (read-only), else v2's own copy in fin26_v2.auth */
+function getCreds(){
+  const g=(localStorage.getItem(KEY_GIST)||'').trim(),t=(localStorage.getItem(KEY_TOKEN)||'').trim();
+  if(g)return {gist:g,token:t,from:'original'};
+  const a=v2raw().auth||{};if(a.gist)return {gist:String(a.gist).trim(),token:String(a.token||'').trim(),from:'v2'};
+  return null;
+}
+/* Same access-link format as the original (#access=base64(JSON{t,g})). Stored ONLY in fin26_v2. */
+function checkUrlAccess(){
+  const h=location.hash;if(!h.startsWith('#access='))return;
+  try{const p=JSON.parse(atob(decodeURIComponent(h.slice(8))));
+    if(p&&p.g){v2patch(v=>{v.auth={gist:String(p.g),token:String(p.t||''),savedAt:new Date().toISOString(),via:'link'};});ACCESS_MSG='✓ פרטי גישה נקלטו מהקישור ונשמרו ב-fin26_v2 בלבד.';}
+    else ACCESS_MSG='קישור גישה ללא Gist ID — התעלמתי ממנו.';
+  }catch(e){ACCESS_MSG='קישור גישה לא תקין — התעלמתי ממנו.';}
+  history.replaceState(null,'',location.pathname+location.search); // remove token from the address bar
+}
+/* READ-ONLY Gist fetch — GET only, mirrors the original gistLoad() parsing */
+async function fetchGist(c){
+  const ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),12000);
+  try{
+    const headers={Accept:'application/vnd.github+json'};if(c.token)headers.Authorization='Bearer '+c.token;
+    const r=await fetch('https://api.github.com/gists/'+encodeURIComponent(c.gist),{method:'GET',headers,signal:ctl.signal,cache:'no-store'});
+    if(!r.ok)throw new Error(r.status===401?'401 — ה-token לא תקין או שפג תוקפו':r.status===404?'404 — ה-Gist לא נמצא (בדוק את ה-ID / הרשאות ה-token)':r.status===403?'403 — אין הרשאה או שחרגת ממכסת ה-API של GitHub':'שגיאת GitHub '+r.status);
+    const d=await r.json();const f=d&&d.files&&d.files[GIST_FILENAME];
+    if(!f)throw new Error(`ב-Gist אין קובץ ${GIST_FILENAME}`);
+    let content=f.content;
+    if(f.truncated&&f.raw_url){const rr=await fetch(f.raw_url,{method:'GET',signal:ctl.signal,cache:'no-store'});if(!rr.ok)throw new Error('טעינת הקובץ המלא נכשלה ('+rr.status+')');content=await rr.text();}
+    let p;try{p=JSON.parse(content);}catch(e){throw new Error(`${GIST_FILENAME} אינו JSON תקין`);}
+    if(!p||!Array.isArray(p.investments))throw new Error(`מבנה לא צפוי ב-${GIST_FILENAME} (אין investments)`);
+    return {S:p,gistUpdated:d.updated_at||null};
+  }catch(e){
+    if(e.name==='AbortError')throw new Error('תם הזמן לחיבור ל-GitHub (אין רשת?)');
+    if(e instanceof TypeError)throw new Error('אין חיבור לרשת או ש-GitHub לא זמין');
+    throw e;
+  }finally{clearTimeout(to);}
+}
+function readLocal(){try{const raw=localStorage.getItem(KEY_STATE);if(raw){const p=JSON.parse(raw);if(p&&Array.isArray(p.investments)&&p.investments.length)return p;}}catch(e){console.warn('fin26 parse',e);}return null;}
+const tsOf=o=>{const t=Date.parse(o&&o.lastUpdated||'');return isFinite(t)?t:0;};
+async function loadData(){
+  S=null;SNAPS=[];SRC='example';SRC_NOTE='';SRC_MSG='';SRC_MSG_KIND='info';GIST_META=null;
+  const forceDemo=/[?&]demo=1/.test(location.search);
+  if(!forceDemo){
+    const local=readLocal(),c=getCreds();let g=null,err='';
+    if(c){try{g=await fetchGist(c);}catch(e){err=e.message;console.warn('Gist load (read-only):',e.message);}}
+    if(g){
+      if(local&&tsOf(local)>tsOf(g.S)){S=local;SRC='local';SRC_MSG=`הנתונים בדפדפן הזה (${heDate(local.lastUpdated)}) חדשים יותר מה-Gist (${g.S.lastUpdated?heDate(g.S.lastUpdated):'ללא תאריך'}) — מוצגים הנתונים המקומיים.`;}
+      else{S=g.S;SRC='gist';GIST_META={from:c.from,gistUpdated:g.gistUpdated,at:new Date().toISOString()};
+        v2patch(v=>{v.cache={S:g.S,at:GIST_META.at,gistUpdated:g.gistUpdated};});}
+    }else if(local){S=local;SRC='local';if(err){SRC_MSG=`⚠️ טעינה מה-Gist נכשלה: ${err}. מוצגים נתוני הדפדפן המקומיים.`;SRC_MSG_KIND='err';}}
+    else if(c){const cache=v2raw().cache;
+      if(cache&&cache.S&&Array.isArray(cache.S.investments)){S=cache.S;SRC='gistCache';SRC_MSG=`⚠️ טעינה מה-Gist נכשלה: ${err}. מוצג עותק שמור של ה-Gist מ-${heDate(cache.at)}.`;SRC_MSG_KIND='err';}
+      else{SRC_MSG=`⚠️ טעינה מה-Gist נכשלה: ${err}. מוצגים נתוני דוגמה.`;SRC_MSG_KIND='err';}}
+    if(S){try{SNAPS=JSON.parse(localStorage.getItem(KEY_SNAPS)||'[]').filter(x=>x&&x.d&&isFinite(x.v));}catch(e){SNAPS=[];}}
+  }
+  if(!S){const ex=makeExample();S=ex.S;SNAPS=ex.snaps;SRC='example';SRC_NOTE=forceDemo?'(מצב ?demo=1)':'(לא נמצאו נתונים)';}
+  else S=JSON.parse(JSON.stringify(S)); // work on a private copy — never mutate stored objects
+  S.tracks=S.tracks||[];S.loans=S.loans||[];S.slog=(S.slog||[]).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));S.set=S.set||{};
+  S.investments.forEach(i=>{i.bal=+i.bal||0;});
+}
+const isRealSrc=()=>SRC!=='example';
+/* prefs */
+let P;
+function loadPrefs(){
+  let p={};try{p=JSON.parse(localStorage.getItem(KEY_V2)||'{}')||{};}catch(e){}
+  P=Object.assign({theme:null,privacy:false,targets:{...DEF_TARGETS},assume:JSON.parse(JSON.stringify(DEF_ASSUME)),
+    monthlyExpenses:isRealSrc()?null:18000,emMonths:6,concPct:20,driftPct:5,feeHigh:0.6,fc:{},alScope:'fin',rbNewMoney:false,ovRange:0},p);
+  P.targets=Object.assign({...DEF_TARGETS},P.targets||{});
+  P.auth=p.auth;P.cache=p.cache; // preserved on save
+  Object.keys(DEF_ASSUME).forEach(k=>P.assume[k]=Object.assign({...DEF_ASSUME[k]},(P.assume||{})[k]||{}));
+}
+function savePrefs(){try{const v=v2raw();P.auth=v.auth;P.cache=v.cache;localStorage.setItem(KEY_V2,JSON.stringify(P));}catch(e){}}
+
+/* ---------------- CORE ANALYTICS ---------------- */
+const isFin=i=>i.cat!=='realestate';
+const isLiq=i=>LIQ_CATS.includes(i.cat);
+const sum=(a,f=x=>x)=>a.reduce((s,x)=>s+f(x),0);
+function totals(){
+  const fin=sum(S.investments.filter(isFin),i=>i.bal), liq=sum(S.investments.filter(isLiq),i=>i.bal);
+  const locked=sum(S.investments.filter(i=>i.cat==='kupa'),i=>i.bal), re=sum(S.investments.filter(i=>i.cat==='realestate'),i=>i.bal);
+  const debt=sum(S.loans.filter(l=>!l.closed),l=>+l.bal||0);
+  return {fin,liq,locked,re,debt,net:fin+re-debt};
+}
+function look(inv){
+  let L=LOOK[inv.track]||LOOK[CAT_FALLBACK[inv.cat]]||LOOK['אחר'];
+  if(inv.cat==='cash'&&!LOOK[inv.track]) L=LOOK['כספית'];
+  if(inv.cat==='cash'&&inv.track==='אחר') L={cls:{cash:1},geo:{IL:1},ccy:{ILS:1}};
+  if(inv.currency&&inv.currency!=='ILS'&&inv.cat==='forex'){L={...L,ccy:{[inv.currency]:1}};}
+  return L;
+}
+function exposures(scope){
+  const hs=S.investments.filter(scope==='liq'?isLiq:isFin);const tot=sum(hs,i=>i.bal)||1;
+  const cls={},ccy={},geo={};
+  hs.forEach(i=>{const L=look(i);
+    for(const[k,w]of Object.entries(L.cls))cls[k]=(cls[k]||0)+i.bal*w;
+    for(const[k,w]of Object.entries(L.ccy)){const kk=CCY_COL[k]?k:'OTHER';ccy[kk]=(ccy[kk]||0)+i.bal*w;}
+    for(const[k,w]of Object.entries(L.geo))geo[k]=(geo[k]||0)+i.bal*w;});
+  return {tot,cls,ccy,geo,hs};
+}
+function assumedReturn(scope){ // class-based expected return
+  const e=exposures(scope);return sum(Object.entries(e.cls),([k,v])=>v*(P.assume[k]||P.assume.other).ret)/e.tot;}
+function trackReturn(scope){ // v1 method: weighted by track rates
+  const hs=S.investments.filter(scope==='liq'?isLiq:isFin);const t=sum(hs,i=>i.bal)||1;
+  return sum(hs,i=>{const tr=S.tracks.find(x=>x.name===i.track);return i.bal*(tr?+tr.rate:7);})/t;}
+function portVol(scope){
+  const e=exposures(scope);const w=Object.fromEntries(Object.entries(e.cls).map(([k,v])=>[k,v/e.tot]));
+  const ks=Object.keys(w);let v=0;
+  ks.forEach(a=>ks.forEach(b=>{const sa=(P.assume[a]||P.assume.other).vol/100,sb=(P.assume[b]||P.assume.other).vol/100;
+    const rho=a===b?1:(a==='cash'||b==='cash')?0:((a==='equity'&&b==='crypto')||(a==='crypto'&&b==='equity'))?.4:.2;v+=w[a]*w[b]*sa*sb*rho;}));
+  return Math.sqrt(v);
+}
+function weightedFee(scope){const hs=S.investments.filter(scope==='liq'?isLiq:isFin);const withFee=hs.filter(i=>isFinite(i.feePct));
+  if(!withFee.length)return null;return sum(withFee,i=>i.bal*i.feePct)/(sum(withFee,i=>i.bal)||1);}
+
+/* timeline of total financial assets: fin26_snaps + reconstruction from per-holding history, + today */
+function timeline(){
+  const map=new Map();
+  // reconstruction from inv.history (forward fill)
+  const hs=S.investments.filter(isFin);const dates=new Set();
+  hs.forEach(i=>(i.history||[]).forEach(h=>h&&h.date&&dates.add(h.date)));
+  const ds=[...dates].sort();
+  if(ds.length){ds.forEach(d=>{let t=0,n=0;hs.forEach(i=>{const h=(i.history||[]).filter(x=>x.date<=d).sort((a,b)=>a.date.localeCompare(b.date));
+      if(h.length){t+=+h[h.length-1].bal;n++;}else{const f=(i.history||[]).slice().sort((a,b)=>a.date.localeCompare(b.date))[0];t+=f?+f.bal:i.bal;}});
+    map.set(d,{d,v:t,src:'hist'});});}
+  SNAPS.forEach(s=>{const d=iso(s.d);map.set(d,{d,v:+s.v,src:'snap'});});
+  const tdy=iso(TODAY);map.set(tdy,{d:tdy,v:totals().fin,src:'now'});
+  return [...map.values()].sort((a,b)=>a.d.localeCompare(b.d));
+}
+function contribBetween(d0,d1){return sum(S.slog.filter(s=>s.date>d0&&s.date<=d1),s=>+s.amount||0);}
+/* Modified Dietz return between the timeline point at/before `from` and today */
+function periodReturn(from){
+  const tl=timeline();if(tl.length<2)return null;
+  const target=iso(from);let p0=null;for(const p of tl){if(p.d<=target)p0=p;}
+  if(!p0)p0=tl[0];
+  const p1=tl[tl.length-1];if(p0===p1)return null;
+  const T=daysBetween(p0.d,p1.d)||1;const flows=S.slog.filter(s=>s.date>p0.d&&s.date<=p1.d);
+  const C=sum(flows,s=>+s.amount);const Cw=sum(flows,s=>(+s.amount)*(daysBetween(s.date,p1.d)/T));
+  const gain=p1.v-p0.v-C;const r=gain/((p0.v+Cw)||1);
+  return {from:p0.d,to:p1.d,v0:p0.v,v1:p1.v,C,gain,r,days:T,ann:T>300?Math.pow(1+r,365/T)-1:null,approx:daysBetween(p0.d,target)>20};
+}
+function holdingPerf(i){
+  if(isFinite(i.costBasis)&&i.costBasis>0)return {gain:i.bal-i.costBasis,base:i.costBasis,r:(i.bal-i.costBasis)/i.costBasis,method:'עלות'};
+  const h=(i.history||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
+  if(h.length>=1&&+h[0].bal>0&&h[0].bal!==i.bal)return {gain:i.bal-h[0].bal,base:+h[0].bal,r:(i.bal-h[0].bal)/h[0].bal,method:'יתרה מ-'+heDate(h[0].date)};
+  return null;
+}
+function lastUpdate(i){const h=(i.history||[]).map(x=>x.date).sort();return h.length?h[h.length-1]:null;}
+function avgMonthlyContrib(months=12){const from=iso(addMonths(TODAY,-months));return contribBetween(from,iso(TODAY))/months;}
+
+/* loans */
+function loanPay(l){return +l.monthlyPay||Math.round((+l.annualPay||0)/12);}
+function amort(l,extra=0,lump=0){
+  const r=(+l.rate||0)/100/12,pay=loanPay(l)+extra;let b=Math.max(0,(+l.bal||0)-lump),m=0,int=0;const series=[b];
+  if(b<=0)return{ok:true,months:0,interest:0,series:[0],pay};
+  if(pay<=b*r)return{ok:false,months:Infinity,interest:Infinity,series,pay};
+  while(b>0.5&&m<720){const i=b*r;int+=i;b=Math.max(0,b+i-pay);series.push(b);m++;}
+  return{ok:true,months:m,interest:int,series,pay};
+}
+
+/* ---------------- FORECAST ENGINE ---------------- */
+/* Monthly compounding. i = (1+R-fee)^(1/12)-1 ; contribution at end of each month, grows yearly by g.
+   Closed form when g=0: FV = P(1+i)^n + C*((1+i)^n-1)/i                                              */
+function project(P0,C,annR,fee,g,n){
+  const i=Math.pow(1+(annR-fee)/100,1/12)-1;const out=[{v:P0,c:P0}];let v=P0,cc=P0,c=C;
+  for(let m=1;m<=n;m++){if(m>1&&(m-1)%12===0)c*=1+g/100;v=v*(1+i)+c;cc+=c;out.push({v,c:cc});}
+  return out;
+}
+function requiredMonthly(P0,goal,annR,fee,g,n){
+  if(n<=0)return null;const base=project(P0,0,annR,fee,g,n)[n].v;if(base>=goal)return 0;
+  const unit=project(0,1,annR,fee,g,n)[n].v;return (goal-base)/unit;
+}
+function monteCarlo(P0,C,annR,fee,g,n,vol,paths=2000,goal=null){
+  const R=rng(42);const mu=Math.log(1+(annR-fee)/100)/12, sm=vol/Math.sqrt(12), drift=mu-sm*sm/2;
+  const step=Math.max(1,Math.ceil(n/120));const idx=[];for(let m=0;m<=n;m+=step)idx.push(m);if(idx[idx.length-1]!==n)idx.push(n);
+  const cols=idx.map(()=>new Float64Array(paths));let hit=0;
+  for(let p=0;p<paths;p++){let v=P0,c=C,k=0;if(idx[0]===0){cols[0][p]=v;k=1;}
+    for(let m=1;m<=n;m++){if(m>1&&(m-1)%12===0)c*=1+g/100;v=v*Math.exp(drift+sm*gauss(R))+c;if(idx[k]===m){cols[k][p]=v;k++;}}
+    if(goal!=null&&v>=goal)hit++;}
+  const q=(arr,qq)=>{const s=Array.from(arr).sort((a,b)=>a-b);return s[Math.floor(qq*(s.length-1))];};
+  return {idx,p10:cols.map(c=>q(c,.1)),p50:cols.map(c=>q(c,.5)),p90:cols.map(c=>q(c,.9)),prob:goal!=null?hit/paths:null};
+}
+/* ---------------- CHART HELPERS ---------------- */
+const charts={};
+const cv=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function chartBase(){Chart.defaults.font.family='Heebo,Segoe UI,Arial';Chart.defaults.font.size=11;Chart.defaults.color=cv('--dim');Chart.defaults.borderColor=cv('--line');}
+function mk(id,cfg){if(charts[id])charts[id].destroy();const el=document.getElementById(id);if(!el)return;
+  cfg.options=Object.assign({responsive:true,maintainAspectRatio:false,animation:navigator.webdriver?false:{duration:350}},cfg.options||{});
+  cfg.options.plugins=Object.assign({legend:{rtl:true,labels:{boxWidth:10,usePointStyle:true}},tooltip:{rtl:true,textDirection:'rtl'}},cfg.options.plugins||{});
+  charts[id]=new Chart(el,cfg);}
+function donut(id,entries,{fmt=ilsT}={}){const tot=sum(entries,e=>e.v)||1;
+  mk(id,{type:'doughnut',data:{labels:entries.map(e=>e.n),datasets:[{data:entries.map(e=>e.v),backgroundColor:entries.map(e=>e.c),borderWidth:2,borderColor:cv('--card')}]},
+    options:{cutout:'64%',plugins:{legend:{position:'bottom',rtl:true,labels:{boxWidth:10,usePointStyle:true,generateLabels:ch=>ch.data.labels.map((l,i)=>({text:`${l} ${(entries[i].v/tot*100).toFixed(0)}%`,fillStyle:entries[i].c,strokeStyle:entries[i].c,pointStyle:'circle',index:i,fontColor:cv('--dim')}))}},
+      tooltip:{callbacks:{label:c=>` ${c.label}: ${fmt(c.raw)} (${(c.raw/tot*100).toFixed(1)}%)`}}}}});}
+const yMoney={ticks:{callback:v=>short(v)},grid:{color:cv('--line')}};
+const xTime=(unit='month')=>({type:'time',time:{unit,tooltipFormat:'dd/MM/yyyy',displayFormats:{month:'MM/yy',year:'yyyy',quarter:'MM/yy'}},grid:{display:false},ticks:{maxTicksLimit:10}});
+
+/* ---------------- RULES ENGINE (transparent recommendations) ---------------- */
+function rules(){
+  const T=totals(),out=[];const add=(sev,ic,title,why,act,rule)=>out.push({sev,ic,title,why,act,rule});
+  const eF=exposures('fin');const eL=exposures('liq');
+  const expR=assumedReturn('fin')/100;const taxR=(S.set.tax||25)/100;
+  // 1. emergency fund
+  const cashLiq=eL.cls.cash||0;
+  if(!P.monthlyExpenses){add('info','🛟','הגדר הוצאות חודשיות כדי לחשב קרן חירום',`יש לך ${ilsT(cashLiq)} במזומן/כספיות/עו"ש נזילים, אבל בלי נתון הוצאות אי אפשר לדעת לכמה חודשים זה מספיק.`,'הזן "הוצאות חודשיות" בהגדרות.','קרן חירום = מזומן נזיל ÷ הוצאות חודשיות; יעד 3–6 חודשים.');}
+  else{const months=cashLiq/P.monthlyExpenses;
+    if(months<3)add('high','🛟',`קרן חירום נמוכה: ${months.toFixed(1)} חודשים`,`מזומן נזיל ${ilsT(cashLiq)} מול הוצאות ${ilsT(P.monthlyExpenses)}/חודש.`,`הגדל ל-${P.emMonths} חודשים (עוד ${ilsT(P.emMonths*P.monthlyExpenses-cashLiq)}) לפני הגדלת סיכון.`,'פחות מ-3 חודשים = דחוף.');
+    else if(months>Math.max(12,P.emMonths*2)){const excess=cashLiq-P.emMonths*P.monthlyExpenses;const opp=excess*((P.assume.equity.ret*0.7+P.assume.bonds.ret*0.3)-P.assume.cash.ret)/100;
+      add('med','💤',`עודף מזומן ("cash drag"): ${months.toFixed(1)} חודשי הוצאות`,`מזומן נזיל ${ilsT(cashLiq)} — כ-${ilsT(excess)} מעל קרן חירום של ${P.emMonths} חודשים. בהנחות התשואה, עלות ההזדמנות ≈ ${ilsT(opp)} בשנה (תיק 70/30 מול כספית).`,`שקול להשקיע בהדרגה חלק מהעודף (למשל ב-6–12 מנות חודשיות) לפי הקצאת היעד, אם אין שימוש מתוכנן בכסף ב-2–3 השנים הקרובות.`,`מזומן > ${Math.max(12,P.emMonths*2)} חודשים = עודף.`);}
+    else add('good','🛟',`קרן חירום תקינה: ${months.toFixed(1)} חודשים`,`מזומן נזיל ${ilsT(cashLiq)} מול הוצאות ${ilsT(P.monthlyExpenses)}/חודש.`,'אין צורך בפעולה.','3–12 חודשים = תקין.');}
+  // 2. high-interest loans vs investing
+  const afterTax=expR*(1-taxR)*100;
+  S.loans.filter(l=>!l.closed&&l.bal>0).sort((a,b)=>b.rate-a.rate).forEach(l=>{
+    const a=amort(l);
+    if(l.rate>afterTax+0.5)add(l.rate>afterTax+3?'high':'med','💳',`${l.name}: ריבית ${l.rate}% גבוהה מהתשואה הצפויה נטו`,`תשואה צפויה של התיק ≈ ${(expR*100).toFixed(1)}%, אחרי מס רווח הון ${(taxR*100).toFixed(0)}% ≈ ${afterTax.toFixed(1)}%. כל שקל שמחזיר את ההלוואה "מרוויח" ${l.rate}% ללא סיכון. ריבית שנותרה לשלם: ${a.ok?ilsT(a.interest):'—'}.`,`שקול פירעון מוקדם (מזומן עודף קודם). בדוק עמלת פירעון מוקדם. ראה סימולטור בעמוד ההלוואות.`,'ריבית > תשואה צפויה אחרי מס + 0.5 נק׳.');
+    else if(l.rate<afterTax-1)add('info','🏦',`${l.name}: ריבית ${l.rate}% — אין דחיפות לפירעון מוקדם`,`נמוכה מהתשואה הצפויה נטו (${afterTax.toFixed(1)}%). אבל השקעה כרוכה בסיכון ופירעון — לא.`,'אפשר להמשיך בהחזר הרגיל ולהשקיע את העודף, בהתאם לסבילות הסיכון.','ריבית < תשואה נטו − 1 נק׳.');
+  });
+  // 3. rebalancing
+  const drift=Object.keys(CLASSES).map(k=>({k,cur:(eF.cls[k]||0)/eF.tot*100,tgt:+P.targets[k]||0})).map(x=>({...x,d:x.cur-x.tgt}));
+  const big=drift.filter(x=>Math.abs(x.d)>=P.driftPct).sort((a,b)=>Math.abs(b.d)-Math.abs(a.d));
+  if(big.length)add('med','⚖️',`סטייה מהקצאת היעד: ${big.map(x=>`${CLASSES[x.k].n} ${x.d>0?'+':''}${x.d.toFixed(1)} נק׳`).join(', ')}`,
+    big.map(x=>`${CLASSES[x.k].n}: ${x.cur.toFixed(1)}% בפועל מול יעד ${x.tgt}% (${x.d>0?'עודף':'חוסר'} ${ilsT(Math.abs(x.d)/100*eF.tot)})`).join(' · '),
+    'ראה טבלת האיזון בעמוד "הקצאה" — כולל אפשרות איזון באמצעות הפקדות חדשות בלבד (ללא אירוע מס).',`סטייה ≥ ${P.driftPct} נק׳ אחוז.`);
+  else add('good','⚖️','התיק קרוב להקצאת היעד',`כל סוגי הנכסים בטווח ±${P.driftPct} נק׳ מהיעד.`,'אין צורך באיזון.',`סטייה < ${P.driftPct} נק׳.`);
+  // 4. concentration
+  const fin=S.investments.filter(isFin);
+  fin.filter(i=>i.bal/T.fin*100>P.concPct).forEach(i=>add('med','🎯',`ריכוזיות: "${i.name}" = ${(i.bal/T.fin*100).toFixed(1)}% מההון הפיננסי`,`אחזקה בודדת מעל ${P.concPct}% חושפת את התיק לסיכון של מסלול/גוף אחד.`,'שקול לפזר הפקדות עתידיות לאחזקות אחרות באותו סוג נכס.',`אחזקה > ${P.concPct}%.`));
+  const inst={};fin.forEach(i=>{const k=i.inst||'ללא גוף';inst[k]=(inst[k]||0)+i.bal;});
+  Object.entries(inst).filter(([k,v])=>v/T.fin>.5).forEach(([k,v])=>add('info','🏢',`${(v/T.fin*100).toFixed(0)}% מההון אצל גוף אחד: ${k}`,`ריכוז אצל גוף מנהל אחד (סיכון תפעולי/דמי ניהול).`,'לא בהכרח בעיה (הנכסים מופרדים), אבל כדאי לוודא תנאים ודמי ניהול.','גוף > 50%.'));
+  // 5. crypto share
+  const cr=(eF.cls.crypto||0)/eF.tot;if(cr>.10)add('med','🪙',`קריפטו ${(cr*100).toFixed(1)}% מהתיק`,`תנודתיות שנתית משוערת ~${P.assume.crypto.vol}%. ירידה של 60% תמחק ${ilsT(eF.cls.crypto*.6)}.`,'שקול תקרה (למשל 5%) ואיזון חזרה.','קריפטו > 10%.');
+  // 6. fees
+  const withFee=fin.filter(i=>isFinite(i.feePct));
+  if(!withFee.length)add('info','🧾','אין נתוני דמי ניהול','מבנה הנתונים הנוכחי לא כולל דמי ניהול, ולכן אי אפשר לזהות מסלולים יקרים.','הוסף לכל אחזקה שדה feePct (דמי ניהול מצבירה, %). הם משפיעים על התחזית ועל התובנות.','—');
+  else{const hi=withFee.filter(i=>i.feePct>=P.feeHigh);if(hi.length){const annual=sum(hi,i=>i.bal*i.feePct/100);const R=expR;
+      const cost20=sum(hi,i=>i.bal*(Math.pow(1+R,20)-Math.pow(1+R-(i.feePct-0.3)/100,20)));
+      add('med','🧾',`דמי ניהול גבוהים ב-${hi.length} אחזקות`,`${hi.map(i=>`${i.name} ${i.feePct}%`).join(', ')}. עלות שנתית ≈ ${ilsT(annual)}. הורדה ל-0.3% שווה ≈ ${ilsT(cost20)} בעוד 20 שנה (בהנחת תשואה ${(R*100).toFixed(1)}%).`,'פנה לגוף המנהל למשא ומתן על דמי ניהול, או השווה מסלולים מקבילים (מחקה מדד).',`דמי ניהול ≥ ${P.feeHigh}%.`);}}
+  // 7. unrealistic return assumptions in v1 tracks
+  const crazy=S.tracks.filter(t=>+t.rate>15&&fin.some(i=>i.track===t.name));
+  if(crazy.length){const tr=trackReturn('fin'),cl=assumedReturn('fin');add('info','📐','הנחות תשואה לא שמרניות במסלולים',`${crazy.map(t=>`${t.name}: ${t.rate}%/שנה`).join(', ')}. התשואה המשוקללת לפי המסלולים היא ${tr.toFixed(1)}% מול ${cl.toFixed(1)}% לפי הנחות סוג נכס — הפרש שמנפח תחזיות ארוכות.`,'בתחזית מוצעת כברירת מחדל התשואה לפי סוג נכס. אפשר לבחור את שיטת המסלולים בלחיצה.','מסלול בשימוש עם תשואה > 15%.');}
+  // 8. locked kupa that may be liquid (השתלמות)
+  const hish=S.investments.filter(i=>i.cat==='kupa'&&/השתלמות|קה"ש/.test(i.name));
+  if(hish.length)add('info','🔓','קרן השתלמות ותיקה עשויה להיות נזילה',`${hish.map(i=>i.name).join(', ')} מסווגות "לא נזיל". קרן השתלמות שעברה 6 שנים ממועד הפתיחה ניתנת למשיכה פטורה ממס רווח הון.`,'אם עברו 6 שנים — סווג אותן כנזילות (משפיע על קרן חירום, יחס נזילות וחישובים). לא חייבים למשוך.','קה"ש בקטגוריית kupa.');
+  // 9. stale data
+  const stale=fin.filter(i=>{const d=lastUpdate(i);return d&&daysBetween(d,TODAY)>60;});
+  if(stale.length)add('info','⏱️',`${stale.length} אחזקות לא עודכנו מעל 60 יום`,stale.map(i=>`${i.name} (${heDate(lastUpdate(i))})`).join(', '),'עדכן יתרות כדי שהתשואות וההקצאה יהיו מדויקים.','עדכון אחרון > 60 יום.');
+  // 10. FX exposure
+  const fx=1-(eF.ccy.ILS||0)/eF.tot;if(fx>.65)add('info','💱',`חשיפה למט"ח גבוהה: ${(fx*100).toFixed(0)}%`,'רוב ההוצאות שלך בשקלים. התחזקות השקל תקטין את השווי בשקלים (ולהפך).','זו החלטה לגיטימית לפיזור; ודא שהיא מכוונת. אפשר לשקול מסלולים מגודרי מטבע לחלק מהתיק.','מט"ח > 65%.');
+  // 11. savings pace
+  const yr=TODAY.getFullYear(),ytd=contribBetween(`${yr-1}-12-31`,iso(TODAY)),lyYtd=contribBetween(`${yr-2}-12-31`,iso(new Date(yr-1,TODAY.getMonth(),TODAY.getDate())));
+  if(lyYtd>0){const ch=ytd/lyYtd-1;if(ch<-.2)add('info','📉',`קצב החיסכון השנה נמוך ב-${Math.abs(ch*100).toFixed(0)}% מאשתקד`,`${yr}: ${ilsT(ytd)} עד היום, מול ${ilsT(lyYtd)} באותה תקופה ב-${yr-1}.`,'בדוק אם זה מכוון (הוצאה חד-פעמית) או שינוי בתזרים.','ירידה > 20%.');
+    else if(ch>.05)add('good','📈',`קצב החיסכון השנה גבוה ב-${(ch*100).toFixed(0)}% מאשתקד`,`${yr}: ${ilsT(ytd)} מול ${ilsT(lyYtd)} באותה תקופה ב-${yr-1}.`,'כל הכבוד — המשך.','עלייה > 5%.');}
+  const order={high:0,med:1,info:2,good:3};return out.sort((a,b)=>order[a.sev]-order[b.sev]);
+}
+const SEV_N={high:'דחוף',med:'כדאי לטפל',info:'לידיעה',good:'תקין'};
+const recHTML=r=>`<div class="rec ${r.sev}"><div class="ic">${r.ic}</div><div><div class="t">${esc(r.title)}<span class="sev ${r.sev}">${SEV_N[r.sev]}</span></div>
+  <div class="why"><b>למה:</b> ${esc(r.why)}</div><div class="act"><b>מה אפשר לעשות:</b> ${esc(r.act)}</div><details><summary>הכלל</summary>${esc(r.rule)}</details></div></div>`;
+
+/* ---------------- PAGES ---------------- */
+const PAGES=[
+  ['overview','סקירה','🏠','שווי נקי, תשואות ומגמות'],['alloc','הקצאה','🧩','פיזור, חשיפות ואיזון מול יעד'],
+  ['perf','ביצועים','📊','תשואה ותרומה לפי אחזקה'],['forecast','תחזית','🔮','חיסכון ותשואה לתאריך שתבחר'],
+  ['recs','המלצות','💡','תובנות מבוססות כללים + AI'],['loans','הלוואות','🏦','לוח סילוק, עלות ריבית ופירעון מוקדם'],
+  ['savings','חיסכון','💰','קצב הפקדות ומגמות'],['settings','הגדרות','⚙️','יעדים, הנחות ומקור נתונים']];
+let CUR='overview';
+function buildNav(){
+  $('#navList').innerHTML=PAGES.map(([k,n,ic])=>`<button class="nav-btn" data-p="${k}"><span class="nav-ic">${ic}</span>${n}</button>`).join('');
+  $('#bottomNav').innerHTML=PAGES.map(([k,n,ic])=>`<button data-p="${k}"><span class="nav-ic">${ic}</span>${n}</button>`).join('');
+  $$('[data-p]').forEach(b=>b.onclick=()=>{location.hash=b.dataset.p;});
+  document.addEventListener('click',e=>{const g=e.target.closest('[data-go]');if(g)location.hash=g.dataset.go;});
+}
+function show(p){
+  if(!PAGES.find(x=>x[0]===p))p='overview';CUR=p;
+  $$('.page').forEach(s=>s.classList.toggle('active',s.id==='p-'+p));
+  $$('[data-p]').forEach(b=>b.classList.toggle('active',b.dataset.p===p));
+  const meta=PAGES.find(x=>x[0]===p);$('#pageTitle').textContent=meta[1];$('#pageSub').textContent=meta[3];
+  RENDER[p]();window.scrollTo(0,0);
+}
+
+/* OVERVIEW */
+function renderOverview(){
+  const T=totals();const r1m=periodReturn(addMonths(TODAY,-1));
+  $('#ovNet').innerHTML=ils(T.net);
+  $('#ovNetFoot').innerHTML=`נכסים ${ils(T.fin+T.re)} · נדל"ן ${ils(T.re)}`+(r1m?` · חודש: ${ilsSigned(r1m.v1-r1m.v0)}`:'');
+  $('#ovFin').innerHTML=ils(T.fin);
+  $('#ovFinSplit').innerHTML=`<div style="width:${T.liq/T.fin*100}%;background:var(--pri)"></div><div style="width:${T.locked/T.fin*100}%;background:var(--pri2)"></div>`;
+  $('#ovFinLeg').innerHTML=`<span><i style="background:var(--pri)"></i>נזיל ${ils(T.liq)}</span><span><i style="background:var(--pri2)"></i>נעול (קופות) ${ils(T.locked)}</span>`;
+  const all=periodReturn(new Date(1900,0,1));
+  if(all){$('#ovGain').innerHTML=`<span class="${all.gain>=0?'pos':'neg'}">${ilsSigned(all.gain)}</span>`;
+    $('#ovGainFoot').innerHTML=`${pct(all.r)} מצטבר${all.ann!=null?` · ${pct(all.ann)} לשנה`:''} · מ-${heDate(all.from)} · הפקדות נטו ${ils(all.C)}`;}
+  else{$('#ovGain').textContent='—';$('#ovGainFoot').textContent='אין מספיק היסטוריה';}
+  const pay=sum(S.loans.filter(l=>!l.closed),loanPay);
+  $('#ovDebt').innerHTML=ils(T.debt);$('#ovDebtFoot').innerHTML=`החזר חודשי ${ils(pay)} · ${(T.debt/(T.fin+T.re||1)*100).toFixed(0)}% מהנכסים`;
+  const yr=TODAY.getFullYear();
+  const per=[['חודש',addMonths(TODAY,-1)],['3 חודשים',addMonths(TODAY,-3)],['מתחילת השנה',new Date(yr-1,11,31)],['שנה',addMonths(TODAY,-12)],['מההתחלה',new Date(1900,0,1)]];
+  $('#ovPeriods').innerHTML=per.map(([n,d])=>{const r=periodReturn(d);if(!r)return `<div class="period"><div class="p-l">${n}</div><div class="p-v faint">—</div><div class="p-s">אין נתונים</div></div>`;
+    return `<div class="period"><div class="p-l">${n}</div><div class="p-v">${pct(r.r)}</div><div class="p-s">${ilsSigned(r.gain)} ${r.approx?`<span title="נקודת ההתחלה הקרובה ביותר">· מ-${heDate(r.from)}</span>`:''}</div></div>`;}).join('');
+  // net chart
+  const tl=timeline();const rng=P.ovRange;const from=rng?iso(addMonths(TODAY,-rng)):'0000';
+  const pts=tl.filter(p=>p.d>=from);const base=pts[0];
+  const contrib=pts.map(p=>({x:p.d,y:base.v+contribBetween(base.d,p.d)}));
+  mk('cNet',{type:'line',data:{datasets:[
+    {label:'הון פיננסי',data:pts.map(p=>({x:p.d,y:p.v})),borderColor:cv('--pri'),backgroundColor:cv('--pri')+'22',fill:true,tension:.3,pointRadius:0,borderWidth:2.2},
+    {label:'שווי התחלתי + הפקדות נטו',data:contrib,borderColor:cv('--dim'),borderDash:[5,4],pointRadius:0,borderWidth:1.5,stepped:true}]},
+    options:{interaction:{mode:'index',intersect:false},scales:{x:xTime(),y:yMoney},plugins:{tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${ilsT(c.raw.y)}`}}}}});
+  $$('#ovRange button').forEach(b=>{b.classList.toggle('on',+b.dataset.r===P.ovRange);b.onclick=()=>{P.ovRange=+b.dataset.r;savePrefs();renderOverview();};});
+  const e=exposures('fin');donut('cOvAlloc',Object.keys(CLASSES).filter(k=>e.cls[k]>0).map(k=>({n:CLASSES[k].n,v:e.cls[k],c:CLASSES[k].c})));
+  $('#ovDrift').innerHTML=Object.keys(CLASSES).filter(k=>(e.cls[k]||0)>0||P.targets[k]>0).map(k=>{const c=(e.cls[k]||0)/e.tot*100,d=c-P.targets[k];
+    return `<div style="display:flex;justify-content:space-between;padding:2px 0"><span>${CLASSES[k].n}</span><span class="m">${c.toFixed(1)}% <span class="faint">יעד ${P.targets[k]}%</span> <span class="${Math.abs(d)>=P.driftPct?'warn':'dim'}">${d>=0?'+':''}${d.toFixed(1)}</span></span></div>`;}).join('');
+  const rs=rules().filter(r=>r.sev!=='good').slice(0,3);$('#ovRecs').innerHTML=rs.length?rs.map(recHTML).join(''):'<div class="empty">אין התראות 🎉</div>';
+  // quick forecast
+  const f=fcInputs();const res=fcCompute(f);
+  $('#ovFc').innerHTML=`<div class="dim" style="font-size:12px">ב-${heDate(f.date)} (בעוד ${(res.n/12).toFixed(1)} שנים), בהפקדה של ${ils(f.monthly)}/חודש ותשואה ${f.ret}%:</div>
+    <div class="big-result" style="font-size:30px;margin-top:6px">${ils(res.exp)}</div>
+    <div class="dim" style="font-size:12px">טווח שמרני–אופטימי: ${ils(res.cons)} – ${ils(res.opt)} · בכסף של היום: ${ils(res.real)}</div>`;
+}
+
+/* ALLOCATION */
+function renderAlloc(){
+  const sc=P.alScope;$$('#alScope button').forEach(b=>{b.classList.toggle('on',b.dataset.s===sc);b.onclick=()=>{P.alScope=b.dataset.s;savePrefs();renderAlloc();};});
+  const e=exposures(sc);
+  donut('cCls',Object.keys(CLASSES).filter(k=>e.cls[k]>0).map(k=>({n:CLASSES[k].n,v:e.cls[k],c:CLASSES[k].c})));
+  donut('cCcy',Object.entries(e.ccy).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]).map(([k,v])=>({n:k==='ILS'?'שקל':k==='OTHER'?'אחר':k,v,c:CCY_COL[k]})));
+  donut('cGeo',Object.entries(e.geo).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]).map(([k,v])=>({n:GEO[k]?.n||k,v,c:GEO[k]?.c||'#94a3b8'})));
+  // drift + rebalance
+  const nm=P.rbNewMoney;$('#rbNewMoney').checked=nm;$('#rbNewMoney').onchange=ev=>{P.rbNewMoney=ev.target.checked;savePrefs();renderAlloc();};
+  const rows=Object.keys(CLASSES).map(k=>{const cur=e.cls[k]||0,tgt=(+P.targets[k]||0)/100*e.tot;return {k,cur,tgt,diff:tgt-cur};}).filter(r=>r.cur>0||r.tgt>0);
+  let note='';
+  if(nm){const need=rows.filter(r=>r.diff>0);const monthly=Math.max(1,avgMonthlyContrib());
+    // amount of new money needed so no sales are required: scale total so every class reaches target
+    const tgtSum=sum(rows,r=>+P.targets[r.k]||0)/100;const newTot=Math.max(...rows.filter(r=>P.targets[r.k]>0).map(r=>r.cur/((+P.targets[r.k])/100)),e.tot);
+    const add=newTot-e.tot;rows.forEach(r=>{r.act=Math.max(0,(+P.targets[r.k]||0)/100*newTot-r.cur);});
+    note=`איזון מלא ללא מכירות דורש ${ils(add)} כסף חדש — כ-${Math.ceil(add/monthly)} חודשי הפקדה בקצב הנוכחי (${ils(monthly)}/חודש). עד אז, הפנה כל הפקדה לפי עמודת "חלוקת הפקדה הבאה".`+(Math.abs(tgtSum-1)>.001?' <span class="warn">סכום היעדים אינו 100%.</span>':'');
+    const tot=sum(rows,r=>r.act)||1;rows.forEach(r=>r.split=r.act/tot);
+  }else note='חיובי = לקנות, שלילי = למכור. מכירה בגמל להשקעה/תיק מסחר עלולה ליצור אירוע מס — מעבר מסלולים בתוך קופה/קה"ש לרוב פטור ממס.';
+  $('#tblDrift').innerHTML=`<tr><th>סוג נכס</th><th class="n">בפועל</th><th class="n">%</th><th class="n">יעד %</th><th class="n">סטייה</th><th class="bar-cell hide-m">בפועל מול יעד</th><th class="n">${nm?'להוסיף':'פעולה לאיזון'}</th>${nm?'<th class="n">חלוקת הפקדה הבאה</th>':''}</tr>`+
+    rows.map(r=>{const cp=r.cur/e.tot*100,tp=+P.targets[r.k]||0,d=cp-tp;return `<tr><td><span class="legend"><i style="background:${CLASSES[r.k].c}"></i></span>${CLASSES[r.k].n}</td><td class="n">${ils(r.cur)}</td><td class="n m">${cp.toFixed(1)}%</td><td class="n m">${tp}%</td>
+      <td class="n"><span class="tag ${Math.abs(d)>=P.driftPct?'warn':''}"><span class="m">${d>=0?'+':''}${d.toFixed(1)}</span></span></td>
+      <td class="bar-cell hide-m"><div class="mini-bar" style="position:relative"><div style="width:${clamp(cp,0,100)}%;background:${CLASSES[r.k].c}"></div><span style="position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--text);right:${clamp(tp,0,100)}%"></span></div></td>
+      <td class="n">${nm?ils(r.act):(Math.abs(r.diff)<500?'<span class="dim">—</span>':`<b class="${r.diff>0?'pos':'neg'}">${r.diff>0?'קנה':'מכור'} ${ils(Math.abs(r.diff))}</b>`)}</td>${nm?`<td class="n m">${(r.split*100).toFixed(0)}%</td>`:''}</tr>`;}).join('');
+  $('#rbNote').innerHTML=note+' <a href="#settings">עריכת יעדים ←</a>';
+  // concentration
+  const hs=e.hs.slice().sort((a,b)=>b.bal-a.bal);
+  $('#concHold').innerHTML=`<table>${hs.slice(0,8).map(i=>{const w=i.bal/e.tot*100;return `<tr><td>${esc(i.name)}<div class="faint" style="font-size:11px">${esc(i.track)}</div></td><td class="bar-cell"><div class="mini-bar"><div style="width:${w}%;background:${w>P.concPct?'var(--warn)':'var(--pri)'}"></div></div></td><td class="n m">${w.toFixed(1)}%</td></tr>`;}).join('')}</table><div class="faint" style="font-size:11px;margin-top:6px">סף התראה: ${P.concPct}%</div>`;
+  const inst={};hs.forEach(i=>{const k=i.inst||'ללא גוף';inst[k]=(inst[k]||0)+i.bal;});
+  $('#concInst').innerHTML=`<table>${Object.entries(inst).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<tr><td>${esc(k)}</td><td class="bar-cell"><div class="mini-bar"><div style="width:${v/e.tot*100}%"></div></div></td><td class="n">${ils(v)}</td><td class="n m">${(v/e.tot*100).toFixed(1)}%</td></tr>`).join('')}</table>`;
+  const vol=portVol(sc),er=assumedReturn(sc)/100;
+  $('#riskVal').innerHTML=`<span class="m">±${(vol*100).toFixed(1)}%</span>`;
+  $('#riskFoot').innerHTML=`תשואה צפויה ${pctPlain(er)} לשנה. בשנה גרועה (≈1 מ-20, תשואה − 2σ) התיק עלול לרדת בכ-${ils(Math.max(0,(2*vol-er))*e.tot)} (${pctPlain(-(2*vol-er))}). מבוסס הנחות תנודתיות לפי סוג נכס וקורלציה פשוטה.`;
+}
+
+/* PERFORMANCE */
+function renderPerf(){
+  const hs=S.investments.filter(isFin).map(i=>({i,p:holdingPerf(i)}));const T=totals();
+  const withP=hs.filter(x=>x.p);const gain=sum(withP,x=>x.p.gain),base=sum(withP,x=>x.p.base);
+  const best=withP.slice().sort((a,b)=>b.p.r-a.p.r)[0],worst=withP.slice().sort((a,b)=>a.p.r-b.p.r)[0];
+  const fee=weightedFee('fin');const feeCost=sum(hs.filter(x=>isFinite(x.i.feePct)),x=>x.i.bal*x.i.feePct/100);
+  $('#perfKpis').innerHTML=`
+    <div class="card kpi"><div class="lbl">רווח לא ממומש (אחזקות עם נתון)</div><div class="val">${ilsSigned(gain)}</div><div class="foot">${pct(gain/(base||1))} על בסיס ${ils(base)}</div></div>
+    <div class="card kpi"><div class="lbl">הטובה ביותר</div><div class="val" style="font-size:18px">${best?esc(best.i.name):'—'}</div><div class="foot">${best?pct(best.p.r)+' · '+ilsSigned(best.p.gain):''}</div></div>
+    <div class="card kpi"><div class="lbl">החלשה ביותר</div><div class="val" style="font-size:18px">${worst?esc(worst.i.name):'—'}</div><div class="foot">${worst?pct(worst.p.r)+' · '+ilsSigned(worst.p.gain):''}</div></div>
+    <div class="card kpi"><div class="lbl">דמי ניהול משוקללים</div><div class="val">${fee!=null?`<span class="m">${fee.toFixed(2)}%</span>`:'—'}</div><div class="foot">${fee!=null?`≈ ${ils(feeCost)} בשנה`:'אין שדה feePct בנתונים'}</div></div>`;
+  const sorted=withP.slice().sort((a,b)=>b.p.r-a.p.r);
+  mk('cPerf',{type:'bar',data:{labels:sorted.map(x=>x.i.name),datasets:[{label:'תשואה %',data:sorted.map(x=>+(x.p.r*100).toFixed(1)),backgroundColor:sorted.map(x=>x.p.r>=0?cv('--pos'):cv('--neg')),borderRadius:4}]},
+    options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.raw}%`}}},scales:{x:{ticks:{callback:v=>v+'%'},grid:{color:cv('--line')}},y:{position:'right',grid:{display:false}}}}});
+  const sc=withP.slice().sort((a,b)=>b.p.gain-a.p.gain);
+  mk('cContrib',{type:'bar',data:{labels:sc.map(x=>x.i.name),datasets:[{label:'רווח ₪',data:sc.map(x=>Math.round(x.p.gain)),backgroundColor:sc.map(x=>x.p.gain>=0?cv('--pri'):cv('--neg')),borderRadius:4}]},
+    options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${ilsT(c.raw)} (${(c.raw/(gain||1)*100).toFixed(0)}% מהרווח)`}}},scales:{x:{ticks:{callback:v=>short(v)},grid:{color:cv('--line')}},y:{position:'right',grid:{display:false}}}}});
+  const methods=[...new Set(withP.map(x=>x.p.method.startsWith('יתרה')?'יתרה':'עלות'))];
+  $('#perfMethod').textContent=methods.includes('יתרה')?'⚠️ לאחזקות ללא costBasis התשואה = שינוי יתרה מההיסטוריה (כולל הפקדות) — מומלץ להוסיף שדה costBasis':'תשואה = (יתרה − עלות) ÷ עלות';
+  $('#tblPerf').innerHTML=`<tr><th>אחזקה</th><th class="hide-m">מסלול</th><th class="n">יתרה</th><th class="n">משקל</th><th class="n">רווח ₪</th><th class="n">תשואה</th><th class="n hide-m">תרומה לתשואה</th><th class="n hide-m">דמי ניהול</th><th class="n hide-m">עלות שנתית</th><th class="hide-m">בסיס חישוב</th><th class="hide-m">עדכון</th></tr>`+
+    hs.sort((a,b)=>b.i.bal-a.i.bal).map(({i,p})=>{const lu=lastUpdate(i);const stale=lu&&daysBetween(lu,TODAY)>60;return `<tr><td><b>${esc(i.name)}</b><div class="faint" style="font-size:11px">${esc(CATS[i.cat]||i.cat)} · ${esc(i.inst||'')}</div></td><td class="hide-m"><span class="tag">${esc(i.track)}</span></td>
+    <td class="n">${ils(i.bal)}</td><td class="n m">${(i.bal/T.fin*100).toFixed(1)}%</td><td class="n">${p?ilsSigned(p.gain):'—'}</td><td class="n">${p?pct(p.r):'—'}</td>
+    <td class="n hide-m">${p&&base?`<span class="m">${(p.gain/base*100).toFixed(2)}</span> נק׳`:'—'}</td>
+    <td class="n hide-m">${isFinite(i.feePct)?`<span class="m ${i.feePct>=P.feeHigh?'warn':''}">${i.feePct.toFixed(2)}%</span>`:'—'}</td><td class="n hide-m">${isFinite(i.feePct)?ils(i.bal*i.feePct/100):'—'}</td>
+    <td class="hide-m faint" style="font-size:11px">${p?esc(p.method):'אין נתון'}</td><td class="hide-m ${stale?'warn':'faint'}" style="font-size:11px">${lu?heDate(lu):'—'}</td></tr>`;}).join('');
+}
+
+/* FORECAST */
+let fcMode='fv';
+function fcDefaults(){
+  const by=+S.set.birthYear||1980,ra=+S.set.retAge||67;
+  return {date:iso(addMonths(TODAY,60)),scope:'fin',monthly:Math.max(0,Math.round(avgMonthlyContrib()/100)*100),growth:0,
+    ret:+assumedReturn('fin').toFixed(1),fee:+(weightedFee('fin')??0.5).toFixed(2),spread:3,infl:2.5,goal:Math.round(totals().fin*2/100000)*100000,goalReal:true,tax:false,showReal:true,retireDate:`${by+ra}-01-01`};
+}
+function fcInputs(){const d=fcDefaults();return Object.assign(d,P.fc||{});}
+function fcCompute(f){
+  const T=totals();const P0=f.scope==='liq'?T.liq:T.fin;const n=Math.max(1,monthsBetween(TODAY,f.date));
+  const fee=f.fee||0;const proj=k=>project(P0,f.monthly,f.ret+k,fee,f.growth,n);
+  const E=proj(0),C=proj(-f.spread),O=proj(+f.spread);
+  const deflate=m=>Math.pow(1+f.infl/100,m/12);
+  const exp=E[n].v,contrib=E[n].c,growth=exp-contrib;
+  const taxable=f.scope==='liq'?1:(T.fin-T.locked)/(T.fin||1); // kupa/השתלמות ≈ tax-exempt (simplified)
+  const tax=f.tax?Math.max(0,growth)*0.25*taxable:0;
+  return {n,P0,E,C,O,exp,cons:C[n].v,opt:O[n].v,contrib,growth,real:exp/deflate(n),tax,afterTax:exp-tax,deflate,taxable};
+}
+function bindFc(){
+  const f=fcInputs();const set=(id,v)=>{const el=$('#'+id);if(el.type==='checkbox')el.checked=!!v;else el.value=v;};
+  set('fDate',f.date);set('fScope',f.scope);set('fMonthly',f.monthly);set('fGrowth',f.growth);set('fRet',f.ret);set('fFee',f.fee);set('fSpread',f.spread);set('fInfl',f.infl);set('fGoal',f.goal);set('fGoalReal',f.goalReal);set('fTax',f.tax);set('fShowReal',f.showReal);
+  const map={fDate:'date',fScope:'scope',fMonthly:'monthly',fGrowth:'growth',fRet:'ret',fFee:'fee',fSpread:'spread',fInfl:'infl',fGoal:'goal',fGoalReal:'goalReal',fTax:'tax',fShowReal:'showReal'};
+  Object.entries(map).forEach(([id,k])=>{$('#'+id).oninput=$('#'+id).onchange=ev=>{const el=ev.target;P.fc[k]=el.type==='checkbox'?el.checked:el.type==='number'?(+el.value||0):el.value;savePrefs();renderForecast(false);};});
+  const d=fcDefaults();
+  $('#fDateChips').innerHTML=[[12,'שנה'],[36,'3 שנים'],[60,'5'],[120,'10'],[240,'20']].map(([m,n])=>`<button class="qchip" data-m="${m}">${n}</button>`).join('')+`<button class="qchip" data-ret="1">פרישה (${d.retireDate.slice(0,4)})</button>`;
+  $$('#fDateChips .qchip').forEach(b=>b.onclick=()=>{P.fc.date=b.dataset.ret?d.retireDate:iso(addMonths(TODAY,+b.dataset.m));savePrefs();bindFc();renderForecast(false);});
+  const cl=assumedReturn(f.scope).toFixed(1),tr=trackReturn(f.scope).toFixed(1),hist=periodReturn(new Date(1900,0,1));
+  $('#fRetChips').innerHTML=`<button class="qchip" data-v="${cl}" title="לפי הנחות סוג נכס">סוג נכס ${cl}%</button><button class="qchip" data-v="${tr}" title="שיטת v1 — לפי המסלולים">מסלולים ${tr}%</button>`+(hist&&hist.ann!=null?`<button class="qchip" data-v="${(hist.ann*100).toFixed(1)}" title="תשואה שנתית בפועל מתחילת המעקב">בפועל ${(hist.ann*100).toFixed(1)}%</button>`:'');
+  $$('#fRetChips .qchip').forEach(b=>b.onclick=()=>{P.fc.ret=+b.dataset.v;savePrefs();bindFc();renderForecast(false);});
+  $('#fMonthlyHint').innerHTML=`ממוצע 12 חודשים אחרונים: ${ils(avgMonthlyContrib())}`;
+  const T=totals();$('#fScopeHint').innerHTML=`היום: ${ils(f.scope==='liq'?T.liq:T.fin)}`;
+  const wf=weightedFee(f.scope);$('#fFeeHint').innerHTML=wf!=null?`משוקלל בתיק: ${wf.toFixed(2)}%`:'אין נתון בתיק — הנחה';
+  $$('#fcMode button').forEach(b=>{b.classList.toggle('on',b.dataset.m===fcMode);b.onclick=()=>{fcMode=b.dataset.m;bindFc();renderForecast(false);};});
+  $('#goalFields').style.display=fcMode==='goal'?'':'none';
+}
+function renderForecast(rebind=true){
+  if(rebind)bindFc();const f=fcInputs();const r=fcCompute(f);const n=r.n;
+  const years=(n/12).toFixed(1);const vol=portVol(f.scope);
+  const goalNom=fcMode==='goal'?(f.goalReal?f.goal*r.deflate(n):f.goal):null;
+  const mc=monteCarlo(r.P0,f.monthly,f.ret,f.fee,f.growth,n,vol,2000,goalNom);
+  const pStart=r.P0/r.exp*100,pC=(r.contrib-r.P0)/r.exp*100,pG=Math.max(0,r.growth)/r.exp*100;
+  let main;
+  if(fcMode==='fv'){
+    main=`<div class="dim">שווי צפוי ב-<b>${heDate(f.date)}</b> · בעוד ${years} שנים (${n} חודשים)</div>
+    <div class="big-result">${ils(r.exp)}</div>
+    <div class="dim">בכסף של היום (אינפלציה ${f.infl}%): <b>${ils(r.real)}</b>${f.tax?` · אחרי מס רווח הון: <b>${ils(r.afterTax)}</b>`:''}</div>
+    <div class="stack"><div style="width:${pStart}%;background:var(--pri2)"></div><div style="width:${pC}%;background:var(--pri)"></div><div style="width:${pG}%;background:var(--pos)"></div></div>
+    <div class="legend"><span><i style="background:var(--pri2)"></i>הון היום ${ils(r.P0)}</span><span><i style="background:var(--pri)"></i>הפקדות עתידיות ${ils(r.contrib-r.P0)}</span><span><i style="background:var(--pos)"></i>צמיחה (תשואה) ${ils(r.growth)}</span></div>
+    <div class="scen"><div><div class="s-l">שמרני (${(f.ret-f.spread).toFixed(1)}%)</div><div class="s-v">${ils(r.cons)}</div><div class="faint" style="font-size:11px">ריאלי ${ils(r.cons/r.deflate(n))}</div></div>
+      <div style="border-color:var(--pri)"><div class="s-l">צפוי (${f.ret}%)</div><div class="s-v">${ils(r.exp)}</div><div class="faint" style="font-size:11px">ריאלי ${ils(r.real)}</div></div>
+      <div><div class="s-l">אופטימי (${(f.ret+f.spread).toFixed(1)}%)</div><div class="s-v">${ils(r.opt)}</div><div class="faint" style="font-size:11px">ריאלי ${ils(r.opt/r.deflate(n))}</div></div></div>`;
+  }else{
+    const req=requiredMonthly(r.P0,goalNom,f.ret,f.fee,f.growth,n),reqC=requiredMonthly(r.P0,goalNom,f.ret-f.spread,f.fee,f.growth,n);
+    const mcReq=req>0?monteCarlo(r.P0,req,f.ret,f.fee,f.growth,n,vol,2000,goalNom).prob:null;
+    main=`<div class="dim">כדי להגיע ל-<b>${ils(f.goal)}</b>${f.goalReal?` בכסף של היום (≈ ${ils(goalNom)} נומינלי)`:''} עד <b>${heDate(f.date)}</b> (${years} שנים):</div>
+    <div class="big-result">${req===0?'<span class="pos">₪0</span>':ils(req)}<span style="font-size:16px;font-weight:500" class="dim"> לחודש</span></div>
+    <div class="dim">${req===0?'היעד צפוי להיות מושג גם ללא הפקדות נוספות, בתשואה הצפויה.':`בתשואה צפויה ${f.ret}%. בתרחיש שמרני (${(f.ret-f.spread).toFixed(1)}%): <b>${ils(reqC)}</b> לחודש.`}</div>
+    <div class="scen"><div><div class="s-l">ההפקדה הנוכחית שלך</div><div class="s-v">${ils(f.monthly)}</div><div class="faint" style="font-size:11px">${req>0?(f.monthly>=req?'<span class="pos">מספיקה בתרחיש הצפוי</span>':`<span class="warn">חסרים ${ils(req-f.monthly)}/חודש</span>`):''}</div></div>
+      <div style="border-color:var(--pri)"><div class="s-l">סיכוי להגיע ליעד — בהפקדה הנוכחית</div><div class="s-v">${(mc.prob*100).toFixed(0)}%</div><div class="faint" style="font-size:11px">מונטה-קרלו, σ=${(vol*100).toFixed(1)}%</div></div>
+      <div><div class="s-l">סיכוי — בהפקדה הנדרשת</div><div class="s-v">${mcReq!=null?(mcReq*100).toFixed(0)+'%':'—'}</div><div class="faint" style="font-size:11px">"צפוי" ≈ חציון ⇒ סביב 50%</div></div></div>`;
+  }
+  $('#fcResult').innerHTML=main;
+  const mcEnd=mc.p10.length-1;
+  $('#fcSide').innerHTML=`<h3>טווח הסתברותי (מונטה-קרלו)</h3>
+    <table><tr><td>תרחיש רע (10%)</td><td class="n">${ils(mc.p10[mcEnd])}</td></tr><tr><td>חציון (50%)</td><td class="n"><b>${ils(mc.p50[mcEnd])}</b></td></tr><tr><td>תרחיש טוב (90%)</td><td class="n">${ils(mc.p90[mcEnd])}</td></tr></table>
+    <div class="faint" style="font-size:11px;margin-top:8px">תנודתיות שנתית משוערת ${(vol*100).toFixed(1)}% לפי הקצאת התיק. 10% מהמסלולים מסתיימים מתחת לתרחיש הרע.</div>
+    <h3 class="mt">הנחות</h3><div style="font-size:12px" class="dim">הון התחלתי ${ils(r.P0)} (${f.scope==='liq'?'נזיל':'נזיל + קופות'}) · הפקדה ${ils(f.monthly)}/חודש${f.growth?` (+${f.growth}%/שנה)`:''} · תשואה ${f.ret}% − דמי ניהול ${f.fee}% = נטו ${(f.ret-f.fee).toFixed(2)}% · ריבית דריבית חודשית. ${f.tax?`מס 25% על הצמיחה, רק על ${(r.taxable*100).toFixed(0)}% החייבים (קה"ש/קופות ≈ פטורים — פישוט).`:''} לא כולל פנסיה/נדל"ן/הלוואות.</div>`;
+  // chart
+  const step=Math.max(1,Math.ceil(n/120));const xs=[];for(let m=0;m<=n;m+=step)xs.push(m);if(xs[xs.length-1]!==n)xs.push(n);
+  const dt=m=>iso(addMonths(TODAY,m));const ds=[
+    {label:'P10',data:mc.idx.map((m,k)=>({x:dt(m),y:mc.p10[k]})),borderWidth:0,pointRadius:0,fill:false,backgroundColor:'transparent'},
+    {label:'טווח 10%–90%',data:mc.idx.map((m,k)=>({x:dt(m),y:mc.p90[k]})),borderWidth:0,pointRadius:0,fill:'-1',backgroundColor:cv('--pri')+'1f'},
+    {label:`צפוי ${f.ret}%`,data:xs.map(m=>({x:dt(m),y:r.E[m].v})),borderColor:cv('--pri'),borderWidth:2.6,pointRadius:0,tension:.2},
+    {label:`שמרני ${(f.ret-f.spread).toFixed(1)}%`,data:xs.map(m=>({x:dt(m),y:r.C[m].v})),borderColor:cv('--warn'),borderDash:[5,4],borderWidth:1.6,pointRadius:0},
+    {label:`אופטימי ${(f.ret+f.spread).toFixed(1)}%`,data:xs.map(m=>({x:dt(m),y:r.O[m].v})),borderColor:cv('--pos'),borderDash:[5,4],borderWidth:1.6,pointRadius:0},
+    {label:'הון היום + הפקדות (ללא תשואה)',data:xs.map(m=>({x:dt(m),y:r.E[m].c})),borderColor:cv('--dim'),backgroundColor:cv('--dim')+'14',fill:'origin',borderWidth:1.2,pointRadius:0}];
+  if(f.showReal)ds.push({label:'צפוי — ריאלי (כסף של היום)',data:xs.map(m=>({x:dt(m),y:r.E[m].v/r.deflate(m)})),borderColor:cv('--pri2'),borderDash:[2,3],borderWidth:1.8,pointRadius:0});
+  if(goalNom)ds.push({label:'יעד',data:[{x:dt(0),y:goalNom},{x:dt(n),y:goalNom}],borderColor:cv('--neg'),borderWidth:1.5,borderDash:[8,4],pointRadius:0});
+  mk('cFc',{type:'line',data:{datasets:ds},options:{interaction:{mode:'index',intersect:false},scales:{x:xTime(n>48?'year':'month'),y:yMoney},
+    plugins:{legend:{rtl:true,labels:{boxWidth:10,filter:i=>i.text!=='P10'}},tooltip:{filter:i=>i.dataset.label!=='P10',callbacks:{label:c=>` ${c.dataset.label}: ${ilsT(c.raw.y)}`}}}}});
+  // milestones
+  const ms=[];for(let m=12;m<n;m+=12)ms.push(m);ms.push(n);
+  $('#tblFc').innerHTML=`<tr><th>תאריך</th><th class="n">סך הפקדות (כולל הון היום)</th><th class="n">שמרני</th><th class="n">צפוי</th><th class="n">אופטימי</th><th class="n hide-m">צפוי ריאלי</th><th class="n hide-m">מתוכו צמיחה</th></tr>`+
+    ms.map(m=>`<tr><td>${heDate(addMonths(TODAY,m))}</td><td class="n">${ils(r.E[m].c)}</td><td class="n">${ils(r.C[m].v)}</td><td class="n"><b>${ils(r.E[m].v)}</b></td><td class="n">${ils(r.O[m].v)}</td><td class="n hide-m">${ils(r.E[m].v/r.deflate(m))}</td><td class="n hide-m">${ils(r.E[m].v-r.E[m].c)}</td></tr>`).join('');
+  $('#fcMath').innerHTML=`<div class="formula">i = (1 + R − fee)^(1/12) − 1          // monthly net rate
+FV(n) = P·(1+i)^n + C·((1+i)^n − 1)/i      // n months, deposit C at end of month
+Real(n) = FV(n) / (1+π)^(n/12)             // today's money
+Goal mode:  C* = (Goal − P·(1+i)^n) · i / ((1+i)^n − 1)
+Scenarios: R−Δ / R / R+Δ  ·  Monte-Carlo: monthly lognormal, σ from allocation</div>
+  <div class="dim mt" style="font-size:12px">P = הון התחלתי, C = הפקדה חודשית (עם עליה שנתית אופציונלית — מחושב באיטרציה), R = תשואה שנתית צפויה, fee = דמי ניהול, π = אינפלציה, Δ = מרווח תרחישים. ברירות המחדל נגזרות מהנתונים: הפקדה = ממוצע 12 החודשים האחרונים ביומן ההפקדות; תשואה = ממוצע משוקלל של הנחות סוג הנכס לפי ההקצאה בפועל; דמי ניהול = ממוצע משוקלל של feePct. זו תחזית ולא הבטחה.</div>`;
+}
+
+/* RECOMMENDATIONS + AI */
+function aiSummary(){
+  const T=totals(),e=exposures('fin'),f=fcInputs(),r=fcCompute(f);const per=k=>{const x=periodReturn(k);return x?{fromDate:x.from,returnPct:+(x.r*100).toFixed(2),gainILS:Math.round(x.gain),netDepositsILS:Math.round(x.C)}:null;};
+  const yr=TODAY.getFullYear();
+  return {generatedAt:new Date().toISOString(),dataSource:{gist:'GitHub Gist (live)',gistCache:'GitHub Gist (cached copy)',local:'local browser data',example:'EXAMPLE DATA'}[SRC],currency:'ILS',
+    totals:{netWorth:Math.round(T.net),financialAssets:Math.round(T.fin),liquid:Math.round(T.liq),lockedFunds:Math.round(T.locked),realEstate:Math.round(T.re),debt:Math.round(T.debt)},
+    periodReturns:{'1M':per(addMonths(TODAY,-1)),YTD:per(new Date(yr-1,11,31)),'1Y':per(addMonths(TODAY,-12)),all:per(new Date(1900,0,1))},
+    allocationPct:Object.fromEntries(Object.entries(e.cls).map(([k,v])=>[k,+(v/e.tot*100).toFixed(1)])),targetPct:P.targets,
+    currencyPct:Object.fromEntries(Object.entries(e.ccy).map(([k,v])=>[k,+(v/e.tot*100).toFixed(1)])),
+    estVolatilityPct:+(portVol('fin')*100).toFixed(1),assumptions:P.assume,
+    holdings:S.investments.filter(isFin).sort((a,b)=>b.bal-a.bal).map(i=>{const p=holdingPerf(i);return {name:i.name,category:i.cat,track:i.track,weightPct:+(i.bal/T.fin*100).toFixed(1),returnPct:p?+(p.r*100).toFixed(1):null,feePct:isFinite(i.feePct)?i.feePct:null};}),
+    loans:S.loans.filter(l=>!l.closed).map(l=>{const a=amort(l);return {name:l.name,balance:Math.round(l.bal),ratePct:l.rate,monthlyPayment:loanPay(l),monthsLeft:a.ok?a.months:null,remainingInterest:a.ok?Math.round(a.interest):null};}),
+    savings:{avgMonthlyLast12m:Math.round(avgMonthlyContrib()),monthlyExpenses:P.monthlyExpenses},
+    forecast:{targetDate:f.date,monthlyContribution:f.monthly,expectedReturnPct:f.ret,feePct:f.fee,inflationPct:f.infl,expected:Math.round(r.exp),conservative:Math.round(r.cons),optimistic:Math.round(r.opt),realExpected:Math.round(r.real)},
+    ruleFindings:rules().map(x=>({severity:x.sev,title:x.title,reason:x.why}))};
+}
+function aiPrompt(sum){return `אתה מנתח פיננסי. לפניך סיכום מובנה (JSON) של תיק משק בית ישראלי. אל תמציא מספרים שאינם ב-JSON.
+1) בקר את ממצאי הכללים (ruleFindings): עם מה אתה מסכים/לא ולמה.
+2) תעדף 3–5 פעולות קונקרטיות עם סכומים מתוך הנתונים.
+3) ציין הנחות בתחזית שנראות אופטימיות/פסימיות מדי.
+4) ציין מה חסר בנתונים כדי לתת ניתוח טוב יותר.
+ענה בעברית, תמציתי, וציין בסוף שזה אינו ייעוץ השקעות מורשה.
+JSON:
+${JSON.stringify(sum)}`;}
+function renderRecs(){
+  $('#recList').innerHTML=rules().map(recHTML).join('');
+  const s=aiSummary();$('#aiJson').textContent=JSON.stringify(s,null,2);
+  $('#aiCopy').onclick=()=>{navigator.clipboard?.writeText(aiPrompt(s));$('#aiCopy').textContent='הועתק ✓';setTimeout(()=>$('#aiCopy').textContent='העתק סיכום',1500);};
+  const key=localStorage.getItem(KEY_GEMINI);
+  $('#aiRun').disabled=!key;$('#aiRun').title=key?'שולח את הסיכום ל-Gemini עם ה-key השמור באתר':'לא נמצא Gemini key (fin26_gemini). הגדר אותו באתר המקורי.';
+  $('#aiRun').onclick=async()=>{if(!key)return;$('#aiRun').disabled=true;$('#aiOut').textContent='מנתח...';
+    try{const resp=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:aiPrompt(s)}]}],generationConfig:{temperature:.4,maxOutputTokens:4096}})});
+      const d=await resp.json();const t=d.candidates?.[0]?.content?.parts?.[0]?.text||JSON.stringify(d.error||d);
+      $('#aiOut').innerHTML=esc(t).replace(/^### (.*)$/gm,'<h3>$1</h3>').replace(/^## (.*)$/gm,'<h2>$1</h2>').replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>');}
+    catch(e){$('#aiOut').textContent='שגיאה: '+e.message;}finally{$('#aiRun').disabled=false;}};
+}
+
+/* LOANS */
+function renderLoans(){
+  const act=S.loans.filter(l=>!l.closed&&l.bal>0),T=totals();
+  const am=act.map(l=>({l,a:amort(l)}));const pay=sum(act,loanPay);const intLeft=sum(am.filter(x=>x.a.ok),x=>x.a.interest);
+  const wr=sum(act,l=>l.bal*l.rate)/(T.debt||1);const maxM=Math.max(0,...am.filter(x=>x.a.ok).map(x=>x.a.months));
+  const expAT=assumedReturn('fin')*(1-(S.set.tax||25)/100);
+  $('#loanKpis').innerHTML=`<div class="card kpi"><div class="lbl">יתרת חוב</div><div class="val neg">${ils(T.debt)}</div><div class="foot">${(T.debt/(T.fin||1)*100).toFixed(0)}% מההון הפיננסי</div></div>
+    <div class="card kpi"><div class="lbl">החזר חודשי</div><div class="val">${ils(pay)}</div><div class="foot">${ils(pay*12)} בשנה</div></div>
+    <div class="card kpi"><div class="lbl">ריבית שנותרה לשלם</div><div class="val warn">${ils(intLeft)}</div><div class="foot">ריבית משוקללת <span class="m">${wr.toFixed(2)}%</span></div></div>
+    <div class="card kpi"><div class="lbl">חופשי מחובות</div><div class="val">${maxM?heMonth(addMonths(TODAY,maxM)):'—'}</div><div class="foot">${maxM?`בעוד ${(maxM/12).toFixed(1)} שנים`:''}</div></div>`;
+  $('#tblLoans').innerHTML=`<tr><th>הלוואה</th><th class="n">יתרה</th><th class="n">ריבית</th><th class="n">החזר</th><th class="n">סיום צפוי</th><th class="n hide-m">ריבית שנותרה</th><th class="bar-cell hide-m">שולם</th><th>מול השקעה</th></tr>`+
+    am.sort((a,b)=>b.l.rate-a.l.rate).map(({l,a})=>{const paid=l.origBal?1-l.bal/l.origBal:0;const v=l.rate>expAT+0.5?'<span class="tag neg">עדיף לפרוע</span>':l.rate<expAT-1?'<span class="tag pos">השקעה עדיפה*</span>':'<span class="tag">ניטרלי</span>';
+      return `<tr><td><b>${esc(l.name)}</b><div class="faint" style="font-size:11px">${esc(l.inst||'')}</div></td><td class="n">${ils(l.bal)}</td><td class="n m">${(+l.rate).toFixed(2)}%</td><td class="n">${ils(loanPay(l))}</td>
+      <td class="n">${a.ok?heMonth(addMonths(TODAY,a.months)):'<span class="neg">ההחזר לא מכסה ריבית</span>'}</td><td class="n hide-m">${a.ok?ils(a.interest):'—'}</td>
+      <td class="bar-cell hide-m"><div class="mini-bar"><div style="width:${paid*100}%;background:var(--pos)"></div></div><div class="faint m" style="font-size:10px">${(paid*100).toFixed(0)}%</div></td><td>${v}</td></tr>`;}).join('')+
+    `<tr><td colspan="8" class="faint" style="font-size:11px">* השוואה לתשואה צפויה אחרי מס ≈ ${expAT.toFixed(1)}%. פירעון הלוואה = תשואה ודאית; השקעה = צפויה ולא מובטחת. לוח סילוק מחושב בשיטת שפיצר לפי ההחזר החודשי הנוכחי (במקום "קיטון יומי" קבוע).</td></tr>`;
+  const months=Math.min(maxM||12,360);const pal=['#f05252','#f5a524','#8b6cff','#38bdf8','#22c55e'];
+  const grid=[];for(let m=0;m<=months;m+=3)grid.push(m);if(grid[grid.length-1]!==months)grid.push(months);
+  mk('cLoans',{type:'line',data:{datasets:am.map(({l,a},k)=>({label:l.name,data:grid.map(m=>({x:iso(addMonths(TODAY,m)),y:a.series[m]??0})),
+    borderColor:pal[k%5],backgroundColor:pal[k%5]+'55',fill:k?'-1':'origin',pointRadius:0,borderWidth:1.5,stack:'s'}))},
+    options:{interaction:{mode:'index',intersect:false},scales:{x:xTime('year'),y:{...yMoney,stacked:true}},plugins:{tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${ilsT(c.raw.y)}`}}}}});
+  const sel=$('#ppLoan');const prev=sel.value;sel.innerHTML=act.map(l=>`<option value="${l.id}">${esc(l.name)} (${l.rate}%)</option>`).join('');if(prev)sel.value=prev;
+  const sim=()=>{const l=act.find(x=>x.id===sel.value);if(!l){$('#ppOut').innerHTML='<div class="empty">אין הלוואות פעילות</div>';return;}
+    const ex=+$('#ppExtra').value||0,lu=+$('#ppLump').value||0;const a0=amort(l),a1=amort(l,ex,lu);
+    if(!a0.ok||!a1.ok){$('#ppOut').innerHTML='<div class="neg">ההחזר אינו מכסה את הריבית</div>';return;}
+    const saveM=a0.months-a1.months,saveI=a0.interest-a1.interest;
+    // alternative: invest the same cash flows instead for a0.months
+    const R=assumedReturn('fin');const inv=project(lu,ex,R,weightedFee('fin')??0.5,0,a1.months)[a1.months].v;
+    const after=project(0,a0.pay,R,weightedFee('fin')??0.5,0,a0.months-a1.months).slice(-1)[0].v; // after early payoff, invest freed payment
+    const gainInv=inv-(lu+ex*a1.months);const taxInv=Math.max(0,gainInv)*.25;
+    $('#ppOut').innerHTML=`<table><tr><td>סיום חדש</td><td class="n"><b>${heMonth(addMonths(TODAY,a1.months))}</b> <span class="faint">(במקום ${heMonth(addMonths(TODAY,a0.months))})</span></td></tr>
+      <tr><td>חודשים שנחסכו</td><td class="n m pos">${saveM}</td></tr><tr><td>חיסכון בריבית</td><td class="n pos">${ils(saveI)}</td></tr>
+      <tr><td class="dim">חלופה: להשקיע אותו כסף (${R.toFixed(1)}%, אחרי מס) לאותה תקופה</td><td class="n dim">רווח ≈ ${ils(gainInv-taxInv)}</td></tr></table>
+      <div class="faint mt" style="font-size:11px">אם חיסכון הריבית גבוה מרווח ההשקעה החלופי — הפירעון עדיף (וגם ללא סיכון). בדוק עמלת פירעון מוקדם מול הבנק.</div>`;};
+  sel.onchange=sim;$('#ppExtra').oninput=sim;$('#ppLump').oninput=sim;sim();
+  const cl=S.loans.filter(l=>l.closed||!(l.bal>0));
+  $('#tblClosed').innerHTML=cl.length?`<tr><th>שם</th><th class="n">סכום מקורי</th><th>הערות</th></tr>`+cl.map(l=>`<tr><td>${esc(l.name)}</td><td class="n">${ils(l.origBal||0)}</td><td class="dim">${esc(l.notes||'')} <span class="tag pos">נסגרה ✓</span></td></tr>`).join(''):'<tr><td class="empty">אין</td></tr>';
+}
+
+/* SAVINGS */
+function renderSavings(){
+  const log=S.slog;const yr=TODAY.getFullYear();
+  const ytd=contribBetween(`${yr-1}-12-31`,iso(TODAY)),ly=contribBetween(`${yr-2}-12-31`,`${yr-1}-12-31`),lyYtd=contribBetween(`${yr-2}-12-31`,iso(new Date(yr-1,TODAY.getMonth(),TODAY.getDate())));
+  const avg=avgMonthlyContrib(),dep=sum(log.filter(s=>s.amount>0),s=>s.amount),wd=sum(log.filter(s=>s.amount<0),s=>s.amount);
+  $('#savKpis').innerHTML=`<div class="card kpi"><div class="lbl">הפקדות נטו — סה"כ</div><div class="val">${ils(dep+wd)}</div><div class="foot">הפקדות ${ils(dep)} · משיכות ${ils(wd)}</div></div>
+    <div class="card kpi"><div class="lbl">${yr} עד היום</div><div class="val">${ils(ytd)}</div><div class="foot">אותה תקופה ב-${yr-1}: ${ils(lyYtd)} ${lyYtd?pct(ytd/lyYtd-1,0):''}</div></div>
+    <div class="card kpi"><div class="lbl">ממוצע חודשי (12 ח׳)</div><div class="val">${ils(avg)}</div><div class="foot">${P.monthlyExpenses?`${(avg/P.monthlyExpenses*100).toFixed(0)}% מההוצאות החודשיות`:'משמש כברירת מחדל בתחזית'}</div></div>
+    <div class="card kpi"><div class="lbl">${yr-1} — שנה מלאה</div><div class="val">${ils(ly)}</div><div class="foot">${log.length} רשומות ביומן</div></div>`;
+  const mm={};log.forEach(s=>{const k=String(s.date).slice(0,7);mm[k]=(mm[k]||0)+(+s.amount||0);});
+  const keys=[];if(log.length){let d=D(log[0].date.slice(0,7)+'-01');while(iso(d).slice(0,7)<=iso(TODAY).slice(0,7)){keys.push(iso(d).slice(0,7));d=addMonths(d,1);}}
+  const k36=keys.slice(-36);const vals=keys.map(k=>mm[k]||0);const roll=keys.map((_,i)=>{const s=vals.slice(Math.max(0,i-11),i+1);return sum(s)/s.length;});
+  mk('cSavM',{data:{labels:k36.map(k=>k+'-01'),datasets:[{type:'bar',label:'נטו בחודש',data:k36.map(k=>mm[k]||0),backgroundColor:k36.map(k=>(mm[k]||0)>=0?cv('--pri')+'cc':cv('--neg')+'cc'),borderRadius:3},
+    {type:'line',label:'ממוצע נע 12 ח׳',data:roll.slice(-36),borderColor:cv('--warn'),pointRadius:0,borderWidth:2,tension:.3}]},
+    options:{scales:{x:{...xTime(),offset:true},y:yMoney},plugins:{tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${ilsT(c.raw)}`}}}}});
+  const acc={};log.filter(s=>s.date>iso(addMonths(TODAY,-12))).forEach(s=>{acc[s.acc||'—']=(acc[s.acc||'—']||0)+(+s.amount);});
+  const pal=['#5b8cff','#8b6cff','#22c55e','#f5a524','#38bdf8','#f97316'];
+  donut('cSavAcc',Object.entries(acc).filter(([,v])=>v>0).map(([n,v],k)=>({n,v,c:pal[k%6]})));
+  const yy={};log.forEach(s=>{const y=String(s.date).slice(0,4);yy[y]=(yy[y]||0)+(+s.amount);});
+  mk('cSavY',{type:'bar',data:{labels:Object.keys(yy),datasets:[{label:'נטו',data:Object.values(yy),backgroundColor:cv('--pri2'),borderRadius:5}]},options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${ilsT(c.raw)}`}}},scales:{y:yMoney,x:{grid:{display:false}}}}});
+  let run=0;mk('cSavCum',{type:'line',data:{datasets:[{label:'מצטבר',data:log.map(s=>({x:s.date,y:(run+=+s.amount)})),borderColor:cv('--pos'),backgroundColor:cv('--pos')+'22',fill:true,pointRadius:0,stepped:true,borderWidth:2}]},options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${ilsT(c.raw.y)}`}}},scales:{x:xTime(),y:yMoney}}});
+  const years=[...new Set(log.map(s=>String(s.date).slice(0,4)))].sort().reverse();const sel=$('#savYear');const cur=sel.value||years[0];
+  sel.innerHTML=years.map(y=>`<option ${y===cur?'selected':''}>${y}</option>`).join('');sel.onchange=renderSavings;
+  $('#tblSav').innerHTML=`<tr><th>תאריך</th><th>חשבון</th><th class="n">סכום</th><th class="n hide-m">מצטבר</th><th>הערה</th></tr>`+
+    log.filter(s=>String(s.date).startsWith(cur)).slice().reverse().map(s=>`<tr><td class="m">${heDate(s.date)}</td><td>${esc(s.acc)}</td><td class="n">${ilsSigned(+s.amount)}</td><td class="n hide-m">${ils(s.total)}</td><td class="dim" style="font-size:12px">${esc(s.note||'')}</td></tr>`).join('');
+}
+
+/* SETTINGS */
+function renderSettings(){
+  const nSn=SNAPS.length;
+  const cnt=`${S.investments.length} אחזקות, ${S.loans.length} הלוואות, ${S.slog.length} רשומות חיסכון; <span class="num">fin26_snaps</span> (מקומי): ${nSn} נקודות. עדכון אחרון בנתונים: ${S.lastUpdated?heDate(S.lastUpdated):'—'}.`;
+  const ro='<p class="dim">קריאה בלבד — FinBoard 2.0 לא כותב ל-Gist ולא למפתחות fin26 של האתר המקורי. ההעדפות והמטמון שלו נשמרים רק ב-<span class="num">fin26_v2</span>.</p>';
+  $('#setSrc').innerHTML=SRC==='gist'?`<div class="chip gist">☁ Gist (live)</div><p class="mt">נטען עכשיו מ-GitHub Gist (<span class="num">${GIST_FILENAME}</span>, עודכן ב-GitHub: ${GIST_META&&GIST_META.gistUpdated?heDate(GIST_META.gistUpdated):'—'}). ${cnt}</p>${ro}`
+   :SRC==='gistCache'?`<div class="chip gist">☁ Gist (עותק שמור)</div><p class="mt">${cnt}</p>${ro}`
+   :SRC==='local'?`<div class="chip real">💾 נתוני דפדפן מקומיים</div><p class="mt">נקרא מ-<span class="num">localStorage['fin26']</span>: ${cnt}</p>${ro}`
+   :`<div class="chip ex">נתוני דוגמה ${SRC_NOTE}</div><p class="mt">הנתונים סינתטיים, באותו מבנה של FinBoard (tracks / investments / loans / slog / set) + שדות חדשים אופציונליים: <span class="num">costBasis</span>, <span class="num">feePct</span>.</p><p class="dim">כדי לראות נתונים אמיתיים: פתח באותו דפדפן שבו האתר המקורי מחובר, או הזן Gist ID למטה. <span class="num">?demo=1</span> מכריח נתוני דוגמה.</p>`;
+  renderGistCard();
+  const bind=(id,k,parse=Number)=>{const el=$('#'+id);el.value=P[k]??'';el.oninput=()=>{P[k]=el.value===''?null:parse(el.value);savePrefs();};};
+  bind('sExp','monthlyExpenses');bind('sEmMonths','emMonths');bind('sConc','concPct');bind('sDrift','driftPct');bind('sFee','feeHigh');
+  const drawT=()=>{const e=exposures('fin');$('#tblTargets').innerHTML=`<tr><th>סוג נכס</th><th class="n">בפועל</th><th class="n">יעד %</th><th class="n">תשואה צפויה %</th><th class="n">תנודתיות %</th></tr>`+Object.keys(CLASSES).map(k=>`<tr><td><span class="legend"><i style="background:${CLASSES[k].c}"></i></span>${CLASSES[k].n}</td><td class="n m">${((e.cls[k]||0)/e.tot*100).toFixed(1)}%</td>
+    <td class="n"><input class="icon-btn" style="width:80px" type="number" data-t="${k}" value="${P.targets[k]}"></td><td class="n"><input class="icon-btn" style="width:80px" type="number" step="0.1" data-ar="${k}" value="${P.assume[k].ret}"></td><td class="n"><input class="icon-btn" style="width:80px" type="number" data-av="${k}" value="${P.assume[k].vol}"></td></tr>`).join('');
+    const s=sum(Object.values(P.targets),Number);$('#tgtSum').innerHTML=`סכום יעדים: <b class="${Math.abs(s-100)<.01?'pos':'warn'}">${s}%</b>. הנחות התשואה הן ארוכות טווח, נומינליות, לפני דמי ניהול — לא תחזית שוק.`;
+    $$('[data-t]').forEach(i=>i.oninput=()=>{P.targets[i.dataset.t]=+i.value||0;savePrefs();const s2=sum(Object.values(P.targets),Number);$('#tgtSum b').textContent=s2+'%';$('#tgtSum b').className=Math.abs(s2-100)<.01?'pos':'warn';});
+    $$('[data-ar]').forEach(i=>i.oninput=()=>{P.assume[i.dataset.ar].ret=+i.value||0;savePrefs();});
+    $$('[data-av]').forEach(i=>i.oninput=()=>{P.assume[i.dataset.av].vol=+i.value||0;savePrefs();});};drawT();
+  const used=new Set(S.investments.filter(isFin).map(i=>i.track));
+  $('#tblLook').innerHTML=`<tr><th>מסלול</th><th>סוג נכס</th><th>מטבע</th><th class="hide-m">גאוגרפיה</th><th class="n">תשואה ב-v1</th></tr>`+Object.entries(LOOK).map(([t,L])=>{const tr=S.tracks.find(x=>x.name===t);const f=o=>Object.entries(o).map(([k,v])=>`${CLASSES[k]?.n||GEO[k]?.n||k} ${Math.round(v*100)}%`).join(' · ');
+    return `<tr style="${used.has(t)?'':'opacity:.55'}"><td><b>${esc(t)}</b>${used.has(t)?'':' <span class="faint">(לא בשימוש)</span>'}</td><td>${f(L.cls)}</td><td>${f(L.ccy)}</td><td class="hide-m">${f(L.geo)}</td><td class="n m ${tr&&tr.rate>15?'warn':''}">${tr?tr.rate+'%':'—'}</td></tr>`;}).join('');
+  $('#resetPrefs').onclick=()=>{if(confirm('לאפס את הגדרות FinBoard 2.0? (פרטי ה-Gist של v2 נשמרים)')){const v=v2raw();localStorage.setItem(KEY_V2,JSON.stringify({auth:v.auth,cache:v.cache}));loadPrefs();applyTheme();show(CUR);}};
+}
+const RENDER={overview:renderOverview,alloc:renderAlloc,perf:renderPerf,forecast:()=>renderForecast(true),recs:renderRecs,loans:renderLoans,savings:renderSavings,settings:renderSettings};
+
+/* ---------------- THEME / PRIVACY / BOOT ---------------- */
+function applyTheme(){const t=P.theme||(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');document.documentElement.dataset.theme=t;document.body.classList.toggle('privacy',!!P.privacy);chartBase();}
+function renderGistCard(){
+  const c=getCreds();const mask=x=>x?x.slice(0,6)+'…'+x.slice(-3):'';
+  $('#gistStatus').innerHTML=!c?'<span class="dim">לא מוגדר חיבור Gist בדפדפן הזה.</span>'
+    :`מקור הפרטים: <b>${c.from==='original'?'האתר המקורי (fin26_gist / fin26_token)':'FinBoard 2.0 (fin26_v2)'}</b> · Gist <span class="num">${esc(mask(c.gist))}</span> · token: ${c.token?'<span class="num">••••</span> מוגדר':'ללא'}`;
+  const busy=on=>{['gSave','gReload','gForget'].forEach(id=>$('#'+id).disabled=on);};
+  const msg=(t,cls='')=>{$('#gMsg').innerHTML=`<span class="${cls}">${t}</span>`;};
+  $('#gSave').onclick=async()=>{const gist=$('#gId').value.trim(),token=$('#gTok').value.trim();
+    if(!/^[0-9a-fA-F]{8,64}$/.test(gist)){msg('הזן Gist ID תקין (מחרוזת hex).','neg');return;}
+    busy(true);msg('בודק…','dim');
+    try{await fetchGist({gist,token});v2patch(v=>{v.auth={gist,token,savedAt:new Date().toISOString(),via:'settings'};});
+      $('#gTok').value='';msg('✓ החיבור תקין. הפרטים נשמרו ב-fin26_v2 בלבד.','pos');await reloadData();}
+    catch(e){msg('❌ '+esc(e.message)+' — הפרטים לא נשמרו.','neg');}finally{busy(false);}};
+  $('#gReload').onclick=async()=>{busy(true);msg('טוען…','dim');await reloadData();busy(false);};
+  $('#gForget').onclick=async()=>{v2patch(v=>{delete v.auth;delete v.cache;});msg('פרטי ה-Gist של v2 נמחקו (מפתחות האתר המקורי לא נגעו).','dim');await reloadData();};
+  $('#gReload').style.display=c?'':'none';$('#gForget').style.display=(v2raw().auth||v2raw().cache)?'':'none';
+}
+function applySource(){
+  const chip=$('#srcChip');
+  const C={gist:['chip gist','☁ Gist (live)'],gistCache:['chip gist','☁ Gist (עותק שמור)'],local:['chip real','💾 נתוני דפדפן מקומיים'],example:['chip ex','נתוני דוגמה']}[SRC];
+  chip.className=C[0];chip.textContent=C[1];chip.title='מקור הנתונים — לחץ לפרטים';chip.style.cursor='pointer';chip.onclick=()=>{location.hash='settings';};
+  $('#exBanner').style.display=SRC==='example'?'':'none';
+  const m=[ACCESS_MSG,SRC_MSG].filter(Boolean).join(' ');const el=$('#srcMsg');
+  el.style.display=m?'':'none';el.className='banner '+(SRC_MSG_KIND==='err'&&SRC_MSG?'err':'info');el.textContent=m;
+}
+async function reloadData(){
+  Object.keys(charts).forEach(k=>{charts[k].destroy();delete charts[k];});
+  await loadData();loadPrefs();applySource();show(CUR);
+}
+async function boot(){
+  checkUrlAccess();
+  $('#srcChip').textContent='טוען נתונים…';$('#pageSub').textContent='טוען…';
+  await loadData();loadPrefs();
+  const th=new URLSearchParams(location.search).get('theme');if(th)P.theme=th;
+  applyTheme();buildNav();applySource();
+  $('#themeBtn').onclick=()=>{P.theme=document.documentElement.dataset.theme==='dark'?'light':'dark';savePrefs();applyTheme();show(CUR);};
+  $('#privBtn').onclick=()=>{P.privacy=!P.privacy;savePrefs();applyTheme();};
+  window.addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(h.startsWith('access='))return;show(h);});
+  show(location.hash.slice(1)||'overview');
+}
+document.addEventListener('DOMContentLoaded',boot);
+</script>
+</body>
+</html>
