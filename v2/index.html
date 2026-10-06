@@ -139,9 +139,48 @@ pre.json{max-height:320px;overflow:auto;direction:ltr;text-align:left;font-size:
 .ai-out{font-size:13px;line-height:1.7}.ai-out h2,.ai-out h3{font-size:15px;margin:12px 0 4px}
 .bottom-nav{display:none}
 .empty{color:var(--faint);text-align:center;padding:30px 0}
+/* editing */
+.ugrp{padding:0;overflow:hidden}
+.ugrp-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--card2)}
+.ugrp-head h3{margin:0}.ugrp-head .tot{margin-right:auto;font-size:13px;color:var(--dim)}
+.urow{display:grid;grid-template-columns:minmax(0,2.2fr) 1fr 1.25fr 1fr 40px;gap:10px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line)}
+.urow:last-child{border-bottom:0}
+.urow.dirty{background:color-mix(in srgb,var(--pri) 9%,transparent)}
+.urow .nm{font-weight:600}.urow .meta{font-size:11px;color:var(--faint)}
+.urow .cur{font-size:13px}.urow .cur .lbl{display:none}
+.uin{display:flex;align-items:center;gap:6px}
+.uin input{width:100%;height:38px;border-radius:9px;border:1px solid var(--line2);background:var(--bg2);color:var(--text);padding:0 10px;font:inherit;direction:ltr;text-align:left}
+.uin input:focus{outline:2px solid color-mix(in srgb,var(--pri) 50%,transparent);border-color:var(--pri)}
+.uin .unit{font-size:12px;color:var(--dim);white-space:nowrap}
+.udelta{font-size:12px;text-align:left}
+.uhead{font-size:11px;color:var(--faint);padding:8px 16px;border-bottom:1px solid var(--line)}
+.savebar{position:sticky;bottom:12px;z-index:25;display:none;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px;padding:12px 16px;border-radius:14px;background:var(--card);border:1px solid var(--pri);box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.savebar.show{display:flex}.savebar .sum{margin-left:auto}
+.edit-ic{border:1px solid var(--line2);background:var(--card2);color:var(--text);border-radius:8px;width:32px;height:32px;cursor:pointer}
+.edit-ic:hover{border-color:var(--pri)}
+.btn.danger{background:var(--neg)}
+.btn.sm{padding:5px 10px;font-size:12px}
+.modal-bg{position:fixed;inset:0;z-index:60;background:rgba(3,8,20,.6);display:none;align-items:center;justify-content:center;padding:16px}
+.modal-bg.open{display:flex}
+.modal-box{background:var(--card);border:1px solid var(--line2);border-radius:16px;width:min(640px,100%);max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.modal-head{display:flex;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line);font-size:16px}
+.modal-head button{margin-right:auto;background:none;border:0;color:var(--dim);font-size:18px;cursor:pointer}
+.modal-body{padding:16px 18px}.modal-foot{display:flex;gap:8px;flex-wrap:wrap;padding:12px 18px;border-top:1px solid var(--line)}
+.modal-foot .sp{margin-right:auto}
+.field textarea{width:100%;min-height:64px;border-radius:9px;border:1px solid var(--line2);background:var(--card2);color:var(--text);padding:8px 10px;font:inherit}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:70;background:var(--card);border:1px solid var(--line2);border-radius:12px;padding:10px 16px;box-shadow:var(--shadow);font-size:13px;display:none;max-width:min(560px,92vw)}
+.toast.show{display:block}.toast.ok{border-color:var(--pos)}.toast.err{border-color:var(--neg)}.toast.warn{border-color:var(--warn)}
+.syncbar{display:none;align-items:center;gap:10px;flex-wrap:wrap}
+.hist-mini{font-size:12px;color:var(--dim)}.hist-mini td{padding:4px 6px}
 /* responsive */
 @media (max-width:1100px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g-2-1,.g3{grid-template-columns:1fr}}
 @media (max-width:760px){
+  .urow{grid-template-columns:1fr 1fr;grid-template-areas:"nm ed" "cur cur" "in in" "dl dl";gap:6px 10px}
+  .urow .nmw{grid-area:nm}.urow .cur{grid-area:cur}.urow .uin{grid-area:in}.urow .udelta{grid-area:dl;text-align:right}.urow .edw{grid-area:ed;justify-self:end}
+  .urow .cur .lbl{display:inline}.uhead{display:none}
+  .uin input{height:44px;font-size:16px}
+  .savebar{bottom:76px}
+  .modal-bg{align-items:flex-end;padding:0}.modal-box{border-radius:16px 16px 0 0;max-height:94vh}
   .app{grid-template-columns:1fr}.side{display:none}
   .main{padding:0 12px 90px}
   .g2,.g4{grid-template-columns:1fr}
@@ -175,6 +214,7 @@ pre.json{max-height:320px;overflow:auto;direction:ltr;text-align:left;font-size:
       </div>
     </div>
     <div id="srcMsg" class="banner info" style="display:none"></div>
+    <div id="syncBar" class="banner err syncbar"><span id="syncTxt"></span><button class="btn sm" id="syncRetry">סנכרן ל-Gist עכשיו</button></div>
     <div id="exBanner" class="banner" style="display:none"><b>נתוני דוגמה.</b> כל המספרים במסך זה הם נתונים לדוגמה בלבד (לא הנתונים האמיתיים שלך). כדי לראות את הנתונים שלך: פתח את הדף באותו דפדפן שבו האתר המקורי מחובר, או הזן Gist ID בעמוד <a href="#settings">הגדרות</a>.</div>
 
     <!-- OVERVIEW -->
@@ -210,6 +250,18 @@ pre.json{max-height:320px;overflow:auto;direction:ltr;text-align:left;font-size:
     </section>
 
     <!-- ALLOCATION -->
+    <!-- UPDATE BALANCES -->
+    <section class="page" id="p-update">
+      <div id="updLock" class="banner" style="display:none"></div>
+      <div class="card mb">
+        <div class="card-head"><h3>✏️ עדכון יתרות — כל האפיקים</h3>
+          <div class="tools"><div class="field" style="display:flex;align-items:center;gap:8px"><label style="margin:0">תאריך העדכון</label><input type="date" id="updDate" style="width:160px"></div></div></div>
+        <div class="dim" style="font-size:12px" id="updWhere"></div>
+      </div>
+      <div id="updGroups"></div>
+      <div class="savebar" id="saveBar"><b id="sbCount"></b><span class="sum" id="sbSum"></span><button class="btn ghost" id="sbCancel">בטל שינויים</button><button class="btn" id="sbSave">💾 שמור הכל</button></div>
+    </section>
+
     <section class="page" id="p-alloc">
       <div class="card mb">
         <div class="card-head"><h3>היקף הניתוח</h3>
@@ -291,7 +343,7 @@ pre.json{max-height:320px;overflow:auto;direction:ltr;text-align:left;font-size:
     <!-- LOANS -->
     <section class="page" id="p-loans">
       <div class="grid g4" id="loanKpis"></div>
-      <div class="card mt"><h3>הלוואות פעילות</h3><div class="tbl-wrap"><table id="tblLoans"></table></div></div>
+      <div class="card mt"><div class="card-head"><h3>הלוואות פעילות</h3><div class="tools"><button class="btn sm" data-edit-loan="">+ הלוואה</button></div></div><div class="tbl-wrap"><table id="tblLoans"></table></div></div>
       <div class="grid g-2-1 mt">
         <div class="card"><h3>לוח סילוק — יתרה לאורך זמן</h3><div class="chart lg"><canvas id="cLoans"></canvas></div></div>
         <div class="card"><h3>סימולטור פירעון מוקדם</h3>
@@ -317,7 +369,7 @@ pre.json{max-height:320px;overflow:auto;direction:ltr;text-align:left;font-size:
         <div class="card"><h3>הפקדות לפי שנה</h3><div class="chart sm"><canvas id="cSavY"></canvas></div></div>
         <div class="card"><h3>מצטבר</h3><div class="chart sm"><canvas id="cSavCum"></canvas></div></div>
       </div>
-      <div class="card mt"><div class="card-head"><h3>יומן הפקדות</h3><div class="tools"><select id="savYear" class="icon-btn"></select></div></div><div class="tbl-wrap"><table id="tblSav"></table></div></div>
+      <div class="card mt"><div class="card-head"><h3>יומן הפקדות</h3><div class="tools"><button class="btn sm" data-edit-slog="">+ רשומה</button><select id="savYear" class="icon-btn"></select></div></div><div class="tbl-wrap"><table id="tblSav"></table></div></div>
     </section>
 
     <!-- SETTINGS -->
@@ -333,26 +385,31 @@ pre.json{max-height:320px;overflow:auto;direction:ltr;text-align:left;font-size:
             <div class="field"><label>סף דמי ניהול גבוהים (%)</label><input type="number" id="sFee" step="0.05"></div>
           </div></div>
       </div>
-      <div class="card mt" id="gistCard"><h3>☁ חיבור Gist — קריאה בלבד</h3>
+      <div class="card mt" id="gistCard"><h3>☁ חיבור Gist — סנכרון עם האתר המקורי</h3>
         <div id="gistStatus" style="font-size:13px;margin-bottom:10px"></div>
         <div class="form">
           <div class="field"><label>Gist ID</label><input id="gId" autocomplete="off" spellcheck="false" placeholder="a1b2c3d4…" style="direction:ltr"></div>
-          <div class="field"><label>GitHub token (אופציונלי)</label><input id="gTok" type="password" autocomplete="off" placeholder="ghp_… / github_pat_…" style="direction:ltr"><div class="hint">Gist סודי נגיש לפי ID גם בלי token; token רק מעלה את מכסת ה-API.</div></div>
-          <div class="field"><label>&nbsp;</label><button class="btn" id="gSave">בדוק וטען (קריאה בלבד)</button></div>
+          <div class="field"><label>GitHub token (אופציונלי)</label><input id="gTok" type="password" autocomplete="off" placeholder="ghp_… / github_pat_…" style="direction:ltr"><div class="hint">לקריאה אפשר בלי token (Gist סודי נגיש לפי ID). <b>לשמירה ל-Gist</b> נדרש token עם הרשאת <span class="num">gist</span>.</div></div>
+          <div class="field"><label>&nbsp;</label><button class="btn" id="gSave">בדוק וטען</button></div>
         </div>
         <div class="chips-row" style="margin-top:10px"><button class="btn ghost" id="gReload">טען מחדש מה-Gist</button><button class="btn ghost" id="gForget">שכח פרטי Gist של v2</button></div>
         <div id="gMsg" class="mt" style="font-size:13px"></div>
-        <div class="faint mt" style="font-size:11px">FinBoard 2.0 מבצע רק בקשות GET ל-<span class="num">api.github.com/gists/{id}</span>. הוא לעולם לא כותב ל-Gist ולא למפתחות של האתר המקורי (<span class="num">fin26*</span>). פרטים שהוזנו כאן נשמרים רק ב-<span class="num">fin26_v2</span>. אם האתר המקורי כבר מחובר בדפדפן הזה, נעשה שימוש אוטומטי ב-<span class="num">fin26_token</span>/<span class="num">fin26_gist</span> שלו (קריאה בלבד). קישור גישה מהאתר המקורי (<span class="num">#access=…</span>) נתמך גם בכתובת v2.</div>
+        <div class="faint mt" style="font-size:11px">טעינה: <span class="num">GET api.github.com/gists/{id}</span>. שמירה (רק כשאתה לוחץ "שמור"): <span class="num">PATCH</span> של <span class="num">finance_data.json</span>, אותה בקשה כמו באתר המקורי, אחרי בדיקה שה-Gist לא עודכן בינתיים ממקום אחר. אם האתר המקורי כבר מחובר בדפדפן הזה, נעשה שימוש ב-<span class="num">fin26_token</span>/<span class="num">fin26_gist</span> שלו. פרטים שהוזנו כאן נשמרים רק ב-<span class="num">fin26_v2</span>. קישור גישה מהאתר המקורי (<span class="num">#access=…</span>) נתמך גם בכתובת v2.</div>
       </div>
       <div class="card mt"><h3>הקצאת יעד והנחות לפי סוג נכס</h3>
         <div class="tbl-wrap"><table id="tblTargets"></table></div>
         <div class="dim mt" style="font-size:12px" id="tgtSum"></div></div>
       <div class="card mt"><h3>מיפוי מסלולים (look-through)</h3><div class="dim" style="font-size:12px;margin-bottom:8px">כך כל מסלול מפורק לסוג נכס/מטבע/גאוגרפיה. אלו הנחות — ניתן לעדכן בקוד (LOOK).</div><div class="tbl-wrap"><table id="tblLook"></table></div></div>
+      <div class="card mt"><div class="card-head"><h3>🗂 גיבויים (לפני שמירות של v2)</h3><div class="tools"><button class="btn ghost sm" id="bkNow">צור גיבוי עכשיו</button></div></div>
+        <div class="dim" style="font-size:12px;margin-bottom:8px">לפני השמירה הראשונה בכל סשן (ולפני כל שחזור) נשמר עותק של הנתונים הקודמים ב-<span class="num">fin26_v2.backups</span> (10 אחרונים, בדפדפן הזה בלבד). שחזור שומר את הגיבוי כנתונים הנוכחיים (בדפדפן וב-Gist).</div>
+        <div class="tbl-wrap"><table id="tblBk"></table></div></div>
       <div class="card mt"><h3>איפוס</h3><button class="btn ghost" id="resetPrefs">אפס הגדרות FinBoard 2.0 (לא נוגע בנתוני fin26)</button></div>
     </section>
   </main>
 </div>
 <nav class="bottom-nav" id="bottomNav"></nav>
+<div class="modal-bg" id="modal"><div class="modal-box" role="dialog" aria-modal="true"><div class="modal-head"><b id="mdTitle"></b><button id="mdX" aria-label="סגור">✕</button></div><div class="modal-body" id="mdBody"></div><div class="modal-foot" id="mdFoot"></div></div></div>
+<div class="toast" id="toast"></div>
 <script>
 'use strict';
 /* =====================================================================
@@ -477,11 +534,16 @@ let S,SNAPS=[],SRC='example',SRC_NOTE='',SRC_MSG='',SRC_MSG_KIND='info',GIST_MET
 const GIST_FILENAME='finance_data.json'; // same file name the original site uses
 const KEY_TOKEN='fin26_token', KEY_GIST='fin26_gist'; // original keys — READ ONLY here
 function v2raw(){try{return JSON.parse(localStorage.getItem(KEY_V2)||'{}')||{};}catch(e){return {};}}
-function v2patch(fn){const v=v2raw();fn(v);try{localStorage.setItem(KEY_V2,JSON.stringify(v));}catch(e){console.warn('fin26_v2 write failed',e);}if(P){const keep=v;P.auth=keep.auth;P.cache=keep.cache;}}
+const V2_META=['auth','cache','backups','pendingSync'];
+function writeV2(v){ // quota-safe: drop oldest backups, then cache, if storage is full
+  for(let k=0;k<14;k++){try{localStorage.setItem(KEY_V2,JSON.stringify(v));return true;}catch(e){
+    if(v.backups&&v.backups.length>1)v.backups.pop();else if(v.cache)delete v.cache;else if(v.backups&&v.backups.length)v.backups.pop();else{console.warn('fin26_v2 write failed',e);return false;}}}
+  return false;}
+function v2patch(fn){const v=v2raw();fn(v);writeV2(v);if(P){P.auth=v.auth;}}
 /* Credentials: original site's keys first (read-only), else v2's own copy in fin26_v2.auth */
 function getCreds(){
   const g=(localStorage.getItem(KEY_GIST)||'').trim(),t=(localStorage.getItem(KEY_TOKEN)||'').trim();
-  if(g)return {gist:g,token:t,from:'original'};
+  if(g){const a=v2raw().auth||{};return {gist:g,token:t||(a.gist===g?String(a.token||''):''),from:'original'};}
   const a=v2raw().auth||{};if(a.gist)return {gist:String(a.gist).trim(),token:String(a.token||'').trim(),from:'v2'};
   return null;
 }
@@ -536,6 +598,7 @@ async function loadData(){
   else S=JSON.parse(JSON.stringify(S)); // work on a private copy — never mutate stored objects
   S.tracks=S.tracks||[];S.loans=S.loans||[];S.slog=(S.slog||[]).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));S.set=S.set||{};
   S.investments.forEach(i=>{i.bal=+i.bal||0;});
+  BASE_TS=tsOf(S);DRAFT={inv:{},loan:{}};
 }
 const isRealSrc=()=>SRC!=='example';
 /* prefs */
@@ -545,10 +608,10 @@ function loadPrefs(){
   P=Object.assign({theme:null,privacy:false,targets:{...DEF_TARGETS},assume:JSON.parse(JSON.stringify(DEF_ASSUME)),
     monthlyExpenses:isRealSrc()?null:18000,emMonths:6,concPct:20,driftPct:5,feeHigh:0.6,fc:{},alScope:'fin',rbNewMoney:false,ovRange:0},p);
   P.targets=Object.assign({...DEF_TARGETS},P.targets||{});
-  P.auth=p.auth;P.cache=p.cache; // preserved on save
+  P.auth=p.auth;delete P.cache;delete P.backups;delete P.pendingSync; // meta keys live only in storage
   Object.keys(DEF_ASSUME).forEach(k=>P.assume[k]=Object.assign({...DEF_ASSUME[k]},(P.assume||{})[k]||{}));
 }
-function savePrefs(){try{const v=v2raw();P.auth=v.auth;P.cache=v.cache;localStorage.setItem(KEY_V2,JSON.stringify(P));}catch(e){}}
+function savePrefs(){const v=v2raw();const out={...P};V2_META.forEach(k=>{if(v[k]!==undefined)out[k]=v[k];else delete out[k];});writeV2(out);}
 
 /* ---------------- CORE ANALYTICS ---------------- */
 const isFin=i=>i.cat!=='realestate';
@@ -736,7 +799,7 @@ const recHTML=r=>`<div class="rec ${r.sev}"><div class="ic">${r.ic}</div><div><d
 
 /* ---------------- PAGES ---------------- */
 const PAGES=[
-  ['overview','סקירה','🏠','שווי נקי, תשואות ומגמות'],['alloc','הקצאה','🧩','פיזור, חשיפות ואיזון מול יעד'],
+  ['overview','סקירה','🏠','שווי נקי, תשואות ומגמות'],['update','עדכון','✏️','עדכון יתרות בכל האפיקים'],['alloc','הקצאה','🧩','פיזור, חשיפות ואיזון מול יעד'],
   ['perf','ביצועים','📊','תשואה ותרומה לפי אחזקה'],['forecast','תחזית','🔮','חיסכון ותשואה לתאריך שתבחר'],
   ['recs','המלצות','💡','תובנות מבוססות כללים + AI'],['loans','הלוואות','🏦','לוח סילוק, עלות ריבית ופירעון מוקדם'],
   ['savings','חיסכון','💰','קצב הפקדות ומגמות'],['settings','הגדרות','⚙️','יעדים, הנחות ומקור נתונים']];
@@ -993,11 +1056,11 @@ function renderLoans(){
     <div class="card kpi"><div class="lbl">החזר חודשי</div><div class="val">${ils(pay)}</div><div class="foot">${ils(pay*12)} בשנה</div></div>
     <div class="card kpi"><div class="lbl">ריבית שנותרה לשלם</div><div class="val warn">${ils(intLeft)}</div><div class="foot">ריבית משוקללת <span class="m">${wr.toFixed(2)}%</span></div></div>
     <div class="card kpi"><div class="lbl">חופשי מחובות</div><div class="val">${maxM?heMonth(addMonths(TODAY,maxM)):'—'}</div><div class="foot">${maxM?`בעוד ${(maxM/12).toFixed(1)} שנים`:''}</div></div>`;
-  $('#tblLoans').innerHTML=`<tr><th>הלוואה</th><th class="n">יתרה</th><th class="n">ריבית</th><th class="n">החזר</th><th class="n">סיום צפוי</th><th class="n hide-m">ריבית שנותרה</th><th class="bar-cell hide-m">שולם</th><th>מול השקעה</th></tr>`+
+  $('#tblLoans').innerHTML=`<tr><th>הלוואה</th><th class="n">יתרה</th><th class="n">ריבית</th><th class="n">החזר</th><th class="n">סיום צפוי</th><th class="n hide-m">ריבית שנותרה</th><th class="bar-cell hide-m">שולם</th><th>מול השקעה</th><th></th></tr>`+
     am.sort((a,b)=>b.l.rate-a.l.rate).map(({l,a})=>{const paid=l.origBal?1-l.bal/l.origBal:0;const v=l.rate>expAT+0.5?'<span class="tag neg">עדיף לפרוע</span>':l.rate<expAT-1?'<span class="tag pos">השקעה עדיפה*</span>':'<span class="tag">ניטרלי</span>';
       return `<tr><td><b>${esc(l.name)}</b><div class="faint" style="font-size:11px">${esc(l.inst||'')}</div></td><td class="n">${ils(l.bal)}</td><td class="n m">${(+l.rate).toFixed(2)}%</td><td class="n">${ils(loanPay(l))}</td>
       <td class="n">${a.ok?heMonth(addMonths(TODAY,a.months)):'<span class="neg">ההחזר לא מכסה ריבית</span>'}</td><td class="n hide-m">${a.ok?ils(a.interest):'—'}</td>
-      <td class="bar-cell hide-m"><div class="mini-bar"><div style="width:${paid*100}%;background:var(--pos)"></div></div><div class="faint m" style="font-size:10px">${(paid*100).toFixed(0)}%</div></td><td>${v}</td></tr>`;}).join('')+
+      <td class="bar-cell hide-m"><div class="mini-bar"><div style="width:${paid*100}%;background:var(--pos)"></div></div><div class="faint m" style="font-size:10px">${(paid*100).toFixed(0)}%</div></td><td>${v}</td><td><button class="edit-ic" data-edit-loan="${esc(l.id)}" title="עריכה">✏️</button></td></tr>`;}).join('')+
     `<tr><td colspan="8" class="faint" style="font-size:11px">* השוואה לתשואה צפויה אחרי מס ≈ ${expAT.toFixed(1)}%. פירעון הלוואה = תשואה ודאית; השקעה = צפויה ולא מובטחת. לוח סילוק מחושב בשיטת שפיצר לפי ההחזר החודשי הנוכחי (במקום "קיטון יומי" קבוע).</td></tr>`;
   const months=Math.min(maxM||12,360);const pal=['#f05252','#f5a524','#8b6cff','#38bdf8','#22c55e'];
   const grid=[];for(let m=0;m<=months;m+=3)grid.push(m);if(grid[grid.length-1]!==months)grid.push(months);
@@ -1019,7 +1082,7 @@ function renderLoans(){
       <div class="faint mt" style="font-size:11px">אם חיסכון הריבית גבוה מרווח ההשקעה החלופי — הפירעון עדיף (וגם ללא סיכון). בדוק עמלת פירעון מוקדם מול הבנק.</div>`;};
   sel.onchange=sim;$('#ppExtra').oninput=sim;$('#ppLump').oninput=sim;sim();
   const cl=S.loans.filter(l=>l.closed||!(l.bal>0));
-  $('#tblClosed').innerHTML=cl.length?`<tr><th>שם</th><th class="n">סכום מקורי</th><th>הערות</th></tr>`+cl.map(l=>`<tr><td>${esc(l.name)}</td><td class="n">${ils(l.origBal||0)}</td><td class="dim">${esc(l.notes||'')} <span class="tag pos">נסגרה ✓</span></td></tr>`).join(''):'<tr><td class="empty">אין</td></tr>';
+  $('#tblClosed').innerHTML=cl.length?`<tr><th>שם</th><th class="n">סכום מקורי</th><th>הערות</th></tr>`+cl.map(l=>`<tr><td>${esc(l.name)}</td><td class="n">${ils(l.origBal||0)}</td><td class="dim">${esc(l.notes||'')} <span class="tag pos">נסגרה ✓</span> <button class="edit-ic" data-edit-loan="${esc(l.id)}" title="עריכה">✏️</button></td></tr>`).join(''):'<tr><td class="empty">אין</td></tr>';
 }
 
 /* SAVINGS */
@@ -1045,20 +1108,20 @@ function renderSavings(){
   let run=0;mk('cSavCum',{type:'line',data:{datasets:[{label:'מצטבר',data:log.map(s=>({x:s.date,y:(run+=+s.amount)})),borderColor:cv('--pos'),backgroundColor:cv('--pos')+'22',fill:true,pointRadius:0,stepped:true,borderWidth:2}]},options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${ilsT(c.raw.y)}`}}},scales:{x:xTime(),y:yMoney}}});
   const years=[...new Set(log.map(s=>String(s.date).slice(0,4)))].sort().reverse();const sel=$('#savYear');const cur=sel.value||years[0];
   sel.innerHTML=years.map(y=>`<option ${y===cur?'selected':''}>${y}</option>`).join('');sel.onchange=renderSavings;
-  $('#tblSav').innerHTML=`<tr><th>תאריך</th><th>חשבון</th><th class="n">סכום</th><th class="n hide-m">מצטבר</th><th>הערה</th></tr>`+
-    log.filter(s=>String(s.date).startsWith(cur)).slice().reverse().map(s=>`<tr><td class="m">${heDate(s.date)}</td><td>${esc(s.acc)}</td><td class="n">${ilsSigned(+s.amount)}</td><td class="n hide-m">${ils(s.total)}</td><td class="dim" style="font-size:12px">${esc(s.note||'')}</td></tr>`).join('');
+  $('#tblSav').innerHTML=`<tr><th>תאריך</th><th>חשבון</th><th class="n">סכום</th><th class="n hide-m">מצטבר</th><th>הערה</th><th></th></tr>`+
+    log.filter(s=>String(s.date).startsWith(cur)).slice().reverse().map(s=>`<tr><td class="m">${heDate(s.date)}</td><td>${esc(s.acc)}</td><td class="n">${ilsSigned(+s.amount)}</td><td class="n hide-m">${ils(s.total)}</td><td class="dim" style="font-size:12px">${esc(s.note||'')}</td><td><button class="edit-ic" data-edit-slog="${esc(s.id)}" title="עריכה">✏️</button></td></tr>`).join('');
 }
 
 /* SETTINGS */
 function renderSettings(){
   const nSn=SNAPS.length;
   const cnt=`${S.investments.length} אחזקות, ${S.loans.length} הלוואות, ${S.slog.length} רשומות חיסכון; <span class="num">fin26_snaps</span> (מקומי): ${nSn} נקודות. עדכון אחרון בנתונים: ${S.lastUpdated?heDate(S.lastUpdated):'—'}.`;
-  const ro='<p class="dim">קריאה בלבד — FinBoard 2.0 לא כותב ל-Gist ולא למפתחות fin26 של האתר המקורי. ההעדפות והמטמון שלו נשמרים רק ב-<span class="num">fin26_v2</span>.</p>';
+  const ro='<p class="dim">עריכה בעמוד "עדכון" נשמרת בפורמט של האתר המקורי ב-<span class="num">fin26</span> (וב-Gist אם יש token), כך ששני האתרים מסונכרנים. העדפות, מטמון וגיבויים של v2 נשמרים ב-<span class="num">fin26_v2</span>.</p>';
   $('#setSrc').innerHTML=SRC==='gist'?`<div class="chip gist">☁ Gist (live)</div><p class="mt">נטען עכשיו מ-GitHub Gist (<span class="num">${GIST_FILENAME}</span>, עודכן ב-GitHub: ${GIST_META&&GIST_META.gistUpdated?heDate(GIST_META.gistUpdated):'—'}). ${cnt}</p>${ro}`
    :SRC==='gistCache'?`<div class="chip gist">☁ Gist (עותק שמור)</div><p class="mt">${cnt}</p>${ro}`
    :SRC==='local'?`<div class="chip real">💾 נתוני דפדפן מקומיים</div><p class="mt">נקרא מ-<span class="num">localStorage['fin26']</span>: ${cnt}</p>${ro}`
    :`<div class="chip ex">נתוני דוגמה ${SRC_NOTE}</div><p class="mt">הנתונים סינתטיים, באותו מבנה של FinBoard (tracks / investments / loans / slog / set) + שדות חדשים אופציונליים: <span class="num">costBasis</span>, <span class="num">feePct</span>.</p><p class="dim">כדי לראות נתונים אמיתיים: פתח באותו דפדפן שבו האתר המקורי מחובר, או הזן Gist ID למטה. <span class="num">?demo=1</span> מכריח נתוני דוגמה.</p>`;
-  renderGistCard();
+  renderGistCard();renderBackups();
   const bind=(id,k,parse=Number)=>{const el=$('#'+id);el.value=P[k]??'';el.oninput=()=>{P[k]=el.value===''?null:parse(el.value);savePrefs();};};
   bind('sExp','monthlyExpenses');bind('sEmMonths','emMonths');bind('sConc','concPct');bind('sDrift','driftPct');bind('sFee','feeHigh');
   const drawT=()=>{const e=exposures('fin');$('#tblTargets').innerHTML=`<tr><th>סוג נכס</th><th class="n">בפועל</th><th class="n">יעד %</th><th class="n">תשואה צפויה %</th><th class="n">תנודתיות %</th></tr>`+Object.keys(CLASSES).map(k=>`<tr><td><span class="legend"><i style="background:${CLASSES[k].c}"></i></span>${CLASSES[k].n}</td><td class="n m">${((e.cls[k]||0)/e.tot*100).toFixed(1)}%</td>
@@ -1070,9 +1133,291 @@ function renderSettings(){
   const used=new Set(S.investments.filter(isFin).map(i=>i.track));
   $('#tblLook').innerHTML=`<tr><th>מסלול</th><th>סוג נכס</th><th>מטבע</th><th class="hide-m">גאוגרפיה</th><th class="n">תשואה ב-v1</th></tr>`+Object.entries(LOOK).map(([t,L])=>{const tr=S.tracks.find(x=>x.name===t);const f=o=>Object.entries(o).map(([k,v])=>`${CLASSES[k]?.n||GEO[k]?.n||k} ${Math.round(v*100)}%`).join(' · ');
     return `<tr style="${used.has(t)?'':'opacity:.55'}"><td><b>${esc(t)}</b>${used.has(t)?'':' <span class="faint">(לא בשימוש)</span>'}</td><td>${f(L.cls)}</td><td>${f(L.ccy)}</td><td class="hide-m">${f(L.geo)}</td><td class="n m ${tr&&tr.rate>15?'warn':''}">${tr?tr.rate+'%':'—'}</td></tr>`;}).join('');
-  $('#resetPrefs').onclick=()=>{if(confirm('לאפס את הגדרות FinBoard 2.0? (פרטי ה-Gist של v2 נשמרים)')){const v=v2raw();localStorage.setItem(KEY_V2,JSON.stringify({auth:v.auth,cache:v.cache}));loadPrefs();applyTheme();show(CUR);}};
+  $('#resetPrefs').onclick=()=>{if(confirm('לאפס את הגדרות FinBoard 2.0? (פרטי ה-Gist של v2 נשמרים)')){const v=v2raw();const keep={};V2_META.forEach(k=>{if(v[k]!==undefined)keep[k]=v[k];});writeV2(keep);loadPrefs();applyTheme();show(CUR);}};
 }
-const RENDER={overview:renderOverview,alloc:renderAlloc,perf:renderPerf,forecast:()=>renderForecast(true),recs:renderRecs,loans:renderLoans,savings:renderSavings,settings:renderSettings};
+const RENDER={update:renderUpdate,overview:renderOverview,alloc:renderAlloc,perf:renderPerf,forecast:()=>renderForecast(true),recs:renderRecs,loans:renderLoans,savings:renderSavings,settings:renderSettings};
+
+/* =====================================================================
+   EDITING — writes the ORIGINAL format so v1 and v2 stay in sync:
+   localStorage['fin26'] = JSON.stringify(S)  +  Gist PATCH files['finance_data.json'].content = JSON.stringify(S,null,2)
+   Same side effects as v1 saveModal(): history push {date,bal}, lastChange/lastChangePct, S.lastUpdated, slog totals,
+   and the daily fin26_snaps point (liquid + kupa).
+   ===================================================================== */
+const CURRENCIES=['ILS','USD','EUR','GBP','CHF','JPY','CAD','AUD'];
+const CRYPTO_IDS={BTC:'bitcoin',ETH:'ethereum',SOL:'solana',BNB:'binancecoin',XRP:'ripple',ADA:'cardano',DOGE:'dogecoin',DOT:'polkadot',AVAX:'avalanche-2',MATIC:'matic-network',LTC:'litecoin',LINK:'chainlink'};
+const TRACK_TO_CRYPTO={'Bitcoin':'BTC','Ethereum':'ETH','Solana':'SOL','BNB':'BNB','Ripple':'XRP','XRP':'XRP','Cardano':'ADA','Dogecoin':'DOGE','Polkadot':'DOT','Avalanche':'AVAX','Polygon':'MATIC','Litecoin':'LTC','Chainlink':'LINK'};
+const FX_FALLBACK={USD:3.62,EUR:3.95,GBP:4.6,CHF:4.1,JPY:0.025,CAD:2.65,AUD:2.35}; // same fallbacks as v1
+const uid=()=>'_'+Math.random().toString(36).substr(2,9); // same id format as v1
+let BASE_TS=0,SESSION_BACKED=false,DRAFT={inv:{},loan:{}},SAVING=false;
+const RATES={fx:{},crypto:{}};
+const canEdit=()=>SRC!=='example';
+const cryptoSym=i=>i.cryptoSymbol||TRACK_TO_CRYPTO[i.track]||null;
+function unitOf(i){
+  if(i.cat==='forex'&&i.currency&&i.currency!=='ILS'&&+i.foreignAmt>0)return {kind:'fx',code:i.currency,amt:+i.foreignAmt};
+  if(i.cat==='crypto'&&+i.cryptoAmt>0&&cryptoSym(i))return {kind:'crypto',code:cryptoSym(i),amt:+i.cryptoAmt};
+  return {kind:'ils',code:'₪',amt:i.bal};
+}
+async function fxRate(cur){
+  if(!cur||cur==='ILS')return 1;if(RATES.fx[cur])return RATES.fx[cur].rate;
+  try{const r=await fetch(`https://open.er-api.com/v6/latest/${cur}`);const d=await r.json();
+    if(d.result==='success'&&d.rates&&d.rates.ILS){RATES.fx[cur]={rate:d.rates.ILS,live:true};return d.rates.ILS;}}catch(e){}
+  RATES.fx[cur]={rate:FX_FALLBACK[cur]||1,live:false};return RATES.fx[cur].rate;
+}
+async function cryptoPrices(syms){
+  const need=[...new Set(syms)].filter(x=>CRYPTO_IDS[x]&&!RATES.crypto[x]);if(!need.length)return;
+  try{const r=await fetch('https://api.coingecko.com/api/v3/simple/price?ids='+need.map(x=>CRYPTO_IDS[x]).join(',')+'&vs_currencies=ils,usd&include_24hr_change=true');const d=await r.json();
+    need.forEach(x=>{const v=d[CRYPTO_IDS[x]];if(v&&v.ils)RATES.crypto[x]={p:v.ils,live:true};});}catch(e){}
+}
+function priceOf(i){const u=unitOf(i);
+  if(u.kind==='fx'){const r=RATES.fx[u.code];return r?{p:r.rate,live:r.live}:{p:i.bal/u.amt,live:false};}
+  if(u.kind==='crypto'){const r=RATES.crypto[u.code];return r?{p:r.p,live:true}:{p:i.bal/u.amt,live:false};}
+  return {p:1,live:true};}
+async function loadRates(){
+  const hs=S.investments;await Promise.all([...new Set(hs.filter(i=>unitOf(i).kind==='fx').map(i=>i.currency))].map(fxRate));
+  await cryptoPrices(hs.filter(i=>unitOf(i).kind==='crypto').map(cryptoSym));
+}
+const parseNum=v=>{if(v==null)return NaN;const t=String(v).replace(/[,\s₪]/g,'');return t===''?NaN:+t;};
+function recalcSlogIn(x){x.slog=(x.slog||[]).sort((a,b)=>String(a.date).localeCompare(String(b.date)));let r=0;x.slog.forEach(e=>{r+=(+e.amount||0);e.total=r;});}
+/* v1-compatible balance update: history point + lastChange/lastChangePct (same formulas as v1 saveModal) */
+function applyBalance(inv,newBal,date,extra={}){
+  if(!inv.history)inv.history=[];
+  const latest=inv.history.reduce((m,h)=>h&&h.date>m?h.date:m,'');
+  const isCurrent=!latest||date>=latest;
+  Object.assign(inv,extra);
+  if(isCurrent&&newBal===inv.bal)return false;
+  const k=inv.history.findIndex(h=>h&&h.date===date);
+  if(k>=0)inv.history[k].bal=newBal;else{inv.history.push({date,bal:newBal});inv.history.sort((a,b)=>String(a.date).localeCompare(String(b.date)));}
+  if(isCurrent){const raw=newBal-inv.bal;inv.lastChange=Math.abs(raw)<100?0:raw;inv.lastChangePct=inv.bal?((raw/inv.bal)*100):0;inv.bal=newBal;}
+  return true;
+}
+function updateSnapshot(){ // same shape/rules as v1 bootApp auto-snapshot: {d:'YYYY-MM-DD', v: liquid+kupa}, max 200
+  try{const snaps=JSON.parse(localStorage.getItem(KEY_SNAPS)||'[]');const today=new Date().toISOString().slice(0,10);const v=totals().fin;
+    const last=snaps[snaps.length-1];if(last&&last.d===today)last.v=v;else snaps.push({d:today,v});
+    if(snaps.length>200)snaps.splice(0,snaps.length-200);localStorage.setItem(KEY_SNAPS,JSON.stringify(snaps));
+    SNAPS=snaps.filter(x=>x&&x.d&&isFinite(x.v));}catch(e){console.warn('snapshot',e);}
+}
+async function patchGist(c,data){ // identical request to v1 gistSave()
+  const r=await fetch(`https://api.github.com/gists/${c.gist}`,{method:'PATCH',
+    headers:{Authorization:'Bearer '+c.token,Accept:'application/vnd.github+json','Content-Type':'application/json'},
+    body:JSON.stringify({files:{[GIST_FILENAME]:{content:JSON.stringify(data,null,2)}}})});
+  if(!r.ok)throw new Error(r.status===401?'401 — token לא תקין':r.status===403||r.status===404?r.status+' — ל-token אין הרשאת כתיבה ל-Gist (scope "gist")':'שגיאת GitHub '+r.status);
+  const d=await r.json().catch(()=>({}));return d.updated_at||null;
+}
+function pushBackup(data,reason){
+  v2patch(v=>{v.backups=v.backups||[];v.backups.unshift({at:new Date().toISOString(),reason,src:SRC,lastUpdated:data.lastUpdated||null,data:JSON.parse(JSON.stringify(data))});v.backups=v.backups.slice(0,10);});
+}
+function toast(msg,kind='ok',ms=4500){const t=$('#toast');t.className='toast show '+kind;t.textContent=msg;clearTimeout(toast._t);toast._t=setTimeout(()=>t.className='toast',ms);}
+/* the single write path */
+async function commit(apply,reason,{force=false}={}){
+  if(!canEdit()){toast('עריכה זמינה רק כשנטענו הנתונים שלך — לא בנתוני דוגמה.','err');return false;}
+  if(SAVING)return false;SAVING=true;
+  try{
+    const c=getCreds();
+    if(!force){ // conflict safety: never overwrite newer data from another tab/device
+      const lc=readLocal();if(lc&&tsOf(lc)>BASE_TS){SAVING=false;conflictDialog('local',lc.lastUpdated,apply,reason);return false;}
+      if(c){try{const g=await fetchGist(c);if(tsOf(g.S)>BASE_TS){SAVING=false;conflictDialog('gist',g.S.lastUpdated,apply,reason);return false;}}catch(e){console.warn('pre-save Gist check:',e.message);}}
+    }
+    if(!SESSION_BACKED){pushBackup(S,reason.startsWith('שחזור')?'לפני שחזור':'לפני השמירה הראשונה בסשן');SESSION_BACKED=true;}
+    const next=JSON.parse(JSON.stringify(S));const repl=apply(next);const out=repl||next;
+    recalcSlogIn(out);out.lastUpdated=new Date().toISOString(); // v1 saveState()
+    localStorage.setItem(KEY_STATE,JSON.stringify(out));        // v1 gistSave(): local backup first
+    S=out;S.investments.forEach(i=>{i.bal=+i.bal||0;});BASE_TS=tsOf(S);
+    updateSnapshot();
+    let msg,kind='ok';
+    if(c&&c.token){
+      try{const up=await patchGist(c,S);v2patch(v=>{v.cache={S,at:new Date().toISOString(),gistUpdated:up};delete v.pendingSync;});SRC='gist';SRC_MSG='';msg=`✓ נשמר — בדפדפן וב-Gist (${reason})`;}
+      catch(e){v2patch(v=>{v.pendingSync={at:new Date().toISOString(),err:e.message};});SRC='local';msg=`נשמר בדפדפן בלבד. השמירה ל-Gist נכשלה: ${e.message}`;kind='warn';}
+    }else if(c){v2patch(v=>{v.pendingSync={at:new Date().toISOString(),err:'אין token עם הרשאת gist'};});SRC='local';msg='נשמר בדפדפן בלבד — אין token עם הרשאת gist, ולכן לא עודכן ה-Gist. הזן token בהגדרות.';kind='warn';}
+    else{SRC='local';msg='✓ נשמר בדפדפן הזה (אין חיבור Gist).';}
+    toast(msg,kind,kind==='ok'?3500:8000);applySource();show(CUR);return true;
+  }catch(e){toast('שגיאה בשמירה: '+e.message,'err',8000);console.error(e);return false;}
+  finally{SAVING=false;}
+}
+function conflictDialog(where,ts,apply,reason){
+  openModal('⚠️ הנתונים עודכנו במקום אחר',`<p>${where==='gist'?'ה-Gist':'הנתונים בדפדפן (טאב אחר / האתר המקורי)'} עודכנו ב-<b>${ts?esc(new Date(ts).toLocaleString('he-IL')):'—'}</b>, אחרי שהדף הזה נטען (${BASE_TS?esc(new Date(BASE_TS).toLocaleString('he-IL')):'—'}).</p>
+    <p class="mt">שמירה עכשיו תדרוס את השינויים האלה. מומלץ <b>לטעון מחדש</b> ולהזין שוב את העדכון.</p>`,[
+    {label:'טען מחדש (השינויים שלא נשמרו יאבדו)',cls:'btn',fn:async()=>{closeModal();DRAFT={inv:{},loan:{}};await reloadData();toast('נטענו הנתונים העדכניים.','ok');}},
+    {label:'ביטול',cls:'btn ghost',fn:closeModal},
+    {label:'שמור בכל זאת (דריסה)',cls:'btn danger sp',fn:()=>{if(confirm('לדרוס את הנתונים החדשים יותר?')){closeModal();commit(apply,reason,{force:true});}}}]);
+}
+/* ---------- modal ---------- */
+function openModal(title,body,btns){$('#mdTitle').textContent=title;$('#mdBody').innerHTML=body;
+  $('#mdFoot').innerHTML='';btns.forEach(b=>{const el=document.createElement('button');el.className=b.cls;el.textContent=b.label;el.onclick=b.fn;if(b.id)el.id=b.id;$('#mdFoot').appendChild(el);});
+  $('#modal').classList.add('open');}
+function closeModal(){$('#modal').classList.remove('open');}
+const fv=id=>{const el=document.getElementById(id);return el?el.value:'';};
+const optList=(arr,sel)=>arr.map(([v,n])=>`<option value="${esc(v)}" ${String(v)===String(sel)?'selected':''}>${esc(n)}</option>`).join('');
+function editHolding(id,cat){
+  if(!canEdit()){toast('עריכה זמינה רק כשנטענו הנתונים שלך.','err');return;}
+  const inv=id?S.investments.find(x=>x.id===id):null;const c=inv?inv.cat:(cat||'gamel');
+  const tracks=S.tracks.map(t=>[t.name,`${t.name} (${(+t.rate).toFixed(1)}%)`]);if(inv&&inv.track&&!S.tracks.some(t=>t.name===inv.track))tracks.unshift([inv.track,inv.track]);
+  const hist=(inv&&inv.history||[]).slice().sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,6);
+  openModal(inv?`עריכה — ${inv.name}`:'אחזקה חדשה',`<div class="form" style="grid-template-columns:1fr 1fr">
+    <div class="field" style="grid-column:1/-1"><label>שם</label><input id="eName" value="${esc(inv?inv.name:'')}"></div>
+    <div class="field"><label>קטגוריה</label><select id="eCat">${optList(Object.entries(CATS),c)}</select></div>
+    <div class="field"><label>מסלול השקעה</label><select id="eTrack">${optList(tracks,inv?inv.track:(S.tracks[0]||{}).name)}</select></div>
+    <div class="field"><label>בית השקעות / גוף</label><input id="eInst" value="${esc(inv?inv.inst||'':'')}"></div>
+    <div class="field"><label>בעלים</label><input id="eOwner" value="${esc(inv?inv.owner||'':'')}"></div>
+    <div class="field"><label>יתרה (₪)</label><input id="eBal" inputmode="decimal" value="${inv?inv.bal:0}" style="direction:ltr"></div>
+    <div class="field"><label>מספר חשבון</label><input id="eAcc" value="${esc(inv?inv.accNum||'':'')}" style="direction:ltr"></div>
+    <div class="field fxf"><label>מטבע</label><select id="eCur">${optList(CURRENCIES.map(x=>[x,x]),inv&&inv.currency||'ILS')}</select></div>
+    <div class="field fxf"><label>סכום במטבע</label><input id="eFx" inputmode="decimal" value="${inv&&inv.foreignAmt||0}" style="direction:ltr"><div class="hint">אם &gt;0 — היתרה בש"ח מחושבת לפי השער (כמו באתר המקורי)</div></div>
+    <div class="field crf"><label>סימול קריפטו</label><select id="eSym">${optList(Object.keys(CRYPTO_IDS).map(x=>[x,x]),inv&&inv.cryptoSymbol||'BTC')}</select></div>
+    <div class="field crf"><label>כמות מטבעות</label><input id="eCa" inputmode="decimal" value="${inv&&inv.cryptoAmt||0}" style="direction:ltr"></div>
+    <div class="field"><label>דמי ניהול (% מצבירה)</label><input id="eFee" inputmode="decimal" value="${inv&&isFinite(inv.feePct)?inv.feePct:''}" placeholder="לא ידוע" style="direction:ltr"></div>
+    <div class="field"><label>עלות / סך הפקדות (₪)</label><input id="eCost" inputmode="decimal" value="${inv&&isFinite(inv.costBasis)?inv.costBasis:''}" placeholder="לחישוב תשואה" style="direction:ltr"></div>
+    <div class="field" style="grid-column:1/-1"><label>הערות</label><textarea id="eNotes">${esc(inv?inv.notes||'':'')}</textarea></div>
+  </div>${hist.length?`<div class="mt"><b style="font-size:13px">היסטוריית יתרות אחרונה</b><table class="hist-mini">${hist.map(h=>`<tr><td class="m">${heDate(h.date)}</td><td class="n">${ils(+h.bal)}</td></tr>`).join('')}</table></div>`:''}`,[
+    {label:'שמור',cls:'btn',id:'eSave',fn:()=>saveHolding(id)},{label:'ביטול',cls:'btn ghost',fn:closeModal},
+    ...(inv?[{label:'מחק אחזקה',cls:'btn danger sp',id:'eDel',fn:()=>{if(confirm(`למחוק את "${inv.name}"? (נשמר גיבוי)`)){closeModal();commit(x=>{x.investments=x.investments.filter(i=>i.id!==id);},`מחיקת ${inv.name}`);}}}]:[])]);
+  const tog=()=>{const k=fv('eCat');document.querySelectorAll('.fxf').forEach(e=>e.style.display=k==='forex'?'':'none');document.querySelectorAll('.crf').forEach(e=>e.style.display=k==='crypto'?'':'none');};
+  $('#eCat').onchange=tog;tog();
+}
+function saveHolding(id){
+  const name=fv('eName').trim();if(!name){toast('חובה להזין שם','err');return;}
+  const num=k=>{const v=parseNum(fv(k));return isFinite(v)?v:0;},opt=k=>{const v=parseNum(fv(k));return isFinite(v)?v:null;};
+  const cat=fv('eCat');
+  const d={name,cat,track:fv('eTrack'),bal:num('eBal'),inst:fv('eInst'),owner:fv('eOwner'),accNum:fv('eAcc'),notes:fv('eNotes'),
+    currency:cat==='forex'?fv('eCur'):'ILS',foreignAmt:cat==='forex'?num('eFx'):0,cryptoSymbol:cat==='crypto'?fv('eSym'):'',cryptoAmt:cat==='crypto'?num('eCa'):0}; // same keys as v1 saveModal
+  if(d.foreignAmt>0&&d.currency!=='ILS'){const r=RATES.fx[d.currency];d.bal=Math.round(d.foreignAmt*(r?r.rate:(FX_FALLBACK[d.currency]||1)));}
+  if(d.cryptoAmt>0){const r=RATES.crypto[d.cryptoSymbol];if(r)d.bal=Math.round(d.cryptoAmt*r.p);}
+  const fee=opt('eFee'),cost=opt('eCost');const today=iso(new Date());
+  closeModal();
+  commit(x=>{
+    let inv=id?x.investments.find(i=>i.id===id):null;
+    if(!inv){inv={id:uid(),...d,history:[{date:today,bal:d.bal}],lastChange:0,lastChangePct:0};x.investments.push(inv);}
+    else{const {bal,...rest}=d;applyBalance(inv,bal,today,rest);}
+    if(fee!=null)inv.feePct=fee;else delete inv.feePct;
+    if(cost!=null)inv.costBasis=cost;else delete inv.costBasis;
+  },id?`עריכת ${name}`:`הוספת ${name}`);
+}
+function editLoan(id){
+  if(!canEdit()){toast('עריכה זמינה רק כשנטענו הנתונים שלך.','err');return;}
+  const l=id?S.loans.find(x=>x.id===id):null;
+  openModal(l?`עריכת הלוואה — ${l.name}`:'הלוואה חדשה',`<div class="form" style="grid-template-columns:1fr 1fr">
+    <div class="field" style="grid-column:1/-1"><label>שם הלוואה</label><input id="lName" value="${esc(l?l.name:'')}"></div>
+    <div class="field"><label>גוף מלווה</label><input id="lInst" value="${esc(l?l.inst||'':'')}"></div>
+    <div class="field"><label>יתרה נוכחית (₪)</label><input id="lBal" inputmode="decimal" value="${l?l.bal:0}" style="direction:ltr"></div>
+    <div class="field"><label>סכום מקורי (₪)</label><input id="lOrig" inputmode="decimal" value="${l?l.origBal||0:0}" style="direction:ltr"></div>
+    <div class="field"><label>החזר חודשי (₪)</label><input id="lPay" inputmode="decimal" value="${l?loanPay(l):0}" style="direction:ltr"><div class="hint">פירעון שנתי מחושב ×12 (כמו במקור)</div></div>
+    <div class="field"><label>ריבית שנתית (%)</label><input id="lRate" inputmode="decimal" value="${l?l.rate:3.5}" style="direction:ltr"></div>
+    <div class="field"><label>סטטוס</label><select id="lClosed">${optList([['false','פעיל'],['true','נסגר']],l?String(!!l.closed):'false')}</select></div>
+    <div class="field" style="grid-column:1/-1"><label>הערות</label><textarea id="lNotes">${esc(l?l.notes||'':'')}</textarea></div></div>`,[
+    {label:'שמור',cls:'btn',id:'lSave',fn:()=>{const n=k=>{const v=parseNum(fv(k));return isFinite(v)?v:0;};const name=fv('lName').trim();if(!name){toast('חובה להזין שם','err');return;}
+      const d={name,inst:fv('lInst'),bal:n('lBal'),origBal:n('lOrig'),monthlyPay:n('lPay'),annualPay:Math.round(n('lPay')*12),rate:n('lRate'),closed:fv('lClosed')==='true',notes:fv('lNotes')}; // same keys as v1
+      closeModal();commit(x=>{const t=id?x.loans.find(q=>q.id===id):null;if(t)Object.assign(t,d);else x.loans.push({id:uid(),...d});},id?`עריכת ${name}`:`הוספת ${name}`);}},
+    {label:'ביטול',cls:'btn ghost',fn:closeModal},
+    ...(l?[{label:'מחק הלוואה',cls:'btn danger sp',fn:()=>{if(confirm(`למחוק את "${l.name}"?`)){closeModal();commit(x=>{x.loans=x.loans.filter(q=>q.id!==id);},`מחיקת ${l.name}`);}}}]:[])]);
+}
+function editSlog(id){
+  if(!canEdit()){toast('עריכה זמינה רק כשנטענו הנתונים שלך.','err');return;}
+  const r=id?S.slog.find(x=>x.id===id):null;const accs=[...new Set(S.slog.map(x=>x.acc).filter(Boolean))];
+  openModal(r?'עריכת רשומת חיסכון':'רשומת חיסכון חדשה',`<div class="form" style="grid-template-columns:1fr 1fr">
+    <div class="field"><label>תאריך</label><input id="sDate" type="date" value="${r?esc(r.date):iso(new Date())}"></div>
+    <div class="field"><label>חשבון</label><input id="sAcc" list="accList" value="${esc(r?r.acc||'':(accs[accs.length-1]||''))}"><datalist id="accList">${accs.map(a=>`<option value="${esc(a)}">`).join('')}</datalist></div>
+    <div class="field" style="grid-column:1/-1"><label>סכום (₪) — שלילי = משיכה</label><input id="sAmt" inputmode="decimal" value="${r?r.amount:''}" style="direction:ltr"></div>
+    <div class="field" style="grid-column:1/-1"><label>הערה</label><input id="sNote" value="${esc(r?r.note||'':'')}"></div></div>`,[
+    {label:'שמור',cls:'btn',id:'sSave',fn:()=>{const a=parseNum(fv('sAmt'));if(!isFinite(a)||!fv('sDate')){toast('הזן תאריך וסכום','err');return;}
+      const d={date:fv('sDate'),acc:fv('sAcc'),amount:a,note:fv('sNote')};closeModal();
+      commit(x=>{const t=id?x.slog.find(q=>q.id===id):null;if(t)Object.assign(t,d);else x.slog.push({id:uid(),total:0,...d});},id?'עריכת רשומת חיסכון':'הוספת רשומת חיסכון');}},
+    {label:'ביטול',cls:'btn ghost',fn:closeModal},
+    ...(r?[{label:'מחק רשומה',cls:'btn danger sp',fn:()=>{if(confirm('למחוק את הרשומה?')){closeModal();commit(x=>{x.slog=x.slog.filter(q=>q.id!==id);},'מחיקת רשומת חיסכון');}}}]:[])]);
+}
+/* ---------- UPDATE BALANCES screen ---------- */
+function draftNewBal(i){const d=DRAFT.inv[i.id];if(!d||!isFinite(d.v))return null;const u=unitOf(i);
+  return u.kind==='ils'?d.v:Math.round(d.v*priceOf(i).p);}
+function renderUpdate(){
+  const ed=canEdit();
+  $('#updLock').style.display=ed?'none':'';$('#updLock').innerHTML='<b>עריכה מושבתת:</b> מוצגים נתוני דוגמה. כדי לעדכן יתרות, טען את הנתונים שלך (מהאתר המקורי בדפדפן הזה או דרך חיבור Gist ב<a href="#settings">הגדרות</a>).';
+  const di=$('#updDate');if(!di.value)di.value=iso(new Date());
+  const c=getCreds();
+  $('#updWhere').innerHTML=`השמירה נכתבת בפורמט של האתר המקורי ל-<span class="num">localStorage['fin26']</span>${c&&c.token?' <b>וגם ל-Gist</b> (finance_data.json) — האתר המקורי יראה את העדכון':c?' — <span class="warn">ה-Gist לא יתעדכן: אין token עם הרשאת gist</span>':' — אין חיבור Gist (דפדפן זה בלבד)'}. כל שינוי יתרה נרשם בהיסטוריה של האחזקה בתאריך שנבחר. למט"ח ולקריפטו מזינים כמות; השווי בש"ח מחושב לפי שער עדכני (כמו במקור).`;
+  const cats=[...Object.keys(CATS),...new Set(S.investments.map(i=>i.cat).filter(k=>!CATS[k]))];
+  const row=i=>{const u=unitOf(i),lu=lastUpdate(i),stale=lu&&daysBetween(lu,TODAY)>60,d=DRAFT.inv[i.id];
+    const pr=priceOf(i);const curTxt=u.kind==='ils'?ils(i.bal):`<span class="m">${(+u.amt).toLocaleString('en-US',{maximumFractionDigits:6})} ${esc(u.code)}</span> <span class="faint">≈ ${ils(i.bal)}</span>`;
+    return `<div class="urow ${d&&isFinite(d.v)?'dirty':''}" data-row="${esc(i.id)}">
+      <div class="nmw"><div class="nm">${esc(i.name)}</div><div class="meta">${esc([i.inst,i.track,i.owner].filter(Boolean).join(' · '))} · <span class="${stale?'warn':''}">עודכן ${lu?heDate(lu):'—'}</span></div></div>
+      <div class="cur"><span class="lbl dim">נוכחי: </span>${curTxt}</div>
+      <div class="uin"><input data-inv="${esc(i.id)}" inputmode="decimal" autocomplete="off" ${ed?'':'disabled'} placeholder="${esc(String(u.kind==='ils'?Math.round(i.bal):u.amt))}" value="${d&&isFinite(d.v)?esc(String(d.raw)):''}" aria-label="יתרה חדשה — ${esc(i.name)}"><span class="unit">${esc(u.code)}${u.kind!=='ils'?`<br><span class="faint">@${nf.format(Math.round(pr.p*100)/100)}${pr.live?'':' *'}</span>`:''}</span></div>
+      <div class="udelta" data-dl="${esc(i.id)}"></div>
+      <div class="edw"><button class="edit-ic" data-edit-inv="${esc(i.id)}" title="עריכת פרטים" ${ed?'':'disabled'}>✏️</button></div></div>`;};
+  const head='<div class="uhead urow" style="padding-top:6px;padding-bottom:6px"><span>אחזקה</span><span>יתרה נוכחית</span><span>יתרה חדשה</span><span>שינוי</span><span></span></div>';
+  let html=cats.map(k=>{const hs=S.investments.filter(i=>i.cat===k);
+    return `<div class="card ugrp mt"><div class="ugrp-head"><h3>${esc(CATS[k]||k)}</h3><span class="tot" data-gt="${esc(k)}"></span><button class="btn ghost sm" data-add-cat="${esc(k)}" ${ed?'':'disabled'}>+ הוסף</button></div>
+      ${hs.length?head+hs.map(row).join(''):'<div class="empty" style="padding:14px">אין אחזקות בקטגוריה</div>'}</div>`;}).join('');
+  const loans=S.loans.filter(l=>!l.closed);
+  html+=`<div class="card ugrp mt"><div class="ugrp-head"><h3>הלוואות</h3><span class="tot" data-gt="__loans"></span><button class="btn ghost sm" data-edit-loan="" ${ed?'':'disabled'}>+ הוסף</button></div>
+    ${loans.length?head+loans.map(l=>{const d=DRAFT.loan[l.id];return `<div class="urow ${d&&isFinite(d.v)?'dirty':''}"><div class="nmw"><div class="nm">${esc(l.name)}</div><div class="meta">${esc(l.inst||'')} · ${(+l.rate).toFixed(2)}% · החזר ${ilsT(loanPay(l))}</div></div>
+      <div class="cur"><span class="lbl dim">נוכחי: </span>${ils(l.bal)}</div><div class="uin"><input data-loan="${esc(l.id)}" inputmode="decimal" autocomplete="off" ${ed?'':'disabled'} placeholder="${Math.round(l.bal)}" value="${d&&isFinite(d.v)?esc(String(d.raw)):''}" aria-label="יתרה חדשה — ${esc(l.name)}"><span class="unit">₪</span></div>
+      <div class="udelta" data-dll="${esc(l.id)}"></div><div class="edw"><button class="edit-ic" data-edit-loan="${esc(l.id)}" ${ed?'':'disabled'}>✏️</button></div></div>`;}).join(''):'<div class="empty" style="padding:14px">אין הלוואות פעילות</div>'}</div>`;
+  const last=S.slog.slice(-5).reverse();const accs=[...new Set(S.slog.map(x=>x.acc).filter(Boolean))];
+  html+=`<div class="card mt"><div class="card-head"><h3>💰 חיסכון — הוספת הפקדה / משיכה</h3><div class="tools"><a class="qchip" href="#savings">ליומן המלא ←</a></div></div>
+    <div class="form"><div class="field"><label>תאריך</label><input type="date" id="qsDate" value="${iso(new Date())}" ${ed?'':'disabled'}></div>
+      <div class="field"><label>חשבון</label><input id="qsAcc" list="qsAccs" value="${esc(accs[accs.length-1]||'')}" ${ed?'':'disabled'}><datalist id="qsAccs">${accs.map(a=>`<option value="${esc(a)}">`).join('')}</datalist></div>
+      <div class="field"><label>סכום (₪, שלילי = משיכה)</label><input id="qsAmt" inputmode="decimal" style="direction:ltr" ${ed?'':'disabled'}></div>
+      <div class="field"><label>הערה</label><input id="qsNote" ${ed?'':'disabled'}></div>
+      <div class="field"><label>&nbsp;</label><button class="btn" id="qsAdd" ${ed?'':'disabled'}>+ הוסף רשומה</button></div></div>
+    ${last.length?`<table class="mt">${last.map(x=>`<tr><td class="m">${heDate(x.date)}</td><td>${esc(x.acc)}</td><td class="n">${ilsSigned(+x.amount)}</td><td class="dim hide-m" style="font-size:12px">${esc(x.note||'')}</td><td><button class="edit-ic" data-edit-slog="${esc(x.id)}" ${ed?'':'disabled'}>✏️</button></td></tr>`).join('')}</table>`:''}</div>`;
+  $('#updGroups').innerHTML=html;
+  $$('#updGroups [data-inv]').forEach(el=>el.oninput=()=>{const v=parseNum(el.value);if(el.value.trim()==='')delete DRAFT.inv[el.dataset.inv];else DRAFT.inv[el.dataset.inv]={v,raw:el.value};updDeltas();});
+  $$('#updGroups [data-loan]').forEach(el=>el.oninput=()=>{const v=parseNum(el.value);if(el.value.trim()==='')delete DRAFT.loan[el.dataset.loan];else DRAFT.loan[el.dataset.loan]={v,raw:el.value};updDeltas();});
+  $('#qsAdd').onclick=()=>{const a=parseNum(fv('qsAmt'));if(!isFinite(a)||!fv('qsDate')){toast('הזן תאריך וסכום','err');return;}
+    const d={date:fv('qsDate'),acc:fv('qsAcc'),amount:a,note:fv('qsNote')};commit(x=>{x.slog.push({id:uid(),total:0,...d});},'הוספת רשומת חיסכון');};
+  $('#sbCancel').onclick=()=>{DRAFT={inv:{},loan:{}};renderUpdate();};
+  $('#sbSave').onclick=saveDraft;
+  updDeltas();
+  if(!renderUpdate._rates){renderUpdate._rates=true;loadRates().then(()=>{if(CUR==='update')renderUpdate();});}
+}
+function updDeltas(){
+  let n=0,dsum=0,bad=0;const gt={};
+  S.investments.forEach(i=>{const nb=draftNewBal(i);const el=document.querySelector(`[data-dl="${CSS.escape(i.id)}"]`);const row=document.querySelector(`[data-row="${CSS.escape(i.id)}"]`);
+    gt[i.cat]=gt[i.cat]||{cur:0,nw:0};gt[i.cat].cur+=i.bal;gt[i.cat].nw+=nb!=null?nb:i.bal;
+    if(DRAFT.inv[i.id]&&!isFinite(DRAFT.inv[i.id].v)){bad++;if(el)el.innerHTML='<span class="neg">מספר לא תקין</span>';return;}
+    if(row)row.classList.toggle('dirty',nb!=null);
+    if(nb==null){if(el)el.innerHTML='';return;}
+    const df=nb-i.bal;n++;dsum+=df;if(el)el.innerHTML=`${ilsSigned(df)}<br>${i.bal?pct(df/i.bal):''}${unitOf(i).kind!=='ils'?`<br><span class="faint">= ${ils(nb)}</span>`:''}`;});
+  let ln=0,ld=0;S.loans.filter(l=>!l.closed).forEach(l=>{const d=DRAFT.loan[l.id];const el=document.querySelector(`[data-dll="${CSS.escape(l.id)}"]`);
+    if(!d){if(el)el.innerHTML='';return;}if(!isFinite(d.v)){bad++;if(el)el.innerHTML='<span class="neg">מספר לא תקין</span>';return;}
+    const df=d.v-l.bal;ln++;ld+=df;if(el)el.innerHTML=`${ilsSigned(df)}${l.bal?'<br>'+pct(df/l.bal):''}`;});
+  Object.entries(gt).forEach(([k,v])=>{const el=document.querySelector(`[data-gt="${CSS.escape(k)}"]`);if(el)el.innerHTML=Math.round(v.nw)!==Math.round(v.cur)?`${ils(v.cur)} → <b>${ils(v.nw)}</b>`:ils(v.cur);});
+  const lg=document.querySelector('[data-gt="__loans"]');if(lg)lg.innerHTML=ils(totals().debt);
+  $('#saveBar').classList.toggle('show',n+ln+bad>0);
+  $('#sbCount').textContent=`${n+ln} שינויים${bad?` · ${bad} שגויים`:''}`;
+  $('#sbSum').innerHTML=n?`שינוי בהון: ${ilsSigned(dsum)}`:'';$('#sbSave').disabled=!!bad||!(n+ln);
+}
+async function saveDraft(){
+  const date=$('#updDate').value||iso(new Date());
+  await loadRates();
+  const items=S.investments.filter(i=>DRAFT.inv[i.id]&&isFinite(DRAFT.inv[i.id].v)).map(i=>({id:i.id,u:unitOf(i),v:DRAFT.inv[i.id].v,nb:draftNewBal(i)}));
+  const lns=Object.entries(DRAFT.loan).filter(([,d])=>isFinite(d.v));
+  if(!items.length&&!lns.length)return;
+  const ok=await commit(x=>{
+    items.forEach(it=>{const inv=x.investments.find(q=>q.id===it.id);if(!inv)return;
+      const extra=it.u.kind==='fx'?{foreignAmt:it.v}:it.u.kind==='crypto'?{cryptoAmt:it.v}:{};applyBalance(inv,it.nb,date,extra);});
+    lns.forEach(([id,d])=>{const l=x.loans.find(q=>q.id===id);if(l)l.bal=d.v;});
+  },`עדכון ${items.length+lns.length} יתרות`);
+  if(ok){DRAFT={inv:{},loan:{}};if(CUR==='update')renderUpdate();}
+}
+function renderBackups(){
+  const bs=v2raw().backups||[];
+  $('#tblBk').innerHTML=bs.length?`<tr><th>נוצר</th><th>סיבה</th><th class="hide-m">עדכון אחרון בנתונים</th><th class="n">הון פיננסי</th><th></th></tr>`+bs.map((b,k)=>{const fin=sum((b.data.investments||[]).filter(i=>i.cat!=='realestate'),i=>+i.bal||0);
+    return `<tr><td class="m">${esc(new Date(b.at).toLocaleString('he-IL'))}</td><td>${esc(b.reason)}</td><td class="hide-m m">${b.lastUpdated?esc(new Date(b.lastUpdated).toLocaleString('he-IL')):'—'}</td><td class="n">${ils(fin)}</td>
+      <td style="white-space:nowrap"><button class="btn sm" data-bk-restore="${k}" ${canEdit()?'':'disabled'}>שחזר</button> <button class="btn ghost sm" data-bk-dl="${k}">הורד JSON</button></td></tr>`;}).join(''):'<tr><td class="empty">אין גיבויים עדיין — ייווצר אוטומטית לפני השמירה הראשונה.</td></tr>';
+  $$('[data-bk-restore]').forEach(b=>b.onclick=()=>{const bk=(v2raw().backups||[])[+b.dataset.bkRestore];if(!bk)return;
+    if(!confirm(`לשחזר את הגיבוי מ-${new Date(bk.at).toLocaleString('he-IL')}? הנתונים הנוכחיים יגובו קודם, והגיבוי יישמר בדפדפן וב-Gist.`))return;
+    SESSION_BACKED=false;commit(()=>JSON.parse(JSON.stringify(bk.data)),'שחזור גיבוי');});
+  $$('[data-bk-dl]').forEach(b=>b.onclick=()=>{const bk=(v2raw().backups||[])[+b.dataset.bkDl];if(!bk)return;const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([JSON.stringify(bk.data,null,2)],{type:'application/json'}));a.download='finboard_backup_'+bk.at.slice(0,19).replace(/[:T]/g,'-')+'.json';a.click();});
+  $('#bkNow').disabled=!canEdit();$('#bkNow').onclick=()=>{pushBackup(S,'גיבוי ידני');renderBackups();toast('✓ נוצר גיבוי','ok');};
+}
+function initEditing(){
+  $('#mdX').onclick=closeModal;$('#modal').addEventListener('click',e=>{if(e.target.id==='modal')closeModal();});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+  document.addEventListener('click',e=>{const b=e.target.closest('[data-edit-inv],[data-add-cat],[data-edit-loan],[data-edit-slog]');if(!b||b.disabled)return;
+    if(b.dataset.editInv!==undefined)editHolding(b.dataset.editInv);else if(b.dataset.addCat!==undefined)editHolding(null,b.dataset.addCat);
+    else if(b.dataset.editLoan!==undefined)editLoan(b.dataset.editLoan||null);else if(b.dataset.editSlog!==undefined)editSlog(b.dataset.editSlog||null);});
+  window.addEventListener('beforeunload',e=>{if(Object.keys(DRAFT.inv).length||Object.keys(DRAFT.loan).length){e.preventDefault();e.returnValue='';}});
+}
 
 /* ---------------- THEME / PRIVACY / BOOT ---------------- */
 function applyTheme(){const t=P.theme||(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');document.documentElement.dataset.theme=t;document.body.classList.toggle('privacy',!!P.privacy);chartBase();}
@@ -1099,8 +1444,13 @@ function applySource(){
   $('#exBanner').style.display=SRC==='example'?'':'none';
   const m=[ACCESS_MSG,SRC_MSG].filter(Boolean).join(' ');const el=$('#srcMsg');
   el.style.display=m?'':'none';el.className='banner '+(SRC_MSG_KIND==='err'&&SRC_MSG?'err':'info');el.textContent=m;
+  const ps=v2raw().pendingSync,c=getCreds(),sb=$('#syncBar');
+  if(ps&&c&&SRC!=='example'){sb.style.display='flex';$('#syncTxt').textContent=`⚠️ שינויים מ-${heDate(ps.at)} נשמרו רק בדפדפן הזה ולא ב-Gist (${ps.err}). האתר המקורי טוען מה-Gist ועלול לא לראות אותם עד לסנכרון.`;
+    $('#syncRetry').style.display=c.token?'':'none';$('#syncRetry').onclick=()=>commit(()=>{},'סנכרון חוזר ל-Gist');}
+  else sb.style.display='none';
 }
 async function reloadData(){
+  SESSION_BACKED=false;
   Object.keys(charts).forEach(k=>{charts[k].destroy();delete charts[k];});
   await loadData();loadPrefs();applySource();show(CUR);
 }
@@ -1113,6 +1463,7 @@ async function boot(){
   $('#themeBtn').onclick=()=>{P.theme=document.documentElement.dataset.theme==='dark'?'light':'dark';savePrefs();applyTheme();show(CUR);};
   $('#privBtn').onclick=()=>{P.privacy=!P.privacy;savePrefs();applyTheme();};
   window.addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(h.startsWith('access='))return;show(h);});
+  initEditing();
   show(location.hash.slice(1)||'overview');
 }
 document.addEventListener('DOMContentLoaded',boot);
