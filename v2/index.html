@@ -143,7 +143,7 @@ pre.json{max-height:320px;overflow:auto;direction:ltr;text-align:left;font-size:
 .ugrp{padding:0;overflow:hidden}
 .ugrp-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--card2)}
 .ugrp-head h3{margin:0}.ugrp-head .tot{margin-right:auto;font-size:13px;color:var(--dim)}
-.urow{display:grid;grid-template-columns:minmax(0,2.2fr) 1fr 1.25fr 1fr 40px;gap:10px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line)}
+.urow{display:grid;grid-template-columns:minmax(0,2fr) .9fr 1fr 1.15fr .9fr 40px;gap:10px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line)}
 .urow:last-child{border-bottom:0}
 .urow.dirty{background:color-mix(in srgb,var(--pri) 9%,transparent)}
 .urow .nm{font-weight:600}.urow .meta{font-size:11px;color:var(--faint)}
@@ -172,11 +172,22 @@ pre.json{max-height:320px;overflow:auto;direction:ltr;text-align:left;font-size:
 .toast.show{display:block}.toast.ok{border-color:var(--pos)}.toast.err{border-color:var(--neg)}.toast.warn{border-color:var(--warn)}
 .syncbar{display:none;align-items:center;gap:10px;flex-wrap:wrap}
 .hist-mini{font-size:12px;color:var(--dim)}.hist-mini td{padding:4px 6px}
+.urow .lu{font-size:12px;color:var(--dim);white-space:nowrap}.urow .lu.warn{color:var(--warn)}
+.urow .lu b{color:var(--text);font-weight:600}
+.hold-chart{height:180px;margin-top:10px;position:relative}
+.drill{margin-top:10px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--card2);min-height:72px}
+.drill.empty-state{color:var(--dim);font-size:13px}
+.drill h4{margin:0 0 8px;font-size:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.drill h4 .pill{font-size:11px;padding:2px 8px;border-radius:999px;background:var(--card);border:1px solid var(--line)}
+.drill table{width:100%;font-size:12px}.drill td,.drill th{padding:5px 6px;border-bottom:1px solid var(--line)}
+.drill .bar-cell .mini-bar{height:6px}
+.alloc-charts .card{position:relative}
+.alloc-charts .card.active-slice{outline:2px solid var(--pri);outline-offset:1px}
 /* responsive */
 @media (max-width:1100px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g-2-1,.g3{grid-template-columns:1fr}}
 @media (max-width:760px){
-  .urow{grid-template-columns:1fr 1fr;grid-template-areas:"nm ed" "cur cur" "in in" "dl dl";gap:6px 10px}
-  .urow .nmw{grid-area:nm}.urow .cur{grid-area:cur}.urow .uin{grid-area:in}.urow .udelta{grid-area:dl;text-align:right}.urow .edw{grid-area:ed;justify-self:end}
+  .urow{grid-template-columns:1fr 1fr;grid-template-areas:"nm ed" "lu lu" "cur cur" "in in" "dl dl";gap:6px 10px}
+  .urow .nmw{grid-area:nm}.urow .lu{grid-area:lu}.urow .cur{grid-area:cur}.urow .uin{grid-area:in}.urow .udelta{grid-area:dl;text-align:right}.urow .edw{grid-area:ed;justify-self:end}
   .urow .cur .lbl{display:inline}.uhead{display:none}
   .uin input{height:44px;font-size:16px}
   .savebar{bottom:76px}
@@ -220,7 +231,7 @@ pre.json{max-height:320px;overflow:auto;direction:ltr;text-align:left;font-size:
     <!-- OVERVIEW -->
     <section class="page" id="p-overview">
       <div class="grid g4">
-        <div class="card kpi hero"><div class="lbl">שווי נקי (נכסים − התחייבויות)</div><div class="val" id="ovNet"></div><div class="foot" id="ovNetFoot"></div></div>
+        <div class="card kpi hero"><div class="lbl">שווי נקי (הון פיננסי − התחייבויות)</div><div class="val" id="ovNet"></div><div class="foot" id="ovNetFoot"></div></div>
         <div class="card kpi"><div class="lbl">הון פיננסי</div><div class="val" id="ovFin"></div>
           <div class="split" id="ovFinSplit"></div><div class="legend" id="ovFinLeg"></div></div>
         <div class="card kpi"><div class="lbl">רווח מצטבר מתחילת המעקב</div><div class="val" id="ovGain"></div><div class="foot" id="ovGainFoot"></div></div>
@@ -266,13 +277,14 @@ pre.json{max-height:320px;overflow:auto;direction:ltr;text-align:left;font-size:
       <div class="card mb">
         <div class="card-head"><h3>היקף הניתוח</h3>
           <div class="tools"><div class="seg" id="alScope"><button data-s="fin" class="on">כל ההון הפיננסי</button><button data-s="liq">נזיל בלבד</button></div></div></div>
-        <div class="dim" style="font-size:12px">נדל"ן מוצג במאזן אך לא נכלל באיזון התיק (לא סחיר). מסלולים מעורבים מפורקים לרכיביהם לפי טבלת ההנחות בהגדרות.</div>
+        <div class="dim" style="font-size:12px">נדל"ן אינו מוצג ואינו נכלל בחישובים ב-v2 (נשמר בנתונים לשימוש האתר המקורי). מסלולים מעורבים מפורקים לרכיביהם לפי טבלת ההנחות בהגדרות — לחץ/רחף על פלח כדי לראות אילו אחזקות מרכיבות אותו.</div>
       </div>
-      <div class="grid g3">
-        <div class="card"><h3>סוג נכס</h3><div class="chart sm"><canvas id="cCls"></canvas></div></div>
-        <div class="card"><h3>חשיפה מטבעית</h3><div class="chart sm"><canvas id="cCcy"></canvas></div></div>
-        <div class="card"><h3>גאוגרפיה</h3><div class="chart sm"><canvas id="cGeo"></canvas></div></div>
+      <div class="grid g3 alloc-charts">
+        <div class="card" id="cardCls"><h3>סוג נכס</h3><div class="chart sm"><canvas id="cCls"></canvas></div></div>
+        <div class="card" id="cardCcy"><h3>חשיפה מטבעית</h3><div class="chart sm"><canvas id="cCcy"></canvas></div></div>
+        <div class="card" id="cardGeo"><h3>גאוגרפיה</h3><div class="chart sm"><canvas id="cGeo"></canvas></div></div>
       </div>
+      <div class="card mt"><div id="alDrill" class="drill empty-state">בחר פלח בגרף (רחף במחשב / הקש במובייל) כדי לראות אילו אחזקות מרכיבות אותו, עם סכומים ו-% מתוך הפלח — לפי מיפוי המסלולים בהגדרות.</div></div>
       <div class="card mt">
         <div class="card-head"><h3>הקצאת יעד, סטייה והצעת איזון</h3>
           <div class="tools"><label class="chk"><input type="checkbox" id="rbNewMoney"> איזון באמצעות הפקדות חדשות בלבד (בלי מכירות)</label></div></div>
@@ -413,13 +425,15 @@ pre.json{max-height:320px;overflow:auto;direction:ltr;text-align:left;font-size:
 <script>
 'use strict';
 /* =====================================================================
-   FinBoard 2.0 — prototype. Reads the SAME localStorage keys as v1:
+   FinBoard 2.0 — reads/writes the SAME localStorage keys as v1:
    'fin26' (state S), 'fin26_snaps' (daily totals), 'fin26_gemini' (AI key).
-   It NEVER writes to them. Its own prefs live in 'fin26_v2'.
+   Prefs / backups / cache live in 'fin26_v2'. Real-estate holdings are kept
+   in storage but ignored everywhere in v2 UI and calculations.
    ===================================================================== */
 const KEY_STATE='fin26', KEY_SNAPS='fin26_snaps', KEY_GEMINI='fin26_gemini', KEY_V2='fin26_v2';
 const LIQ_CATS=['gamel','forex','cash','crypto'];
 const CATS={gamel:'גמל להשקעה',kupa:'קה"ש וקופ"ג',forex:'מט"ח ומניות',cash:'מזומן ופיקדונות',crypto:'קריפטו',realestate:'נדל"ן'};
+const FIN_CATS=Object.fromEntries(Object.entries(CATS).filter(([k])=>k!=='realestate')); // v2 UI/calc — RE ignored
 const CLASSES={
   equity:{n:'מניות',c:'#5b8cff'}, bonds:{n:'אג"ח',c:'#22c55e'}, cash:{n:'מזומן/כספית',c:'#f5a524'},
   crypto:{n:'קריפטו',c:'#f97316'}, other:{n:'אחר',c:'#94a3b8'}
@@ -619,9 +633,9 @@ const isLiq=i=>LIQ_CATS.includes(i.cat);
 const sum=(a,f=x=>x)=>a.reduce((s,x)=>s+f(x),0);
 function totals(){
   const fin=sum(S.investments.filter(isFin),i=>i.bal), liq=sum(S.investments.filter(isLiq),i=>i.bal);
-  const locked=sum(S.investments.filter(i=>i.cat==='kupa'),i=>i.bal), re=sum(S.investments.filter(i=>i.cat==='realestate'),i=>i.bal);
+  const locked=sum(S.investments.filter(i=>i.cat==='kupa'),i=>i.bal), re=sum(S.investments.filter(i=>i.cat==='realestate'),i=>i.bal); // re kept in storage; ignored in v2
   const debt=sum(S.loans.filter(l=>!l.closed),l=>+l.bal||0);
-  return {fin,liq,locked,re,debt,net:fin+re-debt};
+  return {fin,liq,locked,re,debt,net:fin-debt}; // RE excluded from net worth in v2
 }
 function look(inv){
   let L=LOOK[inv.track]||LOOK[CAT_FALLBACK[inv.cat]]||LOOK['אחר'];
@@ -680,13 +694,27 @@ function periodReturn(from){
   const gain=p1.v-p0.v-C;const r=gain/((p0.v+Cw)||1);
   return {from:p0.d,to:p1.d,v0:p0.v,v1:p1.v,C,gain,r,days:T,ann:T>300?Math.pow(1+r,365/T)-1:null,approx:daysBetween(p0.d,target)>20};
 }
+function slogFor(invId){return (S.slog||[]).filter(s=>s&&s.invId===invId);}
+/* Modified Dietz for a single holding when slog rows attribute deposits to it (additive invId field). */
+function holdingDietz(i){
+  const flows=slogFor(i.id);if(!flows.length)return null;
+  const h=(i.history||[]).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+  const d0=h.length?h[0].date:flows.slice().sort((a,b)=>a.date.localeCompare(b.date))[0].date;
+  const v0=h.length?+h[0].bal:(isFinite(i.costBasis)?+i.costBasis:null);if(v0==null||!(v0>0)&&v0!==0)return null;
+  const d1=iso(TODAY);const T=Math.max(1,daysBetween(d0,d1));
+  const fl=flows.filter(s=>s.date>d0&&s.date<=d1);const C=sum(fl,s=>+s.amount||0);
+  const Cw=sum(fl,s=>(+s.amount||0)*(daysBetween(s.date,d1)/T));
+  const gain=i.bal-v0-C;const denom=v0+Cw;const r=denom?gain/denom:0;
+  return {gain,base:v0,r,C,method:`Dietz (הפקדות מיוחסות · מ-${heDate(d0)})`,flows:fl.length};
+}
 function holdingPerf(i){
+  const dz=holdingDietz(i);if(dz)return dz;
   if(isFinite(i.costBasis)&&i.costBasis>0)return {gain:i.bal-i.costBasis,base:i.costBasis,r:(i.bal-i.costBasis)/i.costBasis,method:'עלות'};
   const h=(i.history||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
   if(h.length>=1&&+h[0].bal>0&&h[0].bal!==i.bal)return {gain:i.bal-h[0].bal,base:+h[0].bal,r:(i.bal-h[0].bal)/h[0].bal,method:'יתרה מ-'+heDate(h[0].date)};
   return null;
 }
-function lastUpdate(i){const h=(i.history||[]).map(x=>x.date).sort();return h.length?h[h.length-1]:null;}
+function lastUpdate(i){const h=(i.history||[]).map(x=>x.date).filter(Boolean).sort();if(h.length)return h[h.length-1];return null;}
 function avgMonthlyContrib(months=12){const from=iso(addMonths(TODAY,-months));return contribBetween(from,iso(TODAY))/months;}
 
 /* loans */
@@ -729,10 +757,25 @@ function mk(id,cfg){if(charts[id])charts[id].destroy();const el=document.getElem
   cfg.options=Object.assign({responsive:true,maintainAspectRatio:false,animation:navigator.webdriver?false:{duration:350}},cfg.options||{});
   cfg.options.plugins=Object.assign({legend:{rtl:true,labels:{boxWidth:10,usePointStyle:true}},tooltip:{rtl:true,textDirection:'rtl'}},cfg.options.plugins||{});
   charts[id]=new Chart(el,cfg);}
-function donut(id,entries,{fmt=ilsT}={}){const tot=sum(entries,e=>e.v)||1;
-  mk(id,{type:'doughnut',data:{labels:entries.map(e=>e.n),datasets:[{data:entries.map(e=>e.v),backgroundColor:entries.map(e=>e.c),borderWidth:2,borderColor:cv('--card')}]},
-    options:{cutout:'64%',plugins:{legend:{position:'bottom',rtl:true,labels:{boxWidth:10,usePointStyle:true,generateLabels:ch=>ch.data.labels.map((l,i)=>({text:`${l} ${(entries[i].v/tot*100).toFixed(0)}%`,fillStyle:entries[i].c,strokeStyle:entries[i].c,pointStyle:'circle',index:i,fontColor:cv('--dim')}))}},
-      tooltip:{callbacks:{label:c=>` ${c.label}: ${fmt(c.raw)} (${(c.raw/tot*100).toFixed(1)}%)`}}}}});}
+function sliceParts(dim,key,scope){
+  /* Which holdings (and what ₪ amount) feed a slice, using LOOK weights. */
+  const hs=S.investments.filter(scope==='liq'?isLiq:isFin);const out=[];
+  hs.forEach(i=>{const L=look(i);const bag=L[dim]||{};let w=0;
+    if(dim==='ccy'){const kk=CCY_COL[key]?key:'OTHER';if(key==='OTHER'){w=sum(Object.entries(bag).filter(([k])=>!CCY_COL[k]),([,v])=>v);}else w=+bag[key]||0;}
+    else w=+bag[key]||0;
+    if(w>1e-9)out.push({i,w,amt:i.bal*w,track:i.track,L});});
+  out.sort((a,b)=>b.amt-a.amt);const tot=sum(out,x=>x.amt)||1;
+  return {rows:out,tot};
+}
+function donut(id,entries,{fmt=ilsT,onFocus=null}={}){const tot=sum(entries,e=>e.v)||1;
+  const focus=(idx)=>{if(!onFocus||idx==null||idx<0||idx>=entries.length)return;onFocus(entries[idx],idx);};
+  mk(id,{type:'doughnut',data:{labels:entries.map(e=>e.n),datasets:[{data:entries.map(e=>e.v),backgroundColor:entries.map(e=>e.c),borderWidth:2,borderColor:cv('--card'),hoverOffset:6}]},
+    options:{cutout:'64%',onHover:(ev,els)=>{if(els&&els[0])focus(els[0].index);},
+      onClick:(ev,els)=>{if(els&&els[0])focus(els[0].index);},
+      plugins:{legend:{position:'bottom',rtl:true,onClick:(e,item)=>{focus(item.index);},labels:{boxWidth:10,usePointStyle:true,generateLabels:ch=>ch.data.labels.map((l,i)=>({text:`${l} ${(entries[i].v/tot*100).toFixed(0)}%`,fillStyle:entries[i].c,strokeStyle:entries[i].c,pointStyle:'circle',index:i,fontColor:cv('--dim')}))}},
+      tooltip:{callbacks:{label:c=>` ${c.label}: ${fmt(c.raw)} (${(c.raw/tot*100).toFixed(1)}%)`,afterBody:c=>{if(!onFocus||!c[0])return[];const e=entries[c[0].dataIndex];const sp=e&&e._sp;if(!sp)return[];return ['',`··· ${sp.rows.length} אחזקות — לחץ לפירוט`];}}}}}});
+  if(onFocus&&entries.length){/* leave selection to user */}
+}
 const yMoney={ticks:{callback:v=>short(v)},grid:{color:cv('--line')}};
 const xTime=(unit='month')=>({type:'time',time:{unit,tooltipFormat:'dd/MM/yyyy',displayFormats:{month:'MM/yy',year:'yyyy',quarter:'MM/yy'}},grid:{display:false},ticks:{maxTicksLimit:10}});
 
@@ -822,7 +865,7 @@ function show(p){
 function renderOverview(){
   const T=totals();const r1m=periodReturn(addMonths(TODAY,-1));
   $('#ovNet').innerHTML=ils(T.net);
-  $('#ovNetFoot').innerHTML=`נכסים ${ils(T.fin+T.re)} · נדל"ן ${ils(T.re)}`+(r1m?` · חודש: ${ilsSigned(r1m.v1-r1m.v0)}`:'');
+  $('#ovNetFoot').innerHTML=`הון פיננסי ${ils(T.fin)} − התחייבויות ${ils(T.debt)}`+(r1m?` · חודש: ${ilsSigned(r1m.v1-r1m.v0)}`:'');
   $('#ovFin').innerHTML=ils(T.fin);
   $('#ovFinSplit').innerHTML=`<div style="width:${T.liq/T.fin*100}%;background:var(--pri)"></div><div style="width:${T.locked/T.fin*100}%;background:var(--pri2)"></div>`;
   $('#ovFinLeg').innerHTML=`<span><i style="background:var(--pri)"></i>נזיל ${ils(T.liq)}</span><span><i style="background:var(--pri2)"></i>נעול (קופות) ${ils(T.locked)}</span>`;
@@ -831,7 +874,7 @@ function renderOverview(){
     $('#ovGainFoot').innerHTML=`${pct(all.r)} מצטבר${all.ann!=null?` · ${pct(all.ann)} לשנה`:''} · מ-${heDate(all.from)} · הפקדות נטו ${ils(all.C)}`;}
   else{$('#ovGain').textContent='—';$('#ovGainFoot').textContent='אין מספיק היסטוריה';}
   const pay=sum(S.loans.filter(l=>!l.closed),loanPay);
-  $('#ovDebt').innerHTML=ils(T.debt);$('#ovDebtFoot').innerHTML=`החזר חודשי ${ils(pay)} · ${(T.debt/(T.fin+T.re||1)*100).toFixed(0)}% מהנכסים`;
+  $('#ovDebt').innerHTML=ils(T.debt);$('#ovDebtFoot').innerHTML=`החזר חודשי ${ils(pay)} · ${(T.debt/(T.fin||1)*100).toFixed(0)}% מההון הפיננסי`;
   const yr=TODAY.getFullYear();
   const per=[['חודש',addMonths(TODAY,-1)],['3 חודשים',addMonths(TODAY,-3)],['מתחילת השנה',new Date(yr-1,11,31)],['שנה',addMonths(TODAY,-12)],['מההתחלה',new Date(1900,0,1)]];
   $('#ovPeriods').innerHTML=per.map(([n,d])=>{const r=periodReturn(d);if(!r)return `<div class="period"><div class="p-l">${n}</div><div class="p-v faint">—</div><div class="p-s">אין נתונים</div></div>`;
@@ -857,12 +900,30 @@ function renderOverview(){
 }
 
 /* ALLOCATION */
+function renderAllocDrill(dim,key,label,color,scope){
+  const sp=sliceParts(dim,key,scope);const el=$('#alDrill');
+  $$('.alloc-charts .card').forEach(c=>c.classList.remove('active-slice'));
+  const cardId={cls:'cardCls',ccy:'cardCcy',geo:'cardGeo'}[dim];if(cardId)$('#'+cardId)?.classList.add('active-slice');
+  if(!sp.rows.length){el.className='drill empty-state';el.textContent='אין אחזקות תחת '+label;return;}
+  const dimN={cls:'סוג נכס',ccy:'מטבע',geo:'גאוגרפיה'}[dim];
+  el.className='drill';
+  el.innerHTML=`<h4><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${color}"></i>${esc(label)} <span class="pill">${dimN}</span> <span class="pill m">${ilsT(sp.tot)}</span></h4>
+    <div class="dim" style="font-size:11px;margin-bottom:8px">פירוק לפי מיפוי המסלולים (look-through) בהגדרות. במסלול מעורב מוצג החלק היחסי שמיוחס לפלח.</div>
+    <div class="tbl-wrap"><table><tr><th>אחזקה</th><th class="hide-m">מסלול</th><th class="n">משקל במסלול</th><th class="n">סכום בפלח</th><th class="n">% מהפלח</th><th class="bar-cell hide-m"></th></tr>`+
+    sp.rows.map(r=>{const pctS=r.amt/sp.tot*100;const lookTxt=Object.entries((r.L[dim])||{}).filter(([k])=>dim!=='ccy'||(key==='OTHER'?!(k in CCY_COL):k===key)||k===key).map(([k,v])=>`${Math.round(v*100)}%`).join('')||`${Math.round(r.w*100)}%`;
+      return `<tr><td><b>${esc(r.i.name)}</b><div class="faint" style="font-size:11px">${esc(CATS[r.i.cat]||r.i.cat)} · ${esc(r.i.inst||'')}</div></td>
+        <td class="hide-m"><span class="tag">${esc(r.track)}</span></td><td class="n m">${(r.w*100).toFixed(0)}%</td><td class="n">${ils(r.amt)}</td><td class="n m">${pctS.toFixed(1)}%</td>
+        <td class="bar-cell hide-m"><div class="mini-bar"><div style="width:${clamp(pctS,0,100)}%;background:${color}"></div></div></td></tr>`;}).join('')+`</table></div>`;
+}
 function renderAlloc(){
   const sc=P.alScope;$$('#alScope button').forEach(b=>{b.classList.toggle('on',b.dataset.s===sc);b.onclick=()=>{P.alScope=b.dataset.s;savePrefs();renderAlloc();};});
   const e=exposures(sc);
-  donut('cCls',Object.keys(CLASSES).filter(k=>e.cls[k]>0).map(k=>({n:CLASSES[k].n,v:e.cls[k],c:CLASSES[k].c})));
-  donut('cCcy',Object.entries(e.ccy).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]).map(([k,v])=>({n:k==='ILS'?'שקל':k==='OTHER'?'אחר':k,v,c:CCY_COL[k]})));
-  donut('cGeo',Object.entries(e.geo).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]).map(([k,v])=>({n:GEO[k]?.n||k,v,c:GEO[k]?.c||'#94a3b8'})));
+  const clsE=Object.keys(CLASSES).filter(k=>e.cls[k]>0).map(k=>({n:CLASSES[k].n,v:e.cls[k],c:CLASSES[k].c,key:k,dim:'cls',_sp:sliceParts('cls',k,sc)}));
+  const ccyE=Object.entries(e.ccy).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]).map(([k,v])=>({n:k==='ILS'?'שקל':k==='OTHER'?'אחר':k,v,c:CCY_COL[k],key:k,dim:'ccy',_sp:sliceParts('ccy',k,sc)}));
+  const geoE=Object.entries(e.geo).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]).map(([k,v])=>({n:GEO[k]?.n||k,v,c:GEO[k]?.c||'#94a3b8',key:k,dim:'geo',_sp:sliceParts('geo',k,sc)}));
+  const focus=ent=>renderAllocDrill(ent.dim,ent.key,ent.n,ent.c,sc);
+  donut('cCls',clsE,{onFocus:focus});donut('cCcy',ccyE,{onFocus:focus});donut('cGeo',geoE,{onFocus:focus});
+  $('#alDrill').className='drill empty-state';$('#alDrill').textContent='בחר פלח בגרף (רחף במחשב / הקש במובייל) כדי לראות אילו אחזקות מרכיבות אותו, עם סכומים ו-% מתוך הפלח — לפי מיפוי המסלולים בהגדרות.';
   // drift + rebalance
   const nm=P.rbNewMoney;$('#rbNewMoney').checked=nm;$('#rbNewMoney').onchange=ev=>{P.rbNewMoney=ev.target.checked;savePrefs();renderAlloc();};
   const rows=Object.keys(CLASSES).map(k=>{const cur=e.cls[k]||0,tgt=(+P.targets[k]||0)/100*e.tot;return {k,cur,tgt,diff:tgt-cur};}).filter(r=>r.cur>0||r.tgt>0);
@@ -908,7 +969,9 @@ function renderPerf(){
   mk('cContrib',{type:'bar',data:{labels:sc.map(x=>x.i.name),datasets:[{label:'רווח ₪',data:sc.map(x=>Math.round(x.p.gain)),backgroundColor:sc.map(x=>x.p.gain>=0?cv('--pri'):cv('--neg')),borderRadius:4}]},
     options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${ilsT(c.raw)} (${(c.raw/(gain||1)*100).toFixed(0)}% מהרווח)`}}},scales:{x:{ticks:{callback:v=>short(v)},grid:{color:cv('--line')}},y:{position:'right',grid:{display:false}}}}});
   const methods=[...new Set(withP.map(x=>x.p.method.startsWith('יתרה')?'יתרה':'עלות'))];
-  $('#perfMethod').textContent=methods.includes('יתרה')?'⚠️ לאחזקות ללא costBasis התשואה = שינוי יתרה מההיסטוריה (כולל הפקדות) — מומלץ להוסיף שדה costBasis':'תשואה = (יתרה − עלות) ÷ עלות';
+  const hasDietz=withP.some(x=>String(x.p.method).startsWith('Dietz'));
+  $('#perfMethod').textContent=hasDietz?'תשואה באחזקות עם הפקדות מיוחסות (invId ביומן החיסכון) = Modified Dietz. אחרת: עלות או שינוי יתרה מההיסטוריה.'
+    :(methods.includes('יתרה')?'⚠️ לאחזקות ללא costBasis התשואה = שינוי יתרה מההיסטוריה (כולל הפקדות) — מומלץ לייחס הפקדות ביומן החיסכון או להוסיף costBasis':'תשואה = (יתרה − עלות) ÷ עלות');
   $('#tblPerf').innerHTML=`<tr><th>אחזקה</th><th class="hide-m">מסלול</th><th class="n">יתרה</th><th class="n">משקל</th><th class="n">רווח ₪</th><th class="n">תשואה</th><th class="n hide-m">תרומה לתשואה</th><th class="n hide-m">דמי ניהול</th><th class="n hide-m">עלות שנתית</th><th class="hide-m">בסיס חישוב</th><th class="hide-m">עדכון</th></tr>`+
     hs.sort((a,b)=>b.i.bal-a.i.bal).map(({i,p})=>{const lu=lastUpdate(i);const stale=lu&&daysBetween(lu,TODAY)>60;return `<tr><td><b>${esc(i.name)}</b><div class="faint" style="font-size:11px">${esc(CATS[i.cat]||i.cat)} · ${esc(i.inst||'')}</div></td><td class="hide-m"><span class="tag">${esc(i.track)}</span></td>
     <td class="n">${ils(i.bal)}</td><td class="n m">${(i.bal/T.fin*100).toFixed(1)}%</td><td class="n">${p?ilsSigned(p.gain):'—'}</td><td class="n">${p?pct(p.r):'—'}</td>
@@ -1014,7 +1077,7 @@ function aiSummary(){
   const T=totals(),e=exposures('fin'),f=fcInputs(),r=fcCompute(f);const per=k=>{const x=periodReturn(k);return x?{fromDate:x.from,returnPct:+(x.r*100).toFixed(2),gainILS:Math.round(x.gain),netDepositsILS:Math.round(x.C)}:null;};
   const yr=TODAY.getFullYear();
   return {generatedAt:new Date().toISOString(),dataSource:{gist:'GitHub Gist (live)',gistCache:'GitHub Gist (cached copy)',local:'local browser data',example:'EXAMPLE DATA'}[SRC],currency:'ILS',
-    totals:{netWorth:Math.round(T.net),financialAssets:Math.round(T.fin),liquid:Math.round(T.liq),lockedFunds:Math.round(T.locked),realEstate:Math.round(T.re),debt:Math.round(T.debt)},
+    totals:{netWorth:Math.round(T.net),financialAssets:Math.round(T.fin),liquid:Math.round(T.liq),lockedFunds:Math.round(T.locked),debt:Math.round(T.debt),note:'v2 excludes real-estate from net worth and all calcs'},
     periodReturns:{'1M':per(addMonths(TODAY,-1)),YTD:per(new Date(yr-1,11,31)),'1Y':per(addMonths(TODAY,-12)),all:per(new Date(1900,0,1))},
     allocationPct:Object.fromEntries(Object.entries(e.cls).map(([k,v])=>[k,+(v/e.tot*100).toFixed(1)])),targetPct:P.targets,
     currencyPct:Object.fromEntries(Object.entries(e.ccy).map(([k,v])=>[k,+(v/e.tot*100).toFixed(1)])),
@@ -1108,8 +1171,13 @@ function renderSavings(){
   let run=0;mk('cSavCum',{type:'line',data:{datasets:[{label:'מצטבר',data:log.map(s=>({x:s.date,y:(run+=+s.amount)})),borderColor:cv('--pos'),backgroundColor:cv('--pos')+'22',fill:true,pointRadius:0,stepped:true,borderWidth:2}]},options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${ilsT(c.raw.y)}`}}},scales:{x:xTime(),y:yMoney}}});
   const years=[...new Set(log.map(s=>String(s.date).slice(0,4)))].sort().reverse();const sel=$('#savYear');const cur=sel.value||years[0];
   sel.innerHTML=years.map(y=>`<option ${y===cur?'selected':''}>${y}</option>`).join('');sel.onchange=renderSavings;
-  $('#tblSav').innerHTML=`<tr><th>תאריך</th><th>חשבון</th><th class="n">סכום</th><th class="n hide-m">מצטבר</th><th>הערה</th><th></th></tr>`+
-    log.filter(s=>String(s.date).startsWith(cur)).slice().reverse().map(s=>`<tr><td class="m">${heDate(s.date)}</td><td>${esc(s.acc)}</td><td class="n">${ilsSigned(+s.amount)}</td><td class="n hide-m">${ils(s.total)}</td><td class="dim" style="font-size:12px">${esc(s.note||'')}</td><td><button class="edit-ic" data-edit-slog="${esc(s.id)}" title="עריכה">✏️</button></td></tr>`).join('');
+  const invName=id=>{const i=S.investments.find(x=>x.id===id);return i?i.name:'';};
+  $('#tblSav').innerHTML=`<tr><th>תאריך</th><th>חשבון</th><th class="n">סכום</th><th class="n hide-m">מצטבר</th><th class="hide-m">מיוחס לאחזקה</th><th>הערה</th><th></th></tr>`+
+    log.filter(s=>String(s.date).startsWith(cur)).slice().reverse().map(s=>`<tr><td class="m">${heDate(s.date)}</td><td>${esc(s.acc)}</td><td class="n">${ilsSigned(+s.amount)}</td><td class="n hide-m">${ils(s.total)}</td><td class="hide-m" style="font-size:12px">${s.invId?esc(invName(s.invId))||'<span class="faint">(נמחק)</span>':'<span class="faint">—</span>'}</td><td class="dim" style="font-size:12px">${esc(s.note||'')}</td><td><button class="edit-ic" data-edit-slog="${esc(s.id)}" title="עריכה">✏️</button></td></tr>`).join('');
+}
+function invOptions(sel){
+  const hs=S.investments.filter(isFin).slice().sort((a,b)=>b.bal-a.bal);
+  return `<option value="">— ללא ייחוס —</option>`+hs.map(i=>`<option value="${esc(i.id)}" ${i.id===sel?'selected':''}>${esc(i.name)} (${esc(CATS[i.cat]||i.cat)} · ${ilsT(i.bal)})</option>`).join('');
 }
 
 /* SETTINGS */
@@ -1244,17 +1312,19 @@ function conflictDialog(where,ts,apply,reason){
 function openModal(title,body,btns){$('#mdTitle').textContent=title;$('#mdBody').innerHTML=body;
   $('#mdFoot').innerHTML='';btns.forEach(b=>{const el=document.createElement('button');el.className=b.cls;el.textContent=b.label;el.onclick=b.fn;if(b.id)el.id=b.id;$('#mdFoot').appendChild(el);});
   $('#modal').classList.add('open');}
-function closeModal(){$('#modal').classList.remove('open');}
+function closeModal(){$('#modal').classList.remove('open');if(charts.cHoldHist){charts.cHoldHist.destroy();delete charts.cHoldHist;}}
 const fv=id=>{const el=document.getElementById(id);return el?el.value:'';};
 const optList=(arr,sel)=>arr.map(([v,n])=>`<option value="${esc(v)}" ${String(v)===String(sel)?'selected':''}>${esc(n)}</option>`).join('');
 function editHolding(id,cat){
   if(!canEdit()){toast('עריכה זמינה רק כשנטענו הנתונים שלך.','err');return;}
-  const inv=id?S.investments.find(x=>x.id===id):null;const c=inv?inv.cat:(cat||'gamel');
-  const tracks=S.tracks.map(t=>[t.name,`${t.name} (${(+t.rate).toFixed(1)}%)`]);if(inv&&inv.track&&!S.tracks.some(t=>t.name===inv.track))tracks.unshift([inv.track,inv.track]);
-  const hist=(inv&&inv.history||[]).slice().sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,6);
+  const inv=id?S.investments.find(x=>x.id===id):null;if(inv&&!isFin(inv)){toast('נדל\"ן לא נערך ב-v2 (מוצג רק באתר המקורי).','err');return;}
+  const c=inv?inv.cat:(cat&&cat!=='realestate'?cat:'gamel');
+  const tracks=S.tracks.filter(t=>t.id!=='re'&&t.name!=='נדל\"ן').map(t=>[t.name,`${t.name} (${(+t.rate).toFixed(1)}%)`]);if(inv&&inv.track&&!tracks.some(t=>t[0]===inv.track))tracks.unshift([inv.track,inv.track]);
+  const histAll=(inv&&inv.history||[]).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+  const hist=histAll.slice().reverse().slice(0,8);
   openModal(inv?`עריכה — ${inv.name}`:'אחזקה חדשה',`<div class="form" style="grid-template-columns:1fr 1fr">
     <div class="field" style="grid-column:1/-1"><label>שם</label><input id="eName" value="${esc(inv?inv.name:'')}"></div>
-    <div class="field"><label>קטגוריה</label><select id="eCat">${optList(Object.entries(CATS),c)}</select></div>
+    <div class="field"><label>קטגוריה</label><select id="eCat">${optList(Object.entries(FIN_CATS),c)}</select></div>
     <div class="field"><label>מסלול השקעה</label><select id="eTrack">${optList(tracks,inv?inv.track:(S.tracks[0]||{}).name)}</select></div>
     <div class="field"><label>בית השקעות / גוף</label><input id="eInst" value="${esc(inv?inv.inst||'':'')}"></div>
     <div class="field"><label>בעלים</label><input id="eOwner" value="${esc(inv?inv.owner||'':'')}"></div>
@@ -1267,16 +1337,20 @@ function editHolding(id,cat){
     <div class="field"><label>דמי ניהול (% מצבירה)</label><input id="eFee" inputmode="decimal" value="${inv&&isFinite(inv.feePct)?inv.feePct:''}" placeholder="לא ידוע" style="direction:ltr"></div>
     <div class="field"><label>עלות / סך הפקדות (₪)</label><input id="eCost" inputmode="decimal" value="${inv&&isFinite(inv.costBasis)?inv.costBasis:''}" placeholder="לחישוב תשואה" style="direction:ltr"></div>
     <div class="field" style="grid-column:1/-1"><label>הערות</label><textarea id="eNotes">${esc(inv?inv.notes||'':'')}</textarea></div>
-  </div>${hist.length?`<div class="mt"><b style="font-size:13px">היסטוריית יתרות אחרונה</b><table class="hist-mini">${hist.map(h=>`<tr><td class="m">${heDate(h.date)}</td><td class="n">${ils(+h.bal)}</td></tr>`).join('')}</table></div>`:''}`,[
+  </div>${histAll.length?`<div class="mt"><b style="font-size:13px">יתרה לאורך זמן</b><div class="hold-chart"><canvas id="cHoldHist"></canvas></div>
+    <b style="font-size:13px">היסטוריית יתרות אחרונה</b><table class="hist-mini">${hist.map(h=>`<tr><td class="m">${heDate(h.date)}</td><td class="n">${ils(+h.bal)}</td></tr>`).join('')}</table>
+    <div class="faint" style="font-size:11px;margin-top:4px">עדכון אחרון: ${heDate(histAll[histAll.length-1].date)} · ${histAll.length} נקודות</div></div>`:'<div class="dim mt" style="font-size:12px">אין היסטוריית יתרות עדיין — תיווצר בעדכון הראשון.</div>'}`,[
     {label:'שמור',cls:'btn',id:'eSave',fn:()=>saveHolding(id)},{label:'ביטול',cls:'btn ghost',fn:closeModal},
     ...(inv?[{label:'מחק אחזקה',cls:'btn danger sp',id:'eDel',fn:()=>{if(confirm(`למחוק את "${inv.name}"? (נשמר גיבוי)`)){closeModal();commit(x=>{x.investments=x.investments.filter(i=>i.id!==id);},`מחיקת ${inv.name}`);}}}]:[])]);
   const tog=()=>{const k=fv('eCat');document.querySelectorAll('.fxf').forEach(e=>e.style.display=k==='forex'?'':'none');document.querySelectorAll('.crf').forEach(e=>e.style.display=k==='crypto'?'':'none');};
   $('#eCat').onchange=tog;tog();
+  if(histAll.length>=1){requestAnimationFrame(()=>mk('cHoldHist',{type:'line',data:{datasets:[{label:'יתרה ₪',data:histAll.map(h=>({x:h.date,y:+h.bal})),borderColor:cv('--pri'),backgroundColor:cv('--pri')+'22',fill:true,tension:.25,pointRadius:histAll.length<20?3:0,borderWidth:2}]},
+    options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${ilsT(c.raw.y)}`}}},scales:{x:xTime(histAll.length>24?'month':'day'),y:yMoney}}}));}
 }
 function saveHolding(id){
   const name=fv('eName').trim();if(!name){toast('חובה להזין שם','err');return;}
   const num=k=>{const v=parseNum(fv(k));return isFinite(v)?v:0;},opt=k=>{const v=parseNum(fv(k));return isFinite(v)?v:null;};
-  const cat=fv('eCat');
+  const cat=fv('eCat');if(cat==='realestate'){toast('נדל\"ן לא נשמר ב-v2','err');return;}
   const d={name,cat,track:fv('eTrack'),bal:num('eBal'),inst:fv('eInst'),owner:fv('eOwner'),accNum:fv('eAcc'),notes:fv('eNotes'),
     currency:cat==='forex'?fv('eCur'):'ILS',foreignAmt:cat==='forex'?num('eFx'):0,cryptoSymbol:cat==='crypto'?fv('eSym'):'',cryptoAmt:cat==='crypto'?num('eCa'):0}; // same keys as v1 saveModal
   if(d.foreignAmt>0&&d.currency!=='ILS'){const r=RATES.fx[d.currency];d.bal=Math.round(d.foreignAmt*(r?r.rate:(FX_FALLBACK[d.currency]||1)));}
@@ -1316,10 +1390,11 @@ function editSlog(id){
     <div class="field"><label>תאריך</label><input id="sDate" type="date" value="${r?esc(r.date):iso(new Date())}"></div>
     <div class="field"><label>חשבון</label><input id="sAcc" list="accList" value="${esc(r?r.acc||'':(accs[accs.length-1]||''))}"><datalist id="accList">${accs.map(a=>`<option value="${esc(a)}">`).join('')}</datalist></div>
     <div class="field" style="grid-column:1/-1"><label>סכום (₪) — שלילי = משיכה</label><input id="sAmt" inputmode="decimal" value="${r?r.amount:''}" style="direction:ltr"></div>
+    <div class="field" style="grid-column:1/-1"><label>מיוחס לאחזקה (אופציונלי)</label><select id="sInv">${invOptions(r&&r.invId||'')}</select><div class="hint">שדה נוסף (<span class="num">invId</span>) — האתר המקורי מתעלם ממנו. מאפשר לחשב תשואה נטו מהפקדות (Modified Dietz) באחזקה.</div></div>
     <div class="field" style="grid-column:1/-1"><label>הערה</label><input id="sNote" value="${esc(r?r.note||'':'')}"></div></div>`,[
     {label:'שמור',cls:'btn',id:'sSave',fn:()=>{const a=parseNum(fv('sAmt'));if(!isFinite(a)||!fv('sDate')){toast('הזן תאריך וסכום','err');return;}
-      const d={date:fv('sDate'),acc:fv('sAcc'),amount:a,note:fv('sNote')};closeModal();
-      commit(x=>{const t=id?x.slog.find(q=>q.id===id):null;if(t)Object.assign(t,d);else x.slog.push({id:uid(),total:0,...d});},id?'עריכת רשומת חיסכון':'הוספת רשומת חיסכון');}},
+      const invId=fv('sInv')||'';const d={date:fv('sDate'),acc:fv('sAcc'),amount:a,note:fv('sNote')};closeModal();
+      commit(x=>{const t=id?x.slog.find(q=>q.id===id):null;const row=t||{id:uid(),total:0};Object.assign(row,d);if(invId)row.invId=invId;else delete row.invId;if(!t)x.slog.push(row);},id?'עריכת רשומת חיסכון':'הוספת רשומת חיסכון');}},
     {label:'ביטול',cls:'btn ghost',fn:closeModal},
     ...(r?[{label:'מחק רשומה',cls:'btn danger sp',fn:()=>{if(confirm('למחוק את הרשומה?')){closeModal();commit(x=>{x.slog=x.slog.filter(q=>q.id!==id);},'מחיקת רשומת חיסכון');}}}]:[])]);
 }
@@ -1332,22 +1407,25 @@ function renderUpdate(){
   const di=$('#updDate');if(!di.value)di.value=iso(new Date());
   const c=getCreds();
   $('#updWhere').innerHTML=`השמירה נכתבת בפורמט של האתר המקורי ל-<span class="num">localStorage['fin26']</span>${c&&c.token?' <b>וגם ל-Gist</b> (finance_data.json) — האתר המקורי יראה את העדכון':c?' — <span class="warn">ה-Gist לא יתעדכן: אין token עם הרשאת gist</span>':' — אין חיבור Gist (דפדפן זה בלבד)'}. כל שינוי יתרה נרשם בהיסטוריה של האחזקה בתאריך שנבחר. למט"ח ולקריפטו מזינים כמות; השווי בש"ח מחושב לפי שער עדכני (כמו במקור).`;
-  const cats=[...Object.keys(CATS),...new Set(S.investments.map(i=>i.cat).filter(k=>!CATS[k]))];
+  const cats=[...Object.keys(FIN_CATS),...new Set(S.investments.filter(isFin).map(i=>i.cat).filter(k=>!FIN_CATS[k]&&k!=='realestate'))];
   const row=i=>{const u=unitOf(i),lu=lastUpdate(i),stale=lu&&daysBetween(lu,TODAY)>60,d=DRAFT.inv[i.id];
     const pr=priceOf(i);const curTxt=u.kind==='ils'?ils(i.bal):`<span class="m">${(+u.amt).toLocaleString('en-US',{maximumFractionDigits:6})} ${esc(u.code)}</span> <span class="faint">≈ ${ils(i.bal)}</span>`;
+    const days=lu?daysBetween(lu,TODAY):null;
     return `<div class="urow ${d&&isFinite(d.v)?'dirty':''}" data-row="${esc(i.id)}">
-      <div class="nmw"><div class="nm">${esc(i.name)}</div><div class="meta">${esc([i.inst,i.track,i.owner].filter(Boolean).join(' · '))} · <span class="${stale?'warn':''}">עודכן ${lu?heDate(lu):'—'}</span></div></div>
+      <div class="nmw"><div class="nm">${esc(i.name)}</div><div class="meta">${esc([i.inst,i.track,i.owner].filter(Boolean).join(' · '))}</div></div>
+      <div class="lu ${stale?'warn':''}" title="${lu?'עדכון אחרון בהיסטוריית היתרות':''}"><b>${lu?heDate(lu):'—'}</b>${days!=null?`<div class="faint">${days===0?'היום':days===1?'אתמול':`לפני ${days} ימים`}</div>`:''}</div>
       <div class="cur"><span class="lbl dim">נוכחי: </span>${curTxt}</div>
       <div class="uin"><input data-inv="${esc(i.id)}" inputmode="decimal" autocomplete="off" ${ed?'':'disabled'} placeholder="${esc(String(u.kind==='ils'?Math.round(i.bal):u.amt))}" value="${d&&isFinite(d.v)?esc(String(d.raw)):''}" aria-label="יתרה חדשה — ${esc(i.name)}"><span class="unit">${esc(u.code)}${u.kind!=='ils'?`<br><span class="faint">@${nf.format(Math.round(pr.p*100)/100)}${pr.live?'':' *'}</span>`:''}</span></div>
       <div class="udelta" data-dl="${esc(i.id)}"></div>
       <div class="edw"><button class="edit-ic" data-edit-inv="${esc(i.id)}" title="עריכת פרטים" ${ed?'':'disabled'}>✏️</button></div></div>`;};
-  const head='<div class="uhead urow" style="padding-top:6px;padding-bottom:6px"><span>אחזקה</span><span>יתרה נוכחית</span><span>יתרה חדשה</span><span>שינוי</span><span></span></div>';
-  let html=cats.map(k=>{const hs=S.investments.filter(i=>i.cat===k);
-    return `<div class="card ugrp mt"><div class="ugrp-head"><h3>${esc(CATS[k]||k)}</h3><span class="tot" data-gt="${esc(k)}"></span><button class="btn ghost sm" data-add-cat="${esc(k)}" ${ed?'':'disabled'}>+ הוסף</button></div>
+  const head='<div class="uhead urow" style="padding-top:6px;padding-bottom:6px"><span>אחזקה</span><span>עדכון אחרון</span><span>יתרה נוכחית</span><span>יתרה חדשה</span><span>שינוי</span><span></span></div>';
+  let html=cats.map(k=>{const hs=S.investments.filter(i=>i.cat===k&&isFin(i));
+    return `<div class="card ugrp mt"><div class="ugrp-head"><h3>${esc(FIN_CATS[k]||CATS[k]||k)}</h3><span class="tot" data-gt="${esc(k)}"></span><button class="btn ghost sm" data-add-cat="${esc(k)}" ${ed?'':'disabled'}>+ הוסף</button></div>
       ${hs.length?head+hs.map(row).join(''):'<div class="empty" style="padding:14px">אין אחזקות בקטגוריה</div>'}</div>`;}).join('');
   const loans=S.loans.filter(l=>!l.closed);
+  const lhead='<div class="uhead urow" style="padding-top:6px;padding-bottom:6px;grid-template-columns:minmax(0,2.2fr) 1fr 1.25fr 1fr 40px"><span>הלוואה</span><span>יתרה נוכחית</span><span>יתרה חדשה</span><span>שינוי</span><span></span></div>';
   html+=`<div class="card ugrp mt"><div class="ugrp-head"><h3>הלוואות</h3><span class="tot" data-gt="__loans"></span><button class="btn ghost sm" data-edit-loan="" ${ed?'':'disabled'}>+ הוסף</button></div>
-    ${loans.length?head+loans.map(l=>{const d=DRAFT.loan[l.id];return `<div class="urow ${d&&isFinite(d.v)?'dirty':''}"><div class="nmw"><div class="nm">${esc(l.name)}</div><div class="meta">${esc(l.inst||'')} · ${(+l.rate).toFixed(2)}% · החזר ${ilsT(loanPay(l))}</div></div>
+    ${loans.length?lhead+loans.map(l=>{const d=DRAFT.loan[l.id];return `<div class="urow ${d&&isFinite(d.v)?'dirty':''}" style="grid-template-columns:minmax(0,2.2fr) 1fr 1.25fr 1fr 40px"><div class="nmw"><div class="nm">${esc(l.name)}</div><div class="meta">${esc(l.inst||'')} · ${(+l.rate).toFixed(2)}% · החזר ${ilsT(loanPay(l))}</div></div>
       <div class="cur"><span class="lbl dim">נוכחי: </span>${ils(l.bal)}</div><div class="uin"><input data-loan="${esc(l.id)}" inputmode="decimal" autocomplete="off" ${ed?'':'disabled'} placeholder="${Math.round(l.bal)}" value="${d&&isFinite(d.v)?esc(String(d.raw)):''}" aria-label="יתרה חדשה — ${esc(l.name)}"><span class="unit">₪</span></div>
       <div class="udelta" data-dll="${esc(l.id)}"></div><div class="edw"><button class="edit-ic" data-edit-loan="${esc(l.id)}" ${ed?'':'disabled'}>✏️</button></div></div>`;}).join(''):'<div class="empty" style="padding:14px">אין הלוואות פעילות</div>'}</div>`;
   const last=S.slog.slice(-5).reverse();const accs=[...new Set(S.slog.map(x=>x.acc).filter(Boolean))];
@@ -1356,13 +1434,15 @@ function renderUpdate(){
       <div class="field"><label>חשבון</label><input id="qsAcc" list="qsAccs" value="${esc(accs[accs.length-1]||'')}" ${ed?'':'disabled'}><datalist id="qsAccs">${accs.map(a=>`<option value="${esc(a)}">`).join('')}</datalist></div>
       <div class="field"><label>סכום (₪, שלילי = משיכה)</label><input id="qsAmt" inputmode="decimal" style="direction:ltr" ${ed?'':'disabled'}></div>
       <div class="field"><label>הערה</label><input id="qsNote" ${ed?'':'disabled'}></div>
+      <div class="field" style="grid-column:1/-1"><label>מיוחס לאחזקה (אופציונלי)</label><select id="qsInv" ${ed?'':'disabled'}>${invOptions('')}</select></div>
       <div class="field"><label>&nbsp;</label><button class="btn" id="qsAdd" ${ed?'':'disabled'}>+ הוסף רשומה</button></div></div>
-    ${last.length?`<table class="mt">${last.map(x=>`<tr><td class="m">${heDate(x.date)}</td><td>${esc(x.acc)}</td><td class="n">${ilsSigned(+x.amount)}</td><td class="dim hide-m" style="font-size:12px">${esc(x.note||'')}</td><td><button class="edit-ic" data-edit-slog="${esc(x.id)}" ${ed?'':'disabled'}>✏️</button></td></tr>`).join('')}</table>`:''}</div>`;
+    ${last.length?`<table class="mt">${last.map(x=>{const inv=x.invId&&S.investments.find(i=>i.id===x.invId);return `<tr><td class="m">${heDate(x.date)}</td><td>${esc(x.acc)}</td><td class="n">${ilsSigned(+x.amount)}</td><td class="dim hide-m" style="font-size:12px">${inv?esc(inv.name):''}${x.note?(inv?' · ':'')+esc(x.note):''}</td><td><button class="edit-ic" data-edit-slog="${esc(x.id)}" ${ed?'':'disabled'}>✏️</button></td></tr>`;}).join('')}</table>`:''}</div>`;
   $('#updGroups').innerHTML=html;
   $$('#updGroups [data-inv]').forEach(el=>el.oninput=()=>{const v=parseNum(el.value);if(el.value.trim()==='')delete DRAFT.inv[el.dataset.inv];else DRAFT.inv[el.dataset.inv]={v,raw:el.value};updDeltas();});
   $$('#updGroups [data-loan]').forEach(el=>el.oninput=()=>{const v=parseNum(el.value);if(el.value.trim()==='')delete DRAFT.loan[el.dataset.loan];else DRAFT.loan[el.dataset.loan]={v,raw:el.value};updDeltas();});
   $('#qsAdd').onclick=()=>{const a=parseNum(fv('qsAmt'));if(!isFinite(a)||!fv('qsDate')){toast('הזן תאריך וסכום','err');return;}
-    const d={date:fv('qsDate'),acc:fv('qsAcc'),amount:a,note:fv('qsNote')};commit(x=>{x.slog.push({id:uid(),total:0,...d});},'הוספת רשומת חיסכון');};
+    const invId=fv('qsInv')||'';const d={date:fv('qsDate'),acc:fv('qsAcc'),amount:a,note:fv('qsNote')};if(invId)d.invId=invId;
+    commit(x=>{x.slog.push({id:uid(),total:0,...d});},'הוספת רשומת חיסכון');};
   $('#sbCancel').onclick=()=>{DRAFT={inv:{},loan:{}};renderUpdate();};
   $('#sbSave').onclick=saveDraft;
   updDeltas();
