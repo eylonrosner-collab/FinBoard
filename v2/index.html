@@ -181,6 +181,16 @@ pre.json{max-height:320px;overflow:auto;direction:ltr;text-align:left;font-size:
 .drill h4 .pill{font-size:11px;padding:2px 8px;border-radius:999px;background:var(--card);border:1px solid var(--line)}
 .drill table{width:100%;font-size:12px}.drill td,.drill th{padding:5px 6px;border-bottom:1px solid var(--line)}
 .drill .bar-cell .mini-bar{height:6px}
+.stress-box{margin-top:12px;padding:12px;border-radius:12px;border:1px solid color-mix(in srgb,var(--warn) 45%,var(--line));background:color-mix(in srgb,var(--warn) 10%,var(--card2))}
+.stress-box h4{margin:0 0 6px;font-size:13px;color:var(--warn)}
+.stress-cmp{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+@media(max-width:640px){.stress-cmp{grid-template-columns:1fr}}
+.stress-cmp .cell{padding:10px;border-radius:10px;background:var(--card);border:1px solid var(--line)}
+.stress-cmp .cell .lbl{font-size:11px;color:var(--dim);margin-bottom:4px}
+.stress-cmp .cell .v{font-size:18px;font-weight:700}
+.stress-cmp .cell.full .v{color:var(--dim)}
+.stress-cmp .delta{grid-column:1/-1;text-align:center;font-size:13px;padding:6px}
+.seg.stress button.on{background:color-mix(in srgb,var(--warn) 35%,var(--card));border-color:var(--warn);color:var(--text)}
 .alloc-charts .card{position:relative}
 .alloc-charts .card.active-slice{outline:2px solid var(--pri);outline-offset:1px}
 /* responsive */
@@ -318,6 +328,18 @@ pre.json{max-height:320px;overflow:auto;direction:ltr;text-align:left;font-size:
           <div class="field"><label>תאריך יעד</label><input type="date" id="fDate"><div class="chips-row" id="fDateChips"></div></div>
           <div class="field"><label>הון התחלתי — מה נכלל</label><select id="fScope"><option value="fin">כל ההון הפיננסי (נזיל + קופות)</option><option value="liq">נזיל בלבד</option></select><div class="hint" id="fScopeHint"></div></div>
           <div class="field"><label>הפקדה חודשית (₪)</label><input type="number" id="fMonthly" step="500"><div class="hint" id="fMonthlyHint"></div></div>
+          <div class="field" style="grid-column:1/-1"><label>⚠️ גורם סיכון — הפקדה חודשית (לא תשואה)</label>
+            <div class="dim" style="font-size:12px;margin-bottom:6px">בודק מה קורה לתחזית אם קצב ההפקדה יורד. <b>לא משנה את תשואת השוק</b> — רק את סכום ההפקדה החודשית בחישוב.</div>
+            <div class="seg stress" id="fDepStressSeg">
+              <button type="button" data-s="100">100%</button><button type="button" data-s="75">75%</button>
+              <button type="button" data-s="50">50%</button><button type="button" data-s="25">25%</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap">
+              <label class="dim" style="font-size:12px;margin:0">מותאם:</label>
+              <input type="number" id="fDepStress" min="0" max="200" step="5" style="width:90px;direction:ltr">
+              <span class="dim" style="font-size:12px">% מההפקדה · אפקטיבי: <b id="fDepEff" class="m"></b>/חודש</span>
+            </div>
+          </div>
           <div class="field"><label>עליית הפקדה שנתית (%)</label><input type="number" id="fGrowth" step="0.5"><div class="hint">למשל עליית שכר</div></div>
           <div class="field"><label>תשואה שנתית צפויה (%)</label><input type="number" id="fRet" step="0.1"><div class="chips-row" id="fRetChips"></div></div>
           <div class="field"><label>דמי ניהול שנתיים (%)</label><input type="number" id="fFee" step="0.05"><div class="hint" id="fFeeHint"></div></div>
@@ -985,24 +1007,33 @@ let fcMode='fv';
 function fcDefaults(){
   const by=+S.set.birthYear||1980,ra=+S.set.retAge||67;
   return {date:iso(addMonths(TODAY,60)),scope:'fin',monthly:Math.max(0,Math.round(avgMonthlyContrib()/100)*100),growth:0,
-    ret:+assumedReturn('fin').toFixed(1),fee:+(weightedFee('fin')??0.5).toFixed(2),spread:3,infl:2.5,goal:Math.round(totals().fin*2/100000)*100000,goalReal:true,tax:false,showReal:true,retireDate:`${by+ra}-01-01`};
+    ret:+assumedReturn('fin').toFixed(1),fee:+(weightedFee('fin')??0.5).toFixed(2),spread:3,infl:2.5,goal:Math.round(totals().fin*2/100000)*100000,goalReal:true,tax:false,showReal:true,depStress:100,retireDate:`${by+ra}-01-01`};
 }
-function fcInputs(){const d=fcDefaults();return Object.assign(d,P.fc||{});}
-function fcCompute(f){
+function fcInputs(){const d=fcDefaults();const o=Object.assign(d,P.fc||{});o.depStress=Math.max(0,+(o.depStress??100));return o;}
+function fcCompute(f,monthlyOverride){
   const T=totals();const P0=f.scope==='liq'?T.liq:T.fin;const n=Math.max(1,monthsBetween(TODAY,f.date));
-  const fee=f.fee||0;const proj=k=>project(P0,f.monthly,f.ret+k,fee,f.growth,n);
+  const stress=((f.depStress??100)/100);const monthly=monthlyOverride!=null?monthlyOverride:f.monthly*stress;
+  const fee=f.fee||0;const proj=k=>project(P0,monthly,f.ret+k,fee,f.growth,n);
   const E=proj(0),C=proj(-f.spread),O=proj(+f.spread);
   const deflate=m=>Math.pow(1+f.infl/100,m/12);
   const exp=E[n].v,contrib=E[n].c,growth=exp-contrib;
   const taxable=f.scope==='liq'?1:(T.fin-T.locked)/(T.fin||1); // kupa/השתלמות ≈ tax-exempt (simplified)
   const tax=f.tax?Math.max(0,growth)*0.25*taxable:0;
-  return {n,P0,E,C,O,exp,cons:C[n].v,opt:O[n].v,contrib,growth,real:exp/deflate(n),tax,afterTax:exp-tax,deflate,taxable};
+  return {n,P0,E,C,O,exp,cons:C[n].v,opt:O[n].v,contrib,growth,real:exp/deflate(n),tax,afterTax:exp-tax,deflate,taxable,monthly,stress:monthlyOverride!=null?null:stress,baseMonthly:f.monthly};
 }
 function bindFc(){
   const f=fcInputs();const set=(id,v)=>{const el=$('#'+id);if(el.type==='checkbox')el.checked=!!v;else el.value=v;};
   set('fDate',f.date);set('fScope',f.scope);set('fMonthly',f.monthly);set('fGrowth',f.growth);set('fRet',f.ret);set('fFee',f.fee);set('fSpread',f.spread);set('fInfl',f.infl);set('fGoal',f.goal);set('fGoalReal',f.goalReal);set('fTax',f.tax);set('fShowReal',f.showReal);
+  set('fDepStress',Math.round(f.depStress));
   const map={fDate:'date',fScope:'scope',fMonthly:'monthly',fGrowth:'growth',fRet:'ret',fFee:'fee',fSpread:'spread',fInfl:'infl',fGoal:'goal',fGoalReal:'goalReal',fTax:'tax',fShowReal:'showReal'};
   Object.entries(map).forEach(([id,k])=>{$('#'+id).oninput=$('#'+id).onchange=ev=>{const el=ev.target;P.fc[k]=el.type==='checkbox'?el.checked:el.type==='number'?(+el.value||0):el.value;savePrefs();renderForecast(false);};});
+  const syncStressUI=()=>{const s=+($('#fDepStress').value)||0;$$('#fDepStressSeg button').forEach(b=>b.classList.toggle('on',+b.dataset.s===s));
+    $('#fDepEff').innerHTML=ilsT((f.monthly||0)*s/100);};
+  $('#fDepStress').oninput=$('#fDepStress').onchange=()=>{P.fc.depStress=Math.max(0,+($('#fDepStress').value)||0);savePrefs();syncStressUI();renderForecast(false);};
+  $$('#fDepStressSeg button').forEach(b=>b.onclick=()=>{P.fc.depStress=+b.dataset.s;savePrefs();$('#fDepStress').value=b.dataset.s;syncStressUI();renderForecast(false);});
+  // re-read monthly after bind for eff label
+  $('#fMonthly').addEventListener('input',()=>{const s=+($('#fDepStress').value)||100;$('#fDepEff').innerHTML=ilsT(((+($('#fMonthly').value))||0)*s/100);});
+  syncStressUI();
   const d=fcDefaults();
   $('#fDateChips').innerHTML=[[12,'שנה'],[36,'3 שנים'],[60,'5'],[120,'10'],[240,'20']].map(([m,n])=>`<button class="qchip" data-m="${m}">${n}</button>`).join('')+`<button class="qchip" data-ret="1">פרישה (${d.retireDate.slice(0,4)})</button>`;
   $$('#fDateChips .qchip').forEach(b=>b.onclick=()=>{P.fc.date=b.dataset.ret?d.retireDate:iso(addMonths(TODAY,+b.dataset.m));savePrefs();bindFc();renderForecast(false);});
@@ -1018,35 +1049,46 @@ function bindFc(){
 function renderForecast(rebind=true){
   if(rebind)bindFc();const f=fcInputs();const r=fcCompute(f);const n=r.n;
   const years=(n/12).toFixed(1);const vol=portVol(f.scope);
+  const stressed=Math.round((f.depStress??100)*10)/10!==100;const rFull=stressed?fcCompute(f,f.monthly):r;
   const goalNom=fcMode==='goal'?(f.goalReal?f.goal*r.deflate(n):f.goal):null;
-  const mc=monteCarlo(r.P0,f.monthly,f.ret,f.fee,f.growth,n,vol,2000,goalNom);
+  const mc=monteCarlo(r.P0,r.monthly,f.ret,f.fee,f.growth,n,vol,2000,goalNom);
+  const mcFull=stressed?monteCarlo(r.P0,f.monthly,f.ret,f.fee,f.growth,n,vol,2000,goalNom):mc;
   const pStart=r.P0/r.exp*100,pC=(r.contrib-r.P0)/r.exp*100,pG=Math.max(0,r.growth)/r.exp*100;
+  const stressBanner=stressed?`<div class="stress-box"><h4>⚠️ תרחיש סיכון: הפקדה ב־${Math.round(f.depStress)}% מהרגיל (${ilsT(r.monthly)}/חודש במקום ${ilsT(f.monthly)})</h4>
+    <div class="dim" style="font-size:12px">רגישות להפקדה בלבד — התשואה הצפויה נשארה ${f.ret}%. כך בודקים פגיעה בהכנסה/חיסכון, לא קריסת שוק.</div>
+    <div class="stress-cmp"><div class="cell full"><div class="lbl">הפקדה מלאה (100%)</div><div class="v">${ils(rFull.exp)}</div><div class="faint" style="font-size:11px">ריאלי ${ils(rFull.real)}</div></div>
+      <div class="cell"><div class="lbl">הפקדה לחוצה (${Math.round(f.depStress)}%)</div><div class="v">${ils(r.exp)}</div><div class="faint" style="font-size:11px">ריאלי ${ils(r.real)}</div></div>
+      <div class="delta"><span class="${r.exp-rFull.exp>=0?'pos':'neg'}">הפרש: ${ilsSigned(r.exp-rFull.exp)}</span> · ${rFull.exp?pct((r.exp-rFull.exp)/rFull.exp):''} מול הפקדה מלאה</div></div></div>`:'';
   let main;
   if(fcMode==='fv'){
-    main=`<div class="dim">שווי צפוי ב-<b>${heDate(f.date)}</b> · בעוד ${years} שנים (${n} חודשים)</div>
+    main=`<div class="dim">שווי צפוי ב-<b>${heDate(f.date)}</b> · בעוד ${years} שנים (${n} חודשים)${stressed?` · <span class="warn">הפקדה ${Math.round(f.depStress)}%</span>`:''}</div>
     <div class="big-result">${ils(r.exp)}</div>
     <div class="dim">בכסף של היום (אינפלציה ${f.infl}%): <b>${ils(r.real)}</b>${f.tax?` · אחרי מס רווח הון: <b>${ils(r.afterTax)}</b>`:''}</div>
     <div class="stack"><div style="width:${pStart}%;background:var(--pri2)"></div><div style="width:${pC}%;background:var(--pri)"></div><div style="width:${pG}%;background:var(--pos)"></div></div>
     <div class="legend"><span><i style="background:var(--pri2)"></i>הון היום ${ils(r.P0)}</span><span><i style="background:var(--pri)"></i>הפקדות עתידיות ${ils(r.contrib-r.P0)}</span><span><i style="background:var(--pos)"></i>צמיחה (תשואה) ${ils(r.growth)}</span></div>
     <div class="scen"><div><div class="s-l">שמרני (${(f.ret-f.spread).toFixed(1)}%)</div><div class="s-v">${ils(r.cons)}</div><div class="faint" style="font-size:11px">ריאלי ${ils(r.cons/r.deflate(n))}</div></div>
       <div style="border-color:var(--pri)"><div class="s-l">צפוי (${f.ret}%)</div><div class="s-v">${ils(r.exp)}</div><div class="faint" style="font-size:11px">ריאלי ${ils(r.real)}</div></div>
-      <div><div class="s-l">אופטימי (${(f.ret+f.spread).toFixed(1)}%)</div><div class="s-v">${ils(r.opt)}</div><div class="faint" style="font-size:11px">ריאלי ${ils(r.opt/r.deflate(n))}</div></div></div>`;
+      <div><div class="s-l">אופטימי (${(f.ret+f.spread).toFixed(1)}%)</div><div class="s-v">${ils(r.opt)}</div><div class="faint" style="font-size:11px">ריאלי ${ils(r.opt/r.deflate(n))}</div></div></div>${stressBanner}`;
   }else{
     const req=requiredMonthly(r.P0,goalNom,f.ret,f.fee,f.growth,n),reqC=requiredMonthly(r.P0,goalNom,f.ret-f.spread,f.fee,f.growth,n);
     const mcReq=req>0?monteCarlo(r.P0,req,f.ret,f.fee,f.growth,n,vol,2000,goalNom).prob:null;
+    const stressGoal=stressed?`<div class="stress-box"><h4>⚠️ השפעת הפקדה לחוצה על היעד</h4>
+      <div class="stress-cmp"><div class="cell full"><div class="lbl">סיכוי ליעד — הפקדה מלאה</div><div class="v">${(mcFull.prob*100).toFixed(0)}%</div><div class="faint" style="font-size:11px">${ilsT(f.monthly)}/חודש</div></div>
+        <div class="cell"><div class="lbl">סיכוי ליעד — הפקדה ${Math.round(f.depStress)}%</div><div class="v">${(mc.prob*100).toFixed(0)}%</div><div class="faint" style="font-size:11px">${ilsT(r.monthly)}/חודש</div></div>
+        <div class="delta">הפקדה נדרשת ליעד (ללא שינוי תשואה): <b>${req===0?'₪0':ilsT(req)}</b>/חודש · הפקדה לחוצה ${r.monthly>=req?'<span class="pos">מספיקה</span>':`<span class="warn">חסרים ${ilsT(req-r.monthly)}/חודש</span>`}</div></div></div>`:'';
     main=`<div class="dim">כדי להגיע ל-<b>${ils(f.goal)}</b>${f.goalReal?` בכסף של היום (≈ ${ils(goalNom)} נומינלי)`:''} עד <b>${heDate(f.date)}</b> (${years} שנים):</div>
     <div class="big-result">${req===0?'<span class="pos">₪0</span>':ils(req)}<span style="font-size:16px;font-weight:500" class="dim"> לחודש</span></div>
     <div class="dim">${req===0?'היעד צפוי להיות מושג גם ללא הפקדות נוספות, בתשואה הצפויה.':`בתשואה צפויה ${f.ret}%. בתרחיש שמרני (${(f.ret-f.spread).toFixed(1)}%): <b>${ils(reqC)}</b> לחודש.`}</div>
-    <div class="scen"><div><div class="s-l">ההפקדה הנוכחית שלך</div><div class="s-v">${ils(f.monthly)}</div><div class="faint" style="font-size:11px">${req>0?(f.monthly>=req?'<span class="pos">מספיקה בתרחיש הצפוי</span>':`<span class="warn">חסרים ${ils(req-f.monthly)}/חודש</span>`):''}</div></div>
-      <div style="border-color:var(--pri)"><div class="s-l">סיכוי להגיע ליעד — בהפקדה הנוכחית</div><div class="s-v">${(mc.prob*100).toFixed(0)}%</div><div class="faint" style="font-size:11px">מונטה-קרלו, σ=${(vol*100).toFixed(1)}%</div></div>
-      <div><div class="s-l">סיכוי — בהפקדה הנדרשת</div><div class="s-v">${mcReq!=null?(mcReq*100).toFixed(0)+'%':'—'}</div><div class="faint" style="font-size:11px">"צפוי" ≈ חציון ⇒ סביב 50%</div></div></div>`;
+    <div class="scen"><div><div class="s-l">ההפקדה הנוכחית שלך${stressed?` · לחוצה ${Math.round(f.depStress)}%`:''}</div><div class="s-v">${ils(r.monthly)}</div><div class="faint" style="font-size:11px">${req>0?(r.monthly>=req?'<span class="pos">מספיקה בתרחיש הצפוי</span>':`<span class="warn">חסרים ${ils(req-r.monthly)}/חודש</span>`):''}${stressed?` · מלאה ${ilsT(f.monthly)}`:''}</div></div>
+      <div style="border-color:var(--pri)"><div class="s-l">סיכוי להגיע ליעד — בהפקדה ${stressed?Math.round(f.depStress)+'%':'הנוכחית'}</div><div class="s-v">${(mc.prob*100).toFixed(0)}%</div><div class="faint" style="font-size:11px">מונטה-קרלו, σ=${(vol*100).toFixed(1)}%</div></div>
+      <div><div class="s-l">סיכוי — בהפקדה הנדרשת</div><div class="s-v">${mcReq!=null?(mcReq*100).toFixed(0)+'%':'—'}</div><div class="faint" style="font-size:11px">"צפוי" ≈ חציון ⇒ סביב 50%</div></div></div>${stressGoal}`;
   }
   $('#fcResult').innerHTML=main;
   const mcEnd=mc.p10.length-1;
   $('#fcSide').innerHTML=`<h3>טווח הסתברותי (מונטה-קרלו)</h3>
     <table><tr><td>תרחיש רע (10%)</td><td class="n">${ils(mc.p10[mcEnd])}</td></tr><tr><td>חציון (50%)</td><td class="n"><b>${ils(mc.p50[mcEnd])}</b></td></tr><tr><td>תרחיש טוב (90%)</td><td class="n">${ils(mc.p90[mcEnd])}</td></tr></table>
-    <div class="faint" style="font-size:11px;margin-top:8px">תנודתיות שנתית משוערת ${(vol*100).toFixed(1)}% לפי הקצאת התיק. 10% מהמסלולים מסתיימים מתחת לתרחיש הרע.</div>
-    <h3 class="mt">הנחות</h3><div style="font-size:12px" class="dim">הון התחלתי ${ils(r.P0)} (${f.scope==='liq'?'נזיל':'נזיל + קופות'}) · הפקדה ${ils(f.monthly)}/חודש${f.growth?` (+${f.growth}%/שנה)`:''} · תשואה ${f.ret}% − דמי ניהול ${f.fee}% = נטו ${(f.ret-f.fee).toFixed(2)}% · ריבית דריבית חודשית. ${f.tax?`מס 25% על הצמיחה, רק על ${(r.taxable*100).toFixed(0)}% החייבים (קה"ש/קופות ≈ פטורים — פישוט).`:''} לא כולל פנסיה/נדל"ן/הלוואות.</div>`;
+    <div class="faint" style="font-size:11px;margin-top:8px">תנודתיות שנתית משוערת ${(vol*100).toFixed(1)}% לפי הקצאת התיק. 10% מהמסלולים מסתיימים מתחת לתרחיש הרע.${stressed?` מחושב עם הפקדה לחוצה ${ilsT(r.monthly)}/חודש.`:''}</div>
+    <h3 class="mt">הנחות</h3><div style="font-size:12px" class="dim">הון התחלתי ${ils(r.P0)} (${f.scope==='liq'?'נזיל':'נזיל + קופות'}) · הפקדה ${ils(r.monthly)}/חודש${stressed?` <span class="warn">(${Math.round(f.depStress)}% מ־${ilsT(f.monthly)})</span>`:''}${f.growth?` (+${f.growth}%/שנה)`:''} · תשואה ${f.ret}% − דמי ניהול ${f.fee}% = נטו ${(f.ret-f.fee).toFixed(2)}% · ריבית דריבית חודשית. ${f.tax?`מס 25% על הצמיחה, רק על ${(r.taxable*100).toFixed(0)}% החייבים (קה"ש/קופות ≈ פטורים — פישוט).`:''} לא כולל פנסיה/נדל"ן/הלוואות.</div>`;
   // chart
   const step=Math.max(1,Math.ceil(n/120));const xs=[];for(let m=0;m<=n;m+=step)xs.push(m);if(xs[xs.length-1]!==n)xs.push(n);
   const dt=m=>iso(addMonths(TODAY,m));const ds=[
@@ -1069,7 +1111,7 @@ FV(n) = P·(1+i)^n + C·((1+i)^n − 1)/i      // n months, deposit C at end of 
 Real(n) = FV(n) / (1+π)^(n/12)             // today's money
 Goal mode:  C* = (Goal − P·(1+i)^n) · i / ((1+i)^n − 1)
 Scenarios: R−Δ / R / R+Δ  ·  Monte-Carlo: monthly lognormal, σ from allocation</div>
-  <div class="dim mt" style="font-size:12px">P = הון התחלתי, C = הפקדה חודשית (עם עליה שנתית אופציונלית — מחושב באיטרציה), R = תשואה שנתית צפויה, fee = דמי ניהול, π = אינפלציה, Δ = מרווח תרחישים. ברירות המחדל נגזרות מהנתונים: הפקדה = ממוצע 12 החודשים האחרונים ביומן ההפקדות; תשואה = ממוצע משוקלל של הנחות סוג הנכס לפי ההקצאה בפועל; דמי ניהול = ממוצע משוקלל של feePct. זו תחזית ולא הבטחה.</div>`;
+  <div class="dim mt" style="font-size:12px">P = הון התחלתי, C = הפקדה חודשית × גורם סיכון להפקדה (100%/75%/… — לא משנה את R), עם עליה שנתית אופציונלית. R = תשואה שנתית צפויה, fee = דמי ניהול, π = אינפלציה, Δ = מרווח תרחישים. ברירות המחדל: הפקדה = ממוצע 12 החודשים האחרונים; תשואה = ממוצע משוקלל לפי הקצאה; דמי ניהול = ממוצע feePct. זו תחזית ולא הבטחה.</div>`;
 }
 
 /* RECOMMENDATIONS + AI */
@@ -1153,7 +1195,10 @@ function renderSavings(){
   const log=S.slog;const yr=TODAY.getFullYear();
   const ytd=contribBetween(`${yr-1}-12-31`,iso(TODAY)),ly=contribBetween(`${yr-2}-12-31`,`${yr-1}-12-31`),lyYtd=contribBetween(`${yr-2}-12-31`,iso(new Date(yr-1,TODAY.getMonth(),TODAY.getDate())));
   const avg=avgMonthlyContrib(),dep=sum(log.filter(s=>s.amount>0),s=>s.amount),wd=sum(log.filter(s=>s.amount<0),s=>s.amount);
-  $('#savKpis').innerHTML=`<div class="card kpi"><div class="lbl">הפקדות נטו — סה"כ</div><div class="val">${ils(dep+wd)}</div><div class="foot">הפקדות ${ils(dep)} · משיכות ${ils(wd)}</div></div>
+  const slogDates=log.map(s=>s.date).filter(Boolean).sort();const fromD=slogDates[0],toD=slogDates.length?slogDates[slogDates.length-1]:null;
+  const fromLbl=fromD?`מ־${heDate(fromD)}`:'מ־תחילת הרישום';
+  const rangeLbl=fromD?(toD&&toD!==fromD?`${fromLbl} עד ${heDate(toD)}`:fromLbl):'אין רשומות עדיין';
+  $('#savKpis').innerHTML=`<div class="card kpi"><div class="lbl">הפקדות נטו — סה"כ</div><div class="val">${ils(dep+wd)}</div><div class="foot"><b>${esc(rangeLbl)}</b><br>הפקדות ${ils(dep)} · משיכות ${ils(wd)} · מתחילת הרישום ביומן</div></div>
     <div class="card kpi"><div class="lbl">${yr} עד היום</div><div class="val">${ils(ytd)}</div><div class="foot">אותה תקופה ב-${yr-1}: ${ils(lyYtd)} ${lyYtd?pct(ytd/lyYtd-1,0):''}</div></div>
     <div class="card kpi"><div class="lbl">ממוצע חודשי (12 ח׳)</div><div class="val">${ils(avg)}</div><div class="foot">${P.monthlyExpenses?`${(avg/P.monthlyExpenses*100).toFixed(0)}% מההוצאות החודשיות`:'משמש כברירת מחדל בתחזית'}</div></div>
     <div class="card kpi"><div class="lbl">${yr-1} — שנה מלאה</div><div class="val">${ils(ly)}</div><div class="foot">${log.length} רשומות ביומן</div></div>`;
