@@ -682,7 +682,7 @@ let S,SNAPS=[],SRC='example',SRC_NOTE='',SRC_MSG='',SRC_MSG_KIND='info',GIST_MET
 const GIST_FILENAME='finance_data.json'; // same file name the original site uses
 const KEY_TOKEN='fin26_token', KEY_GIST='fin26_gist'; // original keys — READ ONLY here
 function v2raw(){try{return JSON.parse(localStorage.getItem(KEY_V2)||'{}')||{};}catch(e){return {};}}
-const V2_META=['auth','cache','backups','pendingSync','histAssets'];
+const V2_META=['auth','cache','backups','pendingSync','histAssets','dismissedRecs'];
 function writeV2(v){ // quota-safe: drop oldest backups, then cache, if storage is full
   for(let k=0;k<14;k++){try{localStorage.setItem(KEY_V2,JSON.stringify(v));return true;}catch(e){
     if(v.backups&&v.backups.length>1)v.backups.pop();else if(v.cache)delete v.cache;else if(v.backups&&v.backups.length)v.backups.pop();else{console.warn('fin26_v2 write failed',e);return false;}}}
@@ -969,64 +969,78 @@ const xTime=(unit='month')=>({type:'time',time:{unit,tooltipFormat:'dd/MM/yyyy',
 
 /* ---------------- RULES ENGINE (transparent recommendations) ---------------- */
 function rules(){
-  const T=totals(),out=[];const add=(sev,ic,title,why,act,rule)=>out.push({sev,ic,title,why,act,rule});
+  const T=totals(),out=[];const add=(id,sev,ic,title,why,act,rule)=>out.push({id,sev,ic,title,why,act,rule});
   const eF=exposures('fin');const eL=exposures('liq');
   const expR=assumedReturn('fin')/100;const taxR=(S.set.tax||25)/100;
   // 1. emergency fund
   const cashLiq=eL.cls.cash||0;
-  if(!P.monthlyExpenses){add('info','🛟','הגדר הוצאות חודשיות כדי לחשב קרן חירום',`יש לך ${ilsT(cashLiq)} במזומן/כספיות/עו"ש נזילים, אבל בלי נתון הוצאות אי אפשר לדעת לכמה חודשים זה מספיק.`,'הזן "הוצאות חודשיות" בהגדרות.','קרן חירום = מזומן נזיל ÷ הוצאות חודשיות; יעד 3–6 חודשים.');}
+  if(!P.monthlyExpenses){add('em-set','info','🛟','הגדר הוצאות חודשיות כדי לחשב קרן חירום',`יש לך ${ilsT(cashLiq)} במזומן/כספיות/עו"ש נזילים, אבל בלי נתון הוצאות אי אפשר לדעת לכמה חודשים זה מספיק.`,'הזן "הוצאות חודשיות" בהגדרות.','קרן חירום = מזומן נזיל ÷ הוצאות חודשיות; יעד 3–6 חודשים.');}
   else{const months=cashLiq/P.monthlyExpenses;
-    if(months<3)add('high','🛟',`קרן חירום נמוכה: ${months.toFixed(1)} חודשים`,`מזומן נזיל ${ilsT(cashLiq)} מול הוצאות ${ilsT(P.monthlyExpenses)}/חודש.`,`הגדל ל-${P.emMonths} חודשים (עוד ${ilsT(P.emMonths*P.monthlyExpenses-cashLiq)}) לפני הגדלת סיכון.`,'פחות מ-3 חודשים = דחוף.');
+    if(months<3)add('em-low','high','🛟',`קרן חירום נמוכה: ${months.toFixed(1)} חודשים`,`מזומן נזיל ${ilsT(cashLiq)} מול הוצאות ${ilsT(P.monthlyExpenses)}/חודש.`,`הגדל ל-${P.emMonths} חודשים (עוד ${ilsT(P.emMonths*P.monthlyExpenses-cashLiq)}) לפני הגדלת סיכון.`,'פחות מ-3 חודשים = דחוף.');
     else if(months>Math.max(12,P.emMonths*2)){const excess=cashLiq-P.emMonths*P.monthlyExpenses;const opp=excess*((P.assume.equity.ret*0.7+P.assume.bonds.ret*0.3)-P.assume.cash.ret)/100;
-      add('med','💤',`עודף מזומן ("cash drag"): ${months.toFixed(1)} חודשי הוצאות`,`מזומן נזיל ${ilsT(cashLiq)} — כ-${ilsT(excess)} מעל קרן חירום של ${P.emMonths} חודשים. בהנחות התשואה, עלות ההזדמנות ≈ ${ilsT(opp)} בשנה (תיק 70/30 מול כספית).`,`שקול להשקיע בהדרגה חלק מהעודף (למשל ב-6–12 מנות חודשיות) לפי הקצאת היעד, אם אין שימוש מתוכנן בכסף ב-2–3 השנים הקרובות.`,`מזומן > ${Math.max(12,P.emMonths*2)} חודשים = עודף.`);}
-    else add('good','🛟',`קרן חירום תקינה: ${months.toFixed(1)} חודשים`,`מזומן נזיל ${ilsT(cashLiq)} מול הוצאות ${ilsT(P.monthlyExpenses)}/חודש.`,'אין צורך בפעולה.','3–12 חודשים = תקין.');}
+      add('em-drag','med','💤',`עודף מזומן ("cash drag"): ${months.toFixed(1)} חודשי הוצאות`,`מזומן נזיל ${ilsT(cashLiq)} — כ-${ilsT(excess)} מעל קרן חירום של ${P.emMonths} חודשים. בהנחות התשואה, עלות ההזדמנות ≈ ${ilsT(opp)} בשנה (תיק 70/30 מול כספית).`,`שקול להשקיע בהדרגה חלק מהעודף (למשל ב-6–12 מנות חודשיות) לפי הקצאת היעד, אם אין שימוש מתוכנן בכסף ב-2–3 השנים הקרובות.`,`מזומן > ${Math.max(12,P.emMonths*2)} חודשים = עודף.`);}
+    else add('em-ok','good','🛟',`קרן חירום תקינה: ${months.toFixed(1)} חודשים`,`מזומן נזיל ${ilsT(cashLiq)} מול הוצאות ${ilsT(P.monthlyExpenses)}/חודש.`,'אין צורך בפעולה.','3–12 חודשים = תקין.');}
   // 2. high-interest loans vs investing
   const afterTax=expR*(1-taxR)*100;
   S.loans.filter(l=>!l.closed&&l.bal>0).sort((a,b)=>b.rate-a.rate).forEach(l=>{
     const a=amort(l);
-    if(l.rate>afterTax+0.5)add(l.rate>afterTax+3?'high':'med','💳',`${l.name}: ריבית ${l.rate}% גבוהה מהתשואה הצפויה נטו`,`תשואה צפויה של התיק ≈ ${(expR*100).toFixed(1)}%, אחרי מס רווח הון ${(taxR*100).toFixed(0)}% ≈ ${afterTax.toFixed(1)}%. כל שקל שמחזיר את ההלוואה "מרוויח" ${l.rate}% ללא סיכון. ריבית שנותרה לשלם: ${a.ok?ilsT(a.interest):'—'}.`,`שקול פירעון מוקדם (מזומן עודף קודם). בדוק עמלת פירעון מוקדם. ראה סימולטור בעמוד ההלוואות.`,'ריבית > תשואה צפויה אחרי מס + 0.5 נק׳.');
-    else if(l.rate<afterTax-1)add('info','🏦',`${l.name}: ריבית ${l.rate}% — אין דחיפות לפירעון מוקדם`,`נמוכה מהתשואה הצפויה נטו (${afterTax.toFixed(1)}%). אבל השקעה כרוכה בסיכון ופירעון — לא.`,'אפשר להמשיך בהחזר הרגיל ולהשקיע את העודף, בהתאם לסבילות הסיכון.','ריבית < תשואה נטו − 1 נק׳.');
+    if(l.rate>afterTax+0.5)add('loan-high:'+l.id,l.rate>afterTax+3?'high':'med','💳',`${l.name}: ריבית ${l.rate}% גבוהה מהתשואה הצפויה נטו`,`תשואה צפויה של התיק ≈ ${(expR*100).toFixed(1)}%, אחרי מס רווח הון ${(taxR*100).toFixed(0)}% ≈ ${afterTax.toFixed(1)}%. כל שקל שמחזיר את ההלוואה "מרוויח" ${l.rate}% ללא סיכון. ריבית שנותרה לשלם: ${a.ok?ilsT(a.interest):'—'}.`,`שקול פירעון מוקדם (מזומן עודף קודם). בדוק עמלת פירעון מוקדם. ראה סימולטור בעמוד ההלוואות.`,'ריבית > תשואה צפויה אחרי מס + 0.5 נק׳.');
+    else if(l.rate<afterTax-1)add('loan-low:'+l.id,'info','🏦',`${l.name}: ריבית ${l.rate}% — אין דחיפות לפירעון מוקדם`,`נמוכה מהתשואה הצפויה נטו (${afterTax.toFixed(1)}%). אבל השקעה כרוכה בסיכון ופירעון — לא.`,'אפשר להמשיך בהחזר הרגיל ולהשקיע את העודף, בהתאם לסבילות הסיכון.','ריבית < תשואה נטו − 1 נק׳.');
   });
   // 3. rebalancing
   const drift=Object.keys(CLASSES).map(k=>({k,cur:(eF.cls[k]||0)/eF.tot*100,tgt:+P.targets[k]||0})).map(x=>({...x,d:x.cur-x.tgt}));
   const big=drift.filter(x=>Math.abs(x.d)>=P.driftPct).sort((a,b)=>Math.abs(b.d)-Math.abs(a.d));
-  if(big.length)add('med','⚖️',`סטייה מהקצאת היעד: ${big.map(x=>`${CLASSES[x.k].n} ${x.d>0?'+':''}${x.d.toFixed(1)} נק׳`).join(', ')}`,
+  if(big.length)add('alloc-drift','med','⚖️',`סטייה מהקצאת היעד: ${big.map(x=>`${CLASSES[x.k].n} ${x.d>0?'+':''}${x.d.toFixed(1)} נק׳`).join(', ')}`,
     big.map(x=>`${CLASSES[x.k].n}: ${x.cur.toFixed(1)}% בפועל מול יעד ${x.tgt}% (${x.d>0?'עודף':'חוסר'} ${ilsT(Math.abs(x.d)/100*eF.tot)})`).join(' · '),
     'ראה טבלת האיזון בעמוד "הקצאה" — כולל אפשרות איזון באמצעות הפקדות חדשות בלבד (ללא אירוע מס).',`סטייה ≥ ${P.driftPct} נק׳ אחוז.`);
-  else add('good','⚖️','התיק קרוב להקצאת היעד',`כל סוגי הנכסים בטווח ±${P.driftPct} נק׳ מהיעד.`,'אין צורך באיזון.',`סטייה < ${P.driftPct} נק׳.`);
+  else add('alloc-ok','good','⚖️','התיק קרוב להקצאת היעד',`כל סוגי הנכסים בטווח ±${P.driftPct} נק׳ מהיעד.`,'אין צורך באיזון.',`סטייה < ${P.driftPct} נק׳.`);
   // 4. concentration
   const fin=S.investments.filter(isFin);
-  fin.filter(i=>i.bal/T.fin*100>P.concPct).forEach(i=>add('med','🎯',`ריכוזיות: "${i.name}" = ${(i.bal/T.fin*100).toFixed(1)}% מההון הפיננסי`,`אחזקה בודדת מעל ${P.concPct}% חושפת את התיק לסיכון של מסלול/גוף אחד.`,'שקול לפזר הפקדות עתידיות לאחזקות אחרות באותו סוג נכס.',`אחזקה > ${P.concPct}%.`));
+  fin.filter(i=>i.bal/T.fin*100>P.concPct).forEach(i=>add('conc-hold:'+i.id,'med','🎯',`ריכוזיות: "${i.name}" = ${(i.bal/T.fin*100).toFixed(1)}% מההון הפיננסי`,`אחזקה בודדת מעל ${P.concPct}% חושפת את התיק לסיכון של מסלול/גוף אחד.`,'שקול לפזר הפקדות עתידיות לאחזקות אחרות באותו סוג נכס.',`אחזקה > ${P.concPct}%.`));
   const inst={};fin.forEach(i=>{const k=i.inst||'ללא גוף';inst[k]=(inst[k]||0)+i.bal;});
-  Object.entries(inst).filter(([k,v])=>v/T.fin>.5).forEach(([k,v])=>add('info','🏢',`${(v/T.fin*100).toFixed(0)}% מההון אצל גוף אחד: ${k}`,`ריכוז אצל גוף מנהל אחד (סיכון תפעולי/דמי ניהול).`,'לא בהכרח בעיה (הנכסים מופרדים), אבל כדאי לוודא תנאים ודמי ניהול.','גוף > 50%.'));
+  Object.entries(inst).filter(([k,v])=>v/T.fin>.5).forEach(([k,v])=>add('conc-inst:'+k,'info','🏢',`${(v/T.fin*100).toFixed(0)}% מההון אצל גוף אחד: ${k}`,`ריכוז אצל גוף מנהל אחד (סיכון תפעולי/דמי ניהול).`,'לא בהכרח בעיה (הנכסים מופרדים), אבל כדאי לוודא תנאים ודמי ניהול.','גוף > 50%.'));
   // 5. crypto share
-  const cr=(eF.cls.crypto||0)/eF.tot;if(cr>.10)add('med','🪙',`קריפטו ${(cr*100).toFixed(1)}% מהתיק`,`תנודתיות שנתית משוערת ~${P.assume.crypto.vol}%. ירידה של 60% תמחק ${ilsT(eF.cls.crypto*.6)}.`,'שקול תקרה (למשל 5%) ואיזון חזרה.','קריפטו > 10%.');
+  const cr=(eF.cls.crypto||0)/eF.tot;if(cr>.10)add('crypto-share','med','🪙',`קריפטו ${(cr*100).toFixed(1)}% מהתיק`,`תנודתיות שנתית משוערת ~${P.assume.crypto.vol}%. ירידה של 60% תמחק ${ilsT(eF.cls.crypto*.6)}.`,'שקול תקרה (למשל 5%) ואיזון חזרה.','קריפטו > 10%.');
   // 6. fees
   const withFee=fin.filter(i=>isFinite(i.feePct));
-  if(!withFee.length)add('info','🧾','אין נתוני דמי ניהול','מבנה הנתונים הנוכחי לא כולל דמי ניהול, ולכן אי אפשר לזהות מסלולים יקרים.','הוסף לכל אחזקה שדה feePct (דמי ניהול מצבירה, %). הם משפיעים על התחזית ועל התובנות.','—');
+  if(!withFee.length)add('fees-missing','info','🧾','אין נתוני דמי ניהול','מבנה הנתונים הנוכחי לא כולל דמי ניהול, ולכן אי אפשר לזהות מסלולים יקרים.','הוסף לכל אחזקה שדה feePct (דמי ניהול מצבירה, %). הם משפיעים על התחזית ועל התובנות.','—');
   else{const hi=withFee.filter(i=>i.feePct>=P.feeHigh);if(hi.length){const annual=sum(hi,i=>i.bal*i.feePct/100);const R=expR;
       const cost20=sum(hi,i=>i.bal*(Math.pow(1+R,20)-Math.pow(1+R-(i.feePct-0.3)/100,20)));
-      add('med','🧾',`דמי ניהול גבוהים ב-${hi.length} אחזקות`,`${hi.map(i=>`${i.name} ${i.feePct}%`).join(', ')}. עלות שנתית ≈ ${ilsT(annual)}. הורדה ל-0.3% שווה ≈ ${ilsT(cost20)} בעוד 20 שנה (בהנחת תשואה ${(R*100).toFixed(1)}%).`,'פנה לגוף המנהל למשא ומתן על דמי ניהול, או השווה מסלולים מקבילים (מחקה מדד).',`דמי ניהול ≥ ${P.feeHigh}%.`);}}
+      add('fees-high','med','🧾',`דמי ניהול גבוהים ב-${hi.length} אחזקות`,`${hi.map(i=>`${i.name} ${i.feePct}%`).join(', ')}. עלות שנתית ≈ ${ilsT(annual)}. הורדה ל-0.3% שווה ≈ ${ilsT(cost20)} בעוד 20 שנה (בהנחת תשואה ${(R*100).toFixed(1)}%).`,'פנה לגוף המנהל למשא ומתן על דמי ניהול, או השווה מסלולים מקבילים (מחקה מדד).',`דמי ניהול ≥ ${P.feeHigh}%.`);}}
   // 7. unrealistic return assumptions in v1 tracks
   const crazy=S.tracks.filter(t=>+t.rate>15&&fin.some(i=>i.track===t.name));
-  if(crazy.length){const tr=trackReturn('fin'),cl=assumedReturn('fin');add('info','📐','הנחות תשואה לא שמרניות במסלולים',`${crazy.map(t=>`${t.name}: ${t.rate}%/שנה`).join(', ')}. התשואה המשוקללת לפי המסלולים היא ${tr.toFixed(1)}% מול ${cl.toFixed(1)}% לפי הנחות סוג נכס — הפרש שמנפח תחזיות ארוכות.`,'בתחזית מוצעת כברירת מחדל התשואה לפי סוג נכס. אפשר לבחור את שיטת המסלולים בלחיצה.','מסלול בשימוש עם תשואה > 15%.');}
+  if(crazy.length){const tr=trackReturn('fin'),cl=assumedReturn('fin');add('tracks-optimistic','info','📐','הנחות תשואה לא שמרניות במסלולים',`${crazy.map(t=>`${t.name}: ${t.rate}%/שנה`).join(', ')}. התשואה המשוקללת לפי המסלולים היא ${tr.toFixed(1)}% מול ${cl.toFixed(1)}% לפי הנחות סוג נכס — הפרש שמנפח תחזיות ארוכות.`,'בתחזית מוצעת כברירת מחדל התשואה לפי סוג נכס. אפשר לבחור את שיטת המסלולים בלחיצה.','מסלול בשימוש עם תשואה > 15%.');}
   // 8. locked kupa that may be liquid (השתלמות)
   const hish=S.investments.filter(i=>i.cat==='kupa'&&/השתלמות|קה"ש/.test(i.name));
-  if(hish.length)add('info','🔓','קרן השתלמות ותיקה עשויה להיות נזילה',`${hish.map(i=>i.name).join(', ')} מסווגות "לא נזיל". קרן השתלמות שעברה 6 שנים ממועד הפתיחה ניתנת למשיכה פטורה ממס רווח הון.`,'אם עברו 6 שנים — סווג אותן כנזילות (משפיע על קרן חירום, יחס נזילות וחישובים). לא חייבים למשוך.','קה"ש בקטגוריית kupa.');
+  if(hish.length)add('kupa-maybe-liq','info','🔓','קרן השתלמות ותיקה עשויה להיות נזילה',`${hish.map(i=>i.name).join(', ')} מסווגות "לא נזיל". קרן השתלמות שעברה 6 שנים ממועד הפתיחה ניתנת למשיכה פטורה ממס רווח הון.`,'אם עברו 6 שנים — סווג אותן כנזילות (משפיע על קרן חירום, יחס נזילות וחישובים). לא חייבים למשוך.','קה"ש בקטגוריית kupa.');
   // 9. stale data
   const stale=fin.filter(i=>{const d=lastUpdate(i);return d&&daysBetween(d,TODAY)>60;});
-  if(stale.length)add('info','⏱️',`${stale.length} אחזקות לא עודכנו מעל 60 יום`,stale.map(i=>`${i.name} (${heDate(lastUpdate(i))})`).join(', '),'עדכן יתרות כדי שהתשואות וההקצאה יהיו מדויקים.','עדכון אחרון > 60 יום.');
+  if(stale.length)add('stale-data','info','⏱️',`${stale.length} אחזקות לא עודכנו מעל 60 יום`,stale.map(i=>`${i.name} (${heDate(lastUpdate(i))})`).join(', '),'עדכן יתרות כדי שהתשואות וההקצאה יהיו מדויקים.','עדכון אחרון > 60 יום.');
   // 10. FX exposure
-  const fx=1-(eF.ccy.ILS||0)/eF.tot;if(fx>.65)add('info','💱',`חשיפה למט"ח גבוהה: ${(fx*100).toFixed(0)}%`,'רוב ההוצאות שלך בשקלים. התחזקות השקל תקטין את השווי בשקלים (ולהפך).','זו החלטה לגיטימית לפיזור; ודא שהיא מכוונת. אפשר לשקול מסלולים מגודרי מטבע לחלק מהתיק.','מט"ח > 65%.');
+  const fx=1-(eF.ccy.ILS||0)/eF.tot;if(fx>.65)add('fx-high','info','💱',`חשיפה למט"ח גבוהה: ${(fx*100).toFixed(0)}%`,'רוב ההוצאות שלך בשקלים. התחזקות השקל תקטין את השווי בשקלים (ולהפך).','זו החלטה לגיטימית לפיזור; ודא שהיא מכוונת. אפשר לשקול מסלולים מגודרי מטבע לחלק מהתיק.','מט"ח > 65%.');
   // 11. savings pace
   const yr=TODAY.getFullYear(),ytd=contribBetween(`${yr-1}-12-31`,iso(TODAY)),lyYtd=contribBetween(`${yr-2}-12-31`,iso(new Date(yr-1,TODAY.getMonth(),TODAY.getDate())));
-  if(lyYtd>0){const ch=ytd/lyYtd-1;if(ch<-.2)add('info','📉',`קצב החיסכון השנה נמוך ב-${Math.abs(ch*100).toFixed(0)}% מאשתקד`,`${yr}: ${ilsT(ytd)} עד היום, מול ${ilsT(lyYtd)} באותה תקופה ב-${yr-1}.`,'בדוק אם זה מכוון (הוצאה חד-פעמית) או שינוי בתזרים.','ירידה > 20%.');
-    else if(ch>.05)add('good','📈',`קצב החיסכון השנה גבוה ב-${(ch*100).toFixed(0)}% מאשתקד`,`${yr}: ${ilsT(ytd)} מול ${ilsT(lyYtd)} באותה תקופה ב-${yr-1}.`,'כל הכבוד — המשך.','עלייה > 5%.');}
+  if(lyYtd>0){const ch=ytd/lyYtd-1;if(ch<-.2)add('save-down','info','📉',`קצב החיסכון השנה נמוך ב-${Math.abs(ch*100).toFixed(0)}% מאשתקד`,`${yr}: ${ilsT(ytd)} עד היום, מול ${ilsT(lyYtd)} באותה תקופה ב-${yr-1}.`,'בדוק אם זה מכוון (הוצאה חד-פעמית) או שינוי בתזרים.','ירידה > 20%.');
+    else if(ch>.05)add('save-up','good','📈',`קצב החיסכון השנה גבוה ב-${(ch*100).toFixed(0)}% מאשתקד`,`${yr}: ${ilsT(ytd)} מול ${ilsT(lyYtd)} באותה תקופה ב-${yr-1}.`,'כל הכבוד — המשך.','עלייה > 5%.');}
   const order={high:0,med:1,info:2,good:3};return out.sort((a,b)=>order[a.sev]-order[b.sev]);
 }
 const SEV_N={high:'דחוף',med:'כדאי לטפל',info:'לידיעה',good:'תקין'};
-const recHTML=r=>`<div class="rec ${r.sev}"><div class="ic">${r.ic}</div><div><div class="t">${esc(r.title)}<span class="sev ${r.sev}">${SEV_N[r.sev]}</span></div>
-  <div class="why"><b>למה:</b> ${esc(r.why)}</div><div class="act"><b>מה אפשר לעשות:</b> ${esc(r.act)}</div><details><summary>הכלל</summary>${esc(r.rule)}</details></div></div>`;
+function dismissedRecSet(){return new Set((v2raw().dismissedRecs||[]).map(String));}
+function dismissRec(id){if(!id)return;v2patch(v=>{const s=new Set(v.dismissedRecs||[]);s.add(String(id));v.dismissedRecs=[...s];});}
+function restoreDismissedRecs(){v2patch(v=>{delete v.dismissedRecs;});}
+function visibleRules(includeGood=true){const d=dismissedRecSet();return rules().filter(r=>!d.has(String(r.id))&&(includeGood||r.sev!=='good'));}
+const recHTML=(r,opts={})=>{
+  const compact=!!opts.compact;
+  const dismissBtn=r.id?`<button type="button" class="btn ghost rec-dismiss" data-dismiss="${esc(r.id)}" title="הסתר תובנה זו">סמן כנקרא</button>`:'';
+  return `<div class="rec ${r.sev}" data-rec="${esc(r.id||'')}"><div class="ic">${r.ic}</div><div><div class="t">${esc(r.title)}<span class="sev ${r.sev}">${SEV_N[r.sev]}</span></div>
+  ${compact?'':`<div class="why"><b>למה:</b> ${esc(r.why)}</div><div class="act"><b>מה אפשר לעשות:</b> ${esc(r.act)}</div><details><summary>הכלל</summary>${esc(r.rule)}</details>`}
+  <div class="rec-actions">${dismissBtn}</div></div></div>`;
+};
+function bindRecDismiss(root){
+  (root?root.querySelectorAll('[data-dismiss]'):$$('[data-dismiss]')).forEach(btn=>{
+    btn.onclick=()=>{dismissRec(btn.dataset.dismiss);if(CUR==='recs')renderRecs();else if(CUR==='overview')renderOverview();toast('✓ התובנה הוסתרה','ok');};
+  });
+}
 
 /* ---------------- PAGES ---------------- */
 const PAGES=[
@@ -1088,10 +1102,13 @@ function renderOverview(){
   const e=exposures('fin');donut('cOvAlloc',Object.keys(CLASSES).filter(k=>e.cls[k]>0).map(k=>({n:CLASSES[k].n,v:e.cls[k],c:CLASSES[k].c})));
   $('#ovDrift').innerHTML=Object.keys(CLASSES).filter(k=>(e.cls[k]||0)>0||P.targets[k]>0).map(k=>{const c=(e.cls[k]||0)/e.tot*100,d=c-P.targets[k];
     return `<div style="display:flex;justify-content:space-between;padding:2px 0"><span>${CLASSES[k].n}</span><span class="m">${c.toFixed(1)}% <span class="faint">יעד ${P.targets[k]}%</span> <span class="${Math.abs(d)>=P.driftPct?'warn':'dim'}">${d>=0?'+':''}${d.toFixed(1)}</span></span></div>`;}).join('');
-  const rs=rules().filter(r=>r.sev!=='good').slice(0,3);$('#ovRecs').innerHTML=rs.length?rs.map(recHTML).join(''):'<div class="empty">אין התראות 🎉</div>';
-  // quick forecast
+  const rs=visibleRules(false).slice(0,3);$('#ovRecs').innerHTML=rs.length?rs.map(r=>recHTML(r,{compact:true})).join(''):'<div class="empty">אין התראות 🎉</div>';
+  bindRecDismiss($('#ovRecs'));
+  /* Quick forecast — SAME inputs/math as Forecast page FV mode (fcInputs + fcCompute). */
   const f=fcInputs();const res=fcCompute(f);
-  $('#ovFc').innerHTML=`<div class="dim" style="font-size:12px">ב-${heDate(f.date)} (בעוד ${(res.n/12).toFixed(1)} שנים), בהפקדה של ${ils(f.monthly)}/חודש ותשואה ${f.ret}%:</div>
+  const stressed=Math.round((f.depStress??100)*10)/10!==100;
+  const scopeLbl=f.scope==='liq'?'נזיל בלבד':'כל ההון הפיננסי';
+  $('#ovFc').innerHTML=`<div class="dim" style="font-size:12px">אותה תחזית כמו בעמוד <a href="#forecast">תחזית</a> (מצב שווי צפוי): ב־<b>${heDate(f.date)}</b> · בעוד ${(res.n/12).toFixed(1)} שנים · הון התחלתי ${ils(res.P0)} (${scopeLbl}) · הפקדה <b>${ils(res.monthly)}</b>/חודש${stressed?` <span class="warn">(${Math.round(f.depStress)}% מ־${ilsT(f.monthly)})</span>`:''} · תשואה ${f.ret}% − דמי ניהול ${f.fee}%:</div>
     <div class="big-result" style="font-size:30px;margin-top:6px">${ils(res.exp)}</div>
     <div class="dim" style="font-size:12px">טווח שמרני–אופטימי: ${ils(res.cons)} – ${ils(res.opt)} · בכסף של היום: ${ils(res.real)}</div>`;
 }
@@ -1314,7 +1331,11 @@ function aiPrompt(sum){return `אתה מנתח פיננסי. לפניך סיכו
 JSON:
 ${JSON.stringify(sum)}`;}
 function renderRecs(){
-  $('#recList').innerHTML=rules().map(recHTML).join('');
+  const all=rules(), vis=visibleRules(true), nHide=all.length-vis.length;
+  $('#recList').innerHTML=(vis.length?vis.map(r=>recHTML(r)).join(''):'<div class="empty">אין תובנות להצגה</div>')
+    +(nHide?`<div class="dim mt" style="font-size:12px">${nHide} תובנות הוסתרו (נקראו). <button type="button" class="btn ghost sm" id="recRestore">הצג מחדש</button></div>`:'');
+  bindRecDismiss($('#recList'));
+  const rst=$('#recRestore');if(rst)rst.onclick=()=>{restoreDismissedRecs();renderRecs();if(CUR==='overview')renderOverview();toast('✓ כל התובנות הוחזרו','ok');};
   const s=aiSummary();$('#aiJson').textContent=JSON.stringify(s,null,2);
   $('#aiCopy').onclick=()=>{navigator.clipboard?.writeText(aiPrompt(s));$('#aiCopy').textContent='הועתק ✓';setTimeout(()=>$('#aiCopy').textContent='העתק סיכום',1500);};
   const key=localStorage.getItem(KEY_GEMINI);
@@ -1456,10 +1477,11 @@ function tzBuildSnap(){
   const y=yearNetSavings(yr), ly=yearNetSavings(yr-1);
   const fc=tzofikForecast();
   const prior=tzPriorFin();
+  const priorSav=prior?Math.round(contribBetween(prior.d,iso(TODAY))):null;
   return {v:1,
     u:S.lastUpdated?String(S.lastUpdated).slice(0,10):iso(TODAY),
     fin:Math.round(+T.fin||0),liq:Math.round(+T.liq||0),locked:Math.round(+T.locked||0),debt:Math.round(+T.debt||0),
-    priorV:prior?Math.round(+prior.v||0):null,priorD:prior?prior.d:null,
+    priorV:prior?Math.round(+prior.v||0):null,priorD:prior?prior.d:null,priorSav,
     yr,yNet:Math.round(+y.net||0),lyNet:Math.round(+ly.net||0),
     pctS:+(+y.pctSharon||0).toFixed(1),pctE:+(+y.pctEylon||0).toFixed(1),pctO:+(+y.pctOther||0).toFixed(1),
     fcD:fc.date,fcExp:Math.round(+fc.exp||0),fcM:Math.round(+fc.monthly||0),fcR:+(+fc.ret||0).toFixed(2),fcN:+fc.n||0,
@@ -1570,7 +1592,7 @@ function renderTzofik(){
     ly={net:snap.lyNet||0};
     fc={date:snap.fcD,exp:snap.fcExp,monthly:snap.fcM,ret:+snap.fcR||0,n:snap.fcN||0,P0:snap.fcP0!=null?snap.fcP0:snap.liq,scope:snap.fcScope||'liq',hasPrefs:false};
     updated=snap.u||null;
-    prior=(snap.priorD!=null&&snap.priorV!=null)?{d:snap.priorD,v:snap.priorV}:null;
+    prior=(snap.priorD!=null&&snap.priorV!=null)?{d:snap.priorD,v:snap.priorV,sav:snap.priorSav!=null?+snap.priorSav:null}:null;
   }else{
     T=totals();yr=TODAY.getFullYear();
     y=yearNetSavings(yr);ly=yearNetSavings(yr-1);
@@ -1589,8 +1611,10 @@ function renderTzofik(){
   const fcP0=fc.P0!=null?fc.P0:T.liq;
   const priorSub=prior?( ()=>{
       const dlt=(+T.fin||0)-(+prior.v||0);
-      const pr=(+prior.v)?dlt/(+prior.v):null;
-      return `לפני חודש · נכון ל־${heDate(prior.d)}: <b>${ils(prior.v)}</b> · שינוי ${ilsSigned(dlt)}${pr!=null?` (${pct(pr)})`:''}`;
+      /* Parentheses: net deposits (slog) in the period — not %. */
+      const sav=prior.sav!=null&&isFinite(prior.sav)?+prior.sav:(snap?null:contribBetween(prior.d,iso(TODAY)));
+      const savTxt=sav!=null&&isFinite(sav)?` (מתוכם חיסכון ${ilsSigned(sav)})`:'';
+      return `לפני חודש · נכון ל־${heDate(prior.d)}: <b>${ils(prior.v)}</b> · שינוי ${ilsSigned(dlt)}${savTxt}`;
     })():`לפני חודש: אין נקודת השוואה`;
   el.innerHTML=`${gistBox}${snapBadge}
     <div class="tz-assets">
