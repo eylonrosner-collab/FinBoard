@@ -288,6 +288,7 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
   .tz-actions{gap:8px;margin-top:0;flex-shrink:0}
   .tz-actions .btn{padding:14px 12px;font-size:15px;border-radius:14px;box-shadow:3px 3px 0 #1e3a5f;border-width:2px}
   .tz-actions .btn.ghost{display:none}
+  .tz-snap-badge{display:none!important} /* chip shows snapshot source; save vertical space */
   .tz-note{font-size:11px;margin-top:0;line-height:1.35;flex-shrink:0;padding:4px 2px}
   .tz-note .tz-note-long{display:none}
 }
@@ -963,7 +964,7 @@ const PAGES=[
   ['settings','הגדרות','⚙️','יעדים, הנחות ומקור נתונים']];
 const PAGE_ALIASES={'סיכום-צופיק':'tzofik','סיכום_צופיק':'tzofik','tzofík':'tzofik'};
 let CUR='overview';
-function resolvePage(p){p=decodeURIComponent(String(p||'').replace(/^#/,''));if(PAGE_ALIASES[p])p=PAGE_ALIASES[p];return PAGES.find(x=>x[0]===p)?p:'overview';}
+function resolvePage(p){p=decodeURIComponent(String(p||'').replace(/^#/,''));p=String(p||'').split(/[&?]/)[0].split('/')[0];if(PAGE_ALIASES[p])p=PAGE_ALIASES[p];return PAGES.find(x=>x[0]===p)?p:'overview';}
 function buildNav(){
   $('#navList').innerHTML=PAGES.map(([k,n,ic])=>`<button class="nav-btn" data-p="${k}"><span class="nav-ic">${ic}</span>${n}</button>`).join('');
   $('#bottomNav').innerHTML=PAGES.map(([k,n,ic])=>`<button data-p="${k}"><span class="nav-ic">${ic}</span>${n}</button>`).join('');
@@ -976,6 +977,7 @@ function show(p){
   $$('.page').forEach(s=>s.classList.toggle('active',s.id==='p-'+p));
   $$('[data-p]').forEach(b=>b.classList.toggle('active',b.dataset.p===p));
   const meta=PAGES.find(x=>x[0]===p);$('#pageTitle').textContent=meta[1];$('#pageSub').textContent=meta[3];
+  if(typeof applySource==='function')try{applySource();}catch(e){}
   RENDER[p]();window.scrollTo(0,0);
 }
 
@@ -1323,6 +1325,7 @@ function invOptions(sel){
 
 /* ---------------- TZOFÍK SUMMARY ---------------- */
 const TZ_SHARE_HASH='tzofik';
+let TZ_SNAP=null; /* read-only snapshot from #tzofik&s=… — no Gist/localStorage needed */
 function partyOfSlog(s){
   /* Match slog.acc (and note / attributed holding.owner) to שרון / אילון — same name fields used in the original site. */
   const blob=(String(s.acc||'')+' '+String(s.note||'')).toLowerCase();
@@ -1358,23 +1361,93 @@ function tzofikForecast(){
   const exp=series[n].v;
   return {date,n,P0,baseMonthly,baseRet,monthly,ret,fee,growth,scope,exp,usedDefaults,hasPrefs:!!(P.fc&&(P.fc.date||P.fc.monthly!=null||P.fc.ret!=null))};
 }
-function tzShareUrl(){
-  const u=new URL(location.href);u.hash=TZ_SHARE_HASH;u.search=''; // clean share URL
+/* —— self-contained share: pack Tzofik metrics into #tzofik&s=… (base64url JSON, no token) —— */
+function tzB64url(bytes){
+  let bin='';bytes.forEach(b=>bin+=String.fromCharCode(b));
+  return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function tzUnb64url(s){
+  s=String(s||'').replace(/-/g,'+').replace(/_/g,'/');
+  while(s.length%4)s+='=';
+  const bin=atob(s);const out=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++)out[i]=bin.charCodeAt(i);
+  return out;
+}
+function tzBuildSnap(){
+  const T=totals();const yr=TODAY.getFullYear();
+  const y=yearNetSavings(yr), ly=yearNetSavings(yr-1);
+  const fc=tzofikForecast();
+  return {v:1,
+    u:S.lastUpdated?String(S.lastUpdated).slice(0,10):iso(TODAY),
+    fin:Math.round(+T.fin||0),liq:Math.round(+T.liq||0),locked:Math.round(+T.locked||0),debt:Math.round(+T.debt||0),
+    yr,yNet:Math.round(+y.net||0),lyNet:Math.round(+ly.net||0),
+    pctS:+(+y.pctSharon||0).toFixed(1),pctE:+(+y.pctEylon||0).toFixed(1),pctO:+(+y.pctOther||0).toFixed(1),
+    fcD:fc.date,fcExp:Math.round(+fc.exp||0),fcM:Math.round(+fc.monthly||0),fcR:+(+fc.ret||0).toFixed(2),fcN:+fc.n||0};
+}
+function tzEncodeSnap(obj){
+  const json=JSON.stringify(obj);
+  return 'j'+tzB64url(new TextEncoder().encode(json));
+}
+function tzDecodeSnap(enc){
+  if(!enc)return null;
+  let kind='j',body=String(enc);
+  if(body[0]==='j'||body[0]==='z'){kind=body[0];body=body.slice(1);}
+  if(kind!=='j')return null; /* v1: sync JSON only; 'z' reserved for deflate */
+  try{
+    const json=new TextDecoder().decode(tzUnb64url(body));
+    const o=JSON.parse(json);
+    if(!o||o.v!==1||!isFinite(o.fin))return null;
+    return o;
+  }catch(e){return null;}
+}
+function parseTzHash(raw){
+  let h=decodeURIComponent(String(raw||'').replace(/^#/,''));
+  if(h.startsWith('access='))return {page:null,snapEnc:null};
+  /* #tzofik&s=ENC | #tzofik?s=ENC | #tzofik/s/ENC */
+  let m=h.match(/^(tzofik)(?:[&?]s=|\/s\/)([^&?#]+)/i);
+  if(m)return {page:'tzofik',snapEnc:m[2]};
+  const page=h.split(/[&?]/)[0].split('/')[0]||'';
+  return {page,snapEnc:null};
+}
+function ingestTzHash(raw){
+  const {page,snapEnc}=parseTzHash(raw);
+  TZ_SNAP=snapEnc?tzDecodeSnap(snapEnc):null;
+  return page;
+}
+function tzShareUrl(withSnap){
+  const u=new URL(location.href);u.search='';
+  if(withSnap){
+    const enc=tzEncodeSnap(tzBuildSnap());
+    u.hash=TZ_SHARE_HASH+'&s='+enc;
+  }else u.hash=TZ_SHARE_HASH;
   return u.toString();
 }
 function renderTzofik(){
   const el=$('#tzBody');if(!el)return;
-  const T=totals();const yr=TODAY.getFullYear();
-  const y=yearNetSavings(yr), ly=yearNetSavings(yr-1);
-  const fc=tzofikForecast();
-  const splitTxt=`שרון ${y.pctSharon.toFixed(0)}% · אילון ${y.pctEylon.toFixed(0)}%`+(y.pctOther>0.5?` · אחר ${y.pctOther.toFixed(0)}%`:'');
-  const needData=SRC==='example';
+  const snap=TZ_SNAP;
+  let T,yr,y,ly,fc,updated;
+  if(snap){
+    T={fin:snap.fin,liq:snap.liq,locked:snap.locked,debt:snap.debt};
+    yr=snap.yr||TODAY.getFullYear();
+    y={net:snap.yNet,pctSharon:snap.pctS||0,pctEylon:snap.pctE||0,pctOther:snap.pctO||0};
+    ly={net:snap.lyNet||0};
+    fc={date:snap.fcD,exp:snap.fcExp,monthly:snap.fcM,ret:+snap.fcR||0,n:snap.fcN||0,hasPrefs:false};
+    updated=snap.u||null;
+  }else{
+    T=totals();yr=TODAY.getFullYear();
+    y=yearNetSavings(yr);ly=yearNetSavings(yr-1);
+    fc=tzofikForecast();
+    updated=S.lastUpdated?String(S.lastUpdated).slice(0,10):null;
+  }
+  const splitTxt=`שרון ${(+y.pctSharon||0).toFixed(0)}% · אילון ${(+y.pctEylon||0).toFixed(0)}%`+(y.pctOther>0.5?` · אחר ${(+y.pctOther||0).toFixed(0)}%`:'');
+  const needData=SRC==='example'&&!snap;
   const gistBox=needData?`<div class="tz-card warn-tz"><div class="tz-lbl">אין נתונים אמיתיים בדפדפן הזה</div>
-    <div class="tz-sub">כדי לראות את המספרים החיים: הזיני Gist ID (קריאה בלבד — בלי token אם ה-Gist נגיש לפי ID), או פתחי קישור <span class="num">#access=…</span> מהאתר המקורי, או השתמשי באותו דפדפן שבו FinBoard כבר מחובר.</div>
+    <div class="tz-sub">בקשי קישור <b>עם נתונים</b> (תצלום ב־URL), או הזיני Gist ID ציבורי לקריאה בלבד, או פתחי קישור <span class="num">#access=…</span> מהאתר המקורי.</div>
     <div class="tz-gist"><input id="tzGistId" placeholder="Gist ID (hex)" autocomplete="off">
       <button class="btn" id="tzGistLoad">טעני מה-Gist</button></div>
     <div class="tz-sub" id="tzGistMsg"></div></div>`:'';
-  el.innerHTML=`${gistBox}
+  const snapBadge=snap?`<div class="tz-snap-badge tz-card" style="border-color:#0f766e;box-shadow:3px 3px 0 #0f766e;background:#f0fdfa;padding:8px 12px"><div class="tz-sub" style="margin:0;color:#0f766e;font-weight:700">📎 תצלום קישור · מצב קריאה בלבד${updated?' · '+heDate(updated):''}</div></div>`:'';
+  el.innerHTML=`${gistBox}${snapBadge}
     <div class="tz-card tz-total"><div class="tz-lbl">סה״כ נכסים</div>
       <div class="tz-val">${ils(T.fin)}</div>
       <div class="tz-sub">נזילים + סגורים לפרישה (ללא נדל״ן)</div></div>
@@ -1387,18 +1460,29 @@ function renderTzofik(){
       <div class="tz-sub muted">${esc(splitTxt)}<br>שנה שעברה (${yr-1}): ${ils(ly.net)}</div></div>
     <div class="tz-card tz-fc"><div class="tz-lbl">תחזית ל־${heDate(fc.date)} · הפקדה+תשואה 50%</div>
       <div class="tz-val">${ils(fc.exp)}</div>
-      <div class="tz-sub">הפקדה ${ilsT(fc.monthly)}/ח׳ · תשואה ${fc.ret.toFixed(1)}% · ${fc.n} ח׳ <span class="tz-fc-detail"><br>הון ${ils(fc.P0)} · 50% מ־${ilsT(fc.baseMonthly)} / ${fc.baseRet.toFixed(1)}% · ${fc.hasPrefs?'מהעדפות התחזית':'ברירות מחדל'} · <b>תרחיש לחוץ</b></span></div></div>
+      <div class="tz-sub">הפקדה ${ilsT(fc.monthly)}/ח׳ · תשואה ${(+fc.ret).toFixed(1)}% · ${fc.n} ח׳ <span class="tz-fc-detail"><br><b>תרחיש לחוץ</b> (תצלום בקישור)</span></div></div>
     <div class="tz-card tz-debt"><div class="tz-lbl">סה״כ התחייבויות</div><div class="tz-val">${ils(T.debt)}</div></div>
     <div class="tz-actions">
-      <button class="btn" id="tzCopy">העתק קישור לשיתוף</button>
-      <button class="btn ghost" id="tzFull" data-go="overview">למסך המלא</button>
+      <button class="btn" id="tzCopy">העתק קישור עם נתונים</button>
+      <button class="btn ghost" id="tzCopyBare" title="בלי תצלום — דורש Gist/דפדפן מחובר">קישור בלי נתונים</button>
     </div>
     <div class="tz-note"><span class="num" id="tzUrl"></span>
-      <span class="tz-note-long"><br>מי שמקבל את הקישור רואה נתונים רק עם גישה בדפדפן / Gist / <span class="num">#access=</span>.</span>
-      · עודכן ${S.lastUpdated?heDate(S.lastUpdated):'—'}</div>`;
-  $('#tzUrl').textContent=tzShareUrl();
-  $('#tzCopy').onclick=async()=>{const url=tzShareUrl();try{await navigator.clipboard.writeText(url);toast('✓ הקישור הועתק','ok');}
+      <span class="tz-note-long"><br>הקישור עם נתונים כולל תצלום קריאה־בלבד ב־hash (בלי token). מי שפותח רואה את המספרים גם בלי Gist.</span>
+      · עודכן ${updated?heDate(updated):'—'}</div>`;
+  const snapUrl=(!needData||snap)?tzShareUrl(true):tzShareUrl(false);
+  $('#tzUrl').textContent=snapUrl.length>72?snapUrl.slice(0,40)+'…'+snapUrl.slice(-18):snapUrl;
+  $('#tzUrl').title=snapUrl;
+  const copy=async(url,okMsg)=>{try{await navigator.clipboard.writeText(url);toast(okMsg,'ok');}
     catch(e){prompt('העתיקי את הקישור:',url);}};
+  $('#tzCopy').onclick=()=>{
+    /* Pack current Tzofik metrics into #tzofik&s=… (or re-encode an opened snapshot). */
+    let out;
+    if(snap&&SRC==='example'){
+      const u=new URL(location.href);u.search='';u.hash=TZ_SHARE_HASH+'&s='+tzEncodeSnap(snap);out=u.toString();
+    }else out=tzShareUrl(true);
+    copy(out,'✓ קישור עם נתונים הועתק');
+  };
+  $('#tzCopyBare').onclick=()=>copy(tzShareUrl(false),'✓ קישור בלי נתונים הועתק');
   if(needData){$('#tzGistLoad').onclick=async()=>{const gist=$('#tzGistId').value.trim();
     if(!/^[0-9a-fA-F]{8,64}$/.test(gist)){$('#tzGistMsg').innerHTML='<span class="neg">Gist ID לא תקין</span>';return;}
     $('#tzGistMsg').textContent='טוען…';
@@ -1564,8 +1648,8 @@ function editHolding(id,cat){
     <div class="field"><label>דמי ניהול (% מצבירה)</label><input id="eFee" inputmode="decimal" value="${inv&&isFinite(inv.feePct)?inv.feePct:''}" placeholder="לא ידוע" style="direction:ltr"></div>
     <div class="field"><label>עלות / סך הפקדות (₪)</label><input id="eCost" inputmode="decimal" value="${inv&&isFinite(inv.costBasis)?inv.costBasis:''}" placeholder="לחישוב תשואה" style="direction:ltr"></div>
     <div class="field" style="grid-column:1/-1"><label>נזילות</label>
-      <label class="liq-tog ${isLiq(inv||{cat:c})?'':'locked'}" style="margin-top:6px"><input type="checkbox" id="eLiq" ${isLiq(inv||{cat:c})?'checked':''}> נזיל (אפשר למשוך לפני פרישה)</label>
-      <div class="hint">אם לא מסומן — סגור עד לפרישה. ברירת מחדל לפי קטגוריה (קה״ש/קופות = סגור); הסימון נשמר בשדה <span class="num">liquid</span> שהאתר המקורי מתעלם ממנו.</div></div>
+      <label class="liq-tog ${isLiq(inv||{cat:c})?'':'locked'}" id="eLiqLab" style="margin-top:6px"><input type="checkbox" id="eLiq" ${isLiq(inv||{cat:c})?'checked':''}> נזיל</label>
+      <div class="hint">מסומן = נזיל. לא מסומן = סגור לפרישה. ברירת מחדל לפי קטגוריה; נשמר ב־<span class="num">liquid</span> (האתר המקורי מתעלם).</div></div>
     <div class="field" style="grid-column:1/-1"><label>הערות</label><textarea id="eNotes">${esc(inv?inv.notes||'':'')}</textarea></div>
   </div>${histAll.length?`<div class="mt"><b style="font-size:13px">יתרה לאורך זמן</b><div class="hold-chart"><canvas id="cHoldHist"></canvas></div>
     <b style="font-size:13px">היסטוריית יתרות אחרונה</b><table class="hist-mini">${hist.map(h=>`<tr><td class="m">${heDate(h.date)}</td><td class="n">${ils(+h.bal)}</td></tr>`).join('')}</table>
@@ -1574,6 +1658,8 @@ function editHolding(id,cat){
     ...(inv?[{label:'מחק אחזקה',cls:'btn danger sp',id:'eDel',fn:()=>{if(confirm(`למחוק את "${inv.name}"? (נשמר גיבוי)`)){closeModal();commit(x=>{x.investments=x.investments.filter(i=>i.id!==id);},`מחיקת ${inv.name}`);}}}]:[])]);
   const tog=()=>{const k=fv('eCat');document.querySelectorAll('.fxf').forEach(e=>e.style.display=k==='forex'?'':'none');document.querySelectorAll('.crf').forEach(e=>e.style.display=k==='crypto'?'':'none');};
   $('#eCat').onchange=tog;tog();
+  const syncLiqLab=()=>{$('#eLiqLab').classList.toggle('locked',!$('#eLiq').checked);};
+  $('#eLiq').onchange=syncLiqLab;
   if(histAll.length>=1){requestAnimationFrame(()=>mk('cHoldHist',{type:'line',data:{datasets:[{label:'יתרה ₪',data:histAll.map(h=>({x:h.date,y:+h.bal})),borderColor:cv('--pri'),backgroundColor:cv('--pri')+'22',fill:true,tension:.25,pointRadius:histAll.length<20?3:0,borderWidth:2}]},
     options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${ilsT(c.raw.y)}`}}},scales:{x:xTime(histAll.length>24?'month':'day'),y:yMoney}}}));}
 }
@@ -1646,7 +1732,7 @@ function renderUpdate(){
     return `<div class="urow ${d&&isFinite(d.v)?'dirty':''}" data-row="${esc(i.id)}">
       <div class="nmw"><div class="nm">${esc(i.name)}</div><div class="meta">${esc([i.inst,i.track,i.owner].filter(Boolean).join(' · '))}</div></div>
       <div class="lu ${stale?'warn':''}" title="${lu?'עדכון אחרון בהיסטוריית היתרות':''}"><b>${lu?heDate(lu):'—'}</b>${days!=null?`<div class="faint">${days===0?'היום':days===1?'אתמול':`לפני ${days} ימים`}</div>`:''}</div>
-      <div class="liqw"><label class="liq-tog ${liq?'':'locked'}"><input type="checkbox" data-liq="${esc(i.id)}" ${liq?'checked':''} ${ed?'':'disabled'}> ${liq?'נזיל':'סגור עד לפרישה'}</label></div>
+      <div class="liqw"><label class="liq-tog ${liq?'':'locked'}"><input type="checkbox" data-liq="${esc(i.id)}" ${liq?'checked':''} ${ed?'':'disabled'}> נזיל</label></div>
       <div class="cur"><span class="lbl dim">נוכחי: </span>${curTxt}</div>
       <div class="uin"><input data-inv="${esc(i.id)}" inputmode="decimal" autocomplete="off" ${ed?'':'disabled'} placeholder="${esc(String(u.kind==='ils'?Math.round(i.bal):u.amt))}" value="${d&&isFinite(d.v)?esc(String(d.raw)):''}" aria-label="יתרה חדשה — ${esc(i.name)}"><span class="unit">${esc(u.code)}${u.kind!=='ils'?`<br><span class="faint">@${nf.format(Math.round(pr.p*100)/100)}${pr.live?'':' *'}</span>`:''}</span></div>
       <div class="udelta" data-dl="${esc(i.id)}"></div>
@@ -1674,7 +1760,8 @@ function renderUpdate(){
   $$('#updGroups [data-inv]').forEach(el=>el.oninput=()=>{const v=parseNum(el.value);if(el.value.trim()==='')delete DRAFT.inv[el.dataset.inv];else DRAFT.inv[el.dataset.inv]={v,raw:el.value};updDeltas();});
   $$('#updGroups [data-loan]').forEach(el=>el.oninput=()=>{const v=parseNum(el.value);if(el.value.trim()==='')delete DRAFT.loan[el.dataset.loan];else DRAFT.loan[el.dataset.loan]={v,raw:el.value};updDeltas();});
   $$('#updGroups [data-liq]').forEach(el=>el.onchange=()=>{const id=el.dataset.liq, liquid=!!el.checked;
-    commit(x=>{const inv=x.investments.find(i=>i.id===id);if(inv)inv.liquid=liquid;}, liquid?'סימון נזיל':'סימון סגור עד לפרישה');});
+    el.closest('.liq-tog')?.classList.toggle('locked',!liquid);
+    commit(x=>{const inv=x.investments.find(i=>i.id===id);if(inv)inv.liquid=liquid;}, liquid?'סימון נזיל':'ביטול נזיל (סגור לפרישה)');});
   $('#qsAdd').onclick=()=>{const a=parseNum(fv('qsAmt'));if(!isFinite(a)||!fv('qsDate')){toast('הזן תאריך וסכום','err');return;}
     const invId=fv('qsInv')||'';const d={date:fv('qsDate'),acc:fv('qsAcc'),amount:a,note:fv('qsNote')};if(invId)d.invId=invId;
     commit(x=>{x.slog.push({id:uid(),total:0,...d});},'הוספת רשומת חיסכון');};
@@ -1754,9 +1841,14 @@ function renderGistCard(){
 }
 function applySource(){
   const chip=$('#srcChip');
+  if(TZ_SNAP){
+    chip.className='chip gist';chip.textContent='📎 תצלום קישור';chip.title='נתונים מתצלום ב־URL (קריאה בלבד)';
+    chip.style.cursor='default';chip.onclick=null;
+  }else{
   const C={gist:['chip gist','☁ Gist (live)'],gistCache:['chip gist','☁ Gist (עותק שמור)'],local:['chip real','💾 נתוני דפדפן מקומיים'],example:['chip ex','נתוני דוגמה']}[SRC];
   chip.className=C[0];chip.textContent=C[1];chip.title='מקור הנתונים — לחץ לפרטים';chip.style.cursor='pointer';chip.onclick=()=>{location.hash='settings';};
-  $('#exBanner').style.display=SRC==='example'?'':'none';
+  }
+  $('#exBanner').style.display=(SRC==='example'&&!TZ_SNAP)?'':'none';
   const m=[ACCESS_MSG,SRC_MSG].filter(Boolean).join(' ');const el=$('#srcMsg');
   el.style.display=m?'':'none';el.className='banner '+(SRC_MSG_KIND==='err'&&SRC_MSG?'err':'info');el.textContent=m;
   const ps=v2raw().pendingSync,c=getCreds(),sb=$('#syncBar');
@@ -1777,9 +1869,9 @@ async function boot(){
   applyTheme();buildNav();applySource();
   $('#themeBtn').onclick=()=>{P.theme=document.documentElement.dataset.theme==='dark'?'light':'dark';savePrefs();applyTheme();show(CUR);};
   $('#privBtn').onclick=()=>{P.privacy=!P.privacy;savePrefs();applyTheme();};
-  window.addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(h.startsWith('access='))return;show(resolvePage(h));});
+  window.addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(h.startsWith('access='))return;show(resolvePage(ingestTzHash(h)||'overview'));});
   initEditing();
-  show(resolvePage(location.hash.slice(1)||'overview'));
+  show(resolvePage(ingestTzHash(location.hash.slice(1))||'overview'));
 }
 document.addEventListener('DOMContentLoaded',boot);
 </script>
