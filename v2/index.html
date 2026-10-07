@@ -295,6 +295,12 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
 .liq-tog{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--dim);cursor:pointer;user-select:none;white-space:nowrap}
 .liq-tog input{width:16px;height:16px;accent-color:var(--pos)}
 .liq-tog.locked{color:var(--warn)}
+.mgr-box{display:flex;flex-direction:column;gap:8px;margin-top:6px;padding:10px 12px;border:1px dashed var(--line2);border-radius:12px;background:color-mix(in srgb,var(--card) 92%,var(--pri))}
+.mgr-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.mgr-row .btn{flex:1;min-width:160px}
+.mgr-phone{font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate;font-weight:700}
+.mgr-miss{color:var(--warn);font-size:12px;font-weight:600}
+
 .urow .liqw{font-size:11px}
 @media(max-width:760px){
   .urow{grid-template-areas:"nm ed" "lu lu" "liq liq" "cur cur" "in in" "dl dl"}
@@ -1626,6 +1632,49 @@ function openModal(title,body,btns){$('#mdTitle').textContent=title;$('#mdBody')
 function closeModal(){$('#modal').classList.remove('open');if(charts.cHoldHist){charts.cHoldHist.destroy();delete charts.cHoldHist;}}
 const fv=id=>{const el=document.getElementById(id);return el?el.value:'';};
 const optList=(arr,sel)=>arr.map(([v,n])=>`<option value="${esc(v)}" ${String(v)===String(sel)?'selected':''}>${esc(n)}</option>`).join('');
+/* Manager / bank subscriber portals — matched by holding.inst (and name fallback). Additive managerUrl overrides. No secrets. */
+const SMS_LOGIN_PHONE='0544938283';
+const MANAGER_PORTALS=[
+  /* Israeli investment houses / insurers (gemel, hishtalmut, pension) */
+  {re:/מור(\s|$)|more\s*(invest|בית)?/i, url:'https://my-account.more.co.il/', label:'מור בית השקעות'},
+  {re:/ילין|yelin|yl[\s-]?invest/i, url:'https://online.yl-invest.co.il/', label:'ילין לפידות'},
+  {re:/אלטשולר|altshuler|as[\s-]?invest/i, url:'https://online.as-invest.co.il/login', label:'אלטשולר שחם'},
+  {re:/מיטב|meitav|מיטב[\s-]?דש/i, url:'https://customers.meitav.co.il/v2/login/loginAmit', label:'מיטב'},
+  {re:/הפניקס|phoenix|fnx|אקסלנס/i, url:'https://my.fnx.co.il/', label:'הפניקס'},
+  {re:/מגדל|migdal/i, url:'https://my.migdal.co.il/mymigdal/process/login', label:'מגדל'},
+  {re:/הראל|harel/i, url:'https://www.harel-group.co.il/_layouts/15/HarelWebSite/ApplicationPages/HarelAuthenticate.aspx?Type=External', label:'הראל'},
+  {re:/מנורה|menora/i, url:'https://www.menoramivt.co.il/customer-login/', label:'מנורה מבטחים'},
+  {re:/אנליסט|analyst/i, url:'https://amitim.analyst.co.il/', label:'אנליסט'},
+  {re:/כלל(\s|ביטוח|$)|clal/i, url:'https://www.clalbit.co.il/login/', label:'כלל ביטוח'},
+  {re:/אינפיניטי|infinity/i, url:'https://crm.infinity-ins.co.il/', label:'אינפיניטי'},
+  {re:/הלמן|halman|אלדובי/i, url:'https://my.fnx.co.il/', label:'הלמן אלדובי (← הפניקס)'},
+  /* Banks */
+  {re:/מזרחי|mizrahi|טפחות|tefahot/i, url:'https://www.mizrahi-tefahot.co.il/login/', label:'מזרחי טפחות'},
+  {re:/לאומי|leumi/i, url:'https://hb2.bankleumi.co.il/', label:'בנק לאומי'},
+  {re:/הפועלים|poalim/i, url:'https://login.bankhapoalim.co.il/', label:'בנק הפועלים'},
+  {re:/דיסקונט|discount/i, url:'https://start.telebank.co.il/', label:'בנק דיסקונט'},
+  /* Brokers / wallets */
+  {re:/schwab|צ'?ארלס\s*שוואב/i, url:'https://client.schwab.com/Login/SignOn/CustomerCenterLogin', label:'Charles Schwab'},
+  {re:/interactive\s*brokers|\bibkr\b|\bib\b/i, url:'https://www.interactivebrokers.com/sso/Login', label:'Interactive Brokers'},
+  {re:/edge(\s*wallet)?/i, url:'https://edge.app/', label:'Edge Wallet'},
+];
+function normMgrUrl(u){
+  u=String(u||'').trim();if(!u)return '';
+  if(!/^https?:\/\//i.test(u))u='https://'+u;
+  try{const x=new URL(u);if(x.protocol!=='http:'&&x.protocol!=='https:')return '';return x.toString();}catch(e){return '';}
+}
+function matchManagerPortal(inst,name){
+  const blob=(String(inst||'')+' '+String(name||'')).trim();
+  if(!blob)return null;
+  for(const p of MANAGER_PORTALS){if(p.re.test(blob))return {url:p.url,label:p.label,source:'map'};}
+  return null;
+}
+function resolveManagerPortal(invOrFields){
+  const f=invOrFields||{};
+  const override=normMgrUrl(f.managerUrl);
+  if(override)return {url:override,label:'קישור מותאם',source:'override'};
+  return matchManagerPortal(f.inst,f.name);
+}
 function editHolding(id,cat){
   if(!canEdit()){toast('עריכה זמינה רק כשנטענו הנתונים שלך.','err');return;}
   const inv=id?S.investments.find(x=>x.id===id):null;if(inv&&!isFin(inv)){toast('נדל\"ן לא נערך ב-v2 (מוצג רק באתר המקורי).','err');return;}
@@ -1651,6 +1700,17 @@ function editHolding(id,cat){
       <label class="liq-tog ${isLiq(inv||{cat:c})?'':'locked'}" id="eLiqLab" style="margin-top:6px"><input type="checkbox" id="eLiq" ${isLiq(inv||{cat:c})?'checked':''}> נזיל</label>
       <div class="hint">מסומן = נזיל. לא מסומן = סגור לפרישה. ברירת מחדל לפי קטגוריה; נשמר ב־<span class="num">liquid</span> (האתר המקורי מתעלם).</div></div>
     <div class="field" style="grid-column:1/-1"><label>הערות</label><textarea id="eNotes">${esc(inv?inv.notes||'':'')}</textarea></div>
+    <div class="field" style="grid-column:1/-1"><label>כניסה לאתר הגוף המנהל</label>
+      <div class="mgr-box">
+        <div class="mgr-row">
+          <button type="button" class="btn" id="eMgrOpen">פתח אתר הגוף המנהל</button>
+          <button type="button" class="btn ghost" id="ePhoneCopy" title="להדבקה במסך הכניסה של הגוף (SMS)">העתק טלפון <span class="mgr-phone">054-4938283</span></button>
+        </div>
+        <div id="eMgrStatus" class="hint" style="margin:0"></div>
+        <label style="font-size:12px;color:var(--dim)">URL מותאם (אופציונלי — נשמר ב־<span class="num">managerUrl</span>)</label>
+        <input id="eMgrUrl" placeholder="https://… כניסת מנויים" value="${esc(inv&&inv.managerUrl||'')}" style="direction:ltr" autocomplete="off">
+        <div class="hint" style="margin:0">הדפדפן לא ממלא אוטומטית טלפון באתר חיצוני — העתיקי את המספר והדביקי במסך הכניסה. אין אוטומציה של SMS.</div>
+      </div></div>
   </div>${histAll.length?`<div class="mt"><b style="font-size:13px">יתרה לאורך זמן</b><div class="hold-chart"><canvas id="cHoldHist"></canvas></div>
     <b style="font-size:13px">היסטוריית יתרות אחרונה</b><table class="hist-mini">${hist.map(h=>`<tr><td class="m">${heDate(h.date)}</td><td class="n">${ils(+h.bal)}</td></tr>`).join('')}</table>
     <div class="faint" style="font-size:11px;margin-top:4px">עדכון אחרון: ${heDate(histAll[histAll.length-1].date)} · ${histAll.length} נקודות</div></div>`:'<div class="dim mt" style="font-size:12px">אין היסטוריית יתרות עדיין — תיווצר בעדכון הראשון.</div>'}`,[
@@ -1660,6 +1720,29 @@ function editHolding(id,cat){
   $('#eCat').onchange=tog;tog();
   const syncLiqLab=()=>{$('#eLiqLab').classList.toggle('locked',!$('#eLiq').checked);};
   $('#eLiq').onchange=syncLiqLab;
+  const refreshMgr=()=>{
+    const portal=resolveManagerPortal({inst:fv('eInst'),name:fv('eName'),managerUrl:fv('eMgrUrl')});
+    const btn=$('#eMgrOpen'), st=$('#eMgrStatus');
+    if(portal&&portal.url){
+      btn.disabled=false;btn.title=portal.url;
+      st.innerHTML=`ייפתח: <b>${esc(portal.label)}</b> · <span class="num">${esc(portal.url)}</span>${portal.source==='override'?' (מותאם)':''}`;
+      st.className='hint';
+    }else{
+      btn.disabled=true;btn.title='';
+      st.innerHTML='<span class="mgr-miss">אין קישור עדיין</span> — הזיני שם גוף מוכר או URL מותאם למטה.';
+      st.className='hint';
+    }
+  };
+  $('#eInst').oninput=refreshMgr;$('#eName').oninput=refreshMgr;$('#eMgrUrl').oninput=refreshMgr;refreshMgr();
+  $('#eMgrOpen').onclick=()=>{
+    const portal=resolveManagerPortal({inst:fv('eInst'),name:fv('eName'),managerUrl:fv('eMgrUrl')});
+    if(!portal||!portal.url){toast('אין קישור עדיין — הזיני URL מותאם','warn');return;}
+    window.open(portal.url,'_blank','noopener,noreferrer');
+  };
+  $('#ePhoneCopy').onclick=async()=>{
+    try{await navigator.clipboard.writeText(SMS_LOGIN_PHONE);toast('✓ הטלפון הועתק — '+SMS_LOGIN_PHONE,'ok');}
+    catch(e){prompt('העתיקי את מספר הטלפון:',SMS_LOGIN_PHONE);}
+  };
   if(histAll.length>=1){requestAnimationFrame(()=>mk('cHoldHist',{type:'line',data:{datasets:[{label:'יתרה ₪',data:histAll.map(h=>({x:h.date,y:+h.bal})),borderColor:cv('--pri'),backgroundColor:cv('--pri')+'22',fill:true,tension:.25,pointRadius:histAll.length<20?3:0,borderWidth:2}]},
     options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${ilsT(c.raw.y)}`}}},scales:{x:xTime(histAll.length>24?'month':'day'),y:yMoney}}}));}
 }
@@ -1673,6 +1756,7 @@ function saveHolding(id){
   if(d.cryptoAmt>0){const r=RATES.crypto[d.cryptoSymbol];if(r)d.bal=Math.round(d.cryptoAmt*r.p);}
   const fee=opt('eFee'),cost=opt('eCost');const today=iso(new Date());
   const liquid=!!$('#eLiq')?.checked;
+  const mgr=normMgrUrl(fv('eMgrUrl'));
   closeModal();
   commit(x=>{
     let inv=id?x.investments.find(i=>i.id===id):null;
@@ -1681,6 +1765,7 @@ function saveHolding(id){
     if(fee!=null)inv.feePct=fee;else delete inv.feePct;
     if(cost!=null)inv.costBasis=cost;else delete inv.costBasis;
     inv.liquid=liquid; // additive field; original site ignores unknown keys
+    if(mgr)inv.managerUrl=mgr;else delete inv.managerUrl; // additive; original site ignores
   },id?`עריכת ${name}`:`הוספת ${name}`);
 }
 function editLoan(id){
