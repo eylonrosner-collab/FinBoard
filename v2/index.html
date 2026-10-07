@@ -815,6 +815,20 @@ function timeline(){
   const tdy=iso(TODAY);map.set(tdy,{d:tdy,v:totals().fin,src:'now'});
   return [...map.values()].sort((a,b)=>a.d.localeCompare(b.d));
 }
+/* ~1 month ago total: later of (timeline point closest to target) vs (last point on/before target). */
+function tzPriorFin(){
+  const target=iso(addMonths(TODAY,-1));
+  const tl=timeline().filter(p=>p&&p.d&&p.d<iso(TODAY)&&isFinite(p.v));
+  if(!tl.length)return null;
+  let closest=tl[0], best=Math.abs(daysBetween(closest.d,target));
+  for(const p of tl){
+    const dist=Math.abs(daysBetween(p.d,target));
+    if(dist<best||(dist===best&&p.d>closest.d)){best=dist;closest=p;}
+  }
+  let before=null;for(const p of tl){if(p.d<=target)before=p;}
+  const pick=before&&closest?(before.d>=closest.d?before:closest):(before||closest);
+  return {d:pick.d,v:+pick.v,target,src:pick.src||''};
+}
 function contribBetween(d0,d1){return sum(S.slog.filter(s=>s.date>d0&&s.date<=d1),s=>+s.amount||0);}
 /* Modified Dietz return between the timeline point at/before `from` and today */
 function periodReturn(from){
@@ -1396,9 +1410,11 @@ function tzBuildSnap(){
   const T=totals();const yr=TODAY.getFullYear();
   const y=yearNetSavings(yr), ly=yearNetSavings(yr-1);
   const fc=tzofikForecast();
+  const prior=tzPriorFin();
   return {v:1,
     u:S.lastUpdated?String(S.lastUpdated).slice(0,10):iso(TODAY),
     fin:Math.round(+T.fin||0),liq:Math.round(+T.liq||0),locked:Math.round(+T.locked||0),debt:Math.round(+T.debt||0),
+    priorV:prior?Math.round(+prior.v||0):null,priorD:prior?prior.d:null,
     yr,yNet:Math.round(+y.net||0),lyNet:Math.round(+ly.net||0),
     pctS:+(+y.pctSharon||0).toFixed(1),pctE:+(+y.pctEylon||0).toFixed(1),pctO:+(+y.pctOther||0).toFixed(1),
     fcD:fc.date,fcExp:Math.round(+fc.exp||0),fcM:Math.round(+fc.monthly||0),fcR:+(+fc.ret||0).toFixed(2),fcN:+fc.n||0,
@@ -1501,6 +1517,7 @@ function renderTzofik(){
   const el=$('#tzBody');if(!el)return;
   const snap=TZ_SNAP;
   let T,yr,y,ly,fc,updated;
+  let prior=null;
   if(snap){
     T={fin:snap.fin,liq:snap.liq,locked:snap.locked,debt:snap.debt};
     yr=snap.yr||TODAY.getFullYear();
@@ -1508,11 +1525,13 @@ function renderTzofik(){
     ly={net:snap.lyNet||0};
     fc={date:snap.fcD,exp:snap.fcExp,monthly:snap.fcM,ret:+snap.fcR||0,n:snap.fcN||0,P0:snap.fcP0!=null?snap.fcP0:snap.liq,scope:snap.fcScope||'liq',hasPrefs:false};
     updated=snap.u||null;
+    prior=(snap.priorD!=null&&snap.priorV!=null)?{d:snap.priorD,v:snap.priorV}:null;
   }else{
     T=totals();yr=TODAY.getFullYear();
     y=yearNetSavings(yr);ly=yearNetSavings(yr-1);
     fc=tzofikForecast();
     updated=S.lastUpdated?String(S.lastUpdated).slice(0,10):null;
+    prior=tzPriorFin();
   }
   const splitTxt=`שרון ${(+y.pctSharon||0).toFixed(0)}% · אילון ${(+y.pctEylon||0).toFixed(0)}%`+(y.pctOther>0.5?` · אחר ${(+y.pctOther||0).toFixed(0)}%`:'');
   const needData=SRC==='example'&&!snap;
@@ -1523,15 +1542,18 @@ function renderTzofik(){
     <div class="tz-sub" id="tzGistMsg"></div></div>`:'';
   const snapBadge=snap?`<div class="tz-snap-badge tz-card" style="border-color:#0f766e;box-shadow:3px 3px 0 #0f766e;background:#f0fdfa;padding:8px 12px"><div class="tz-sub" style="margin:0;color:#0f766e;font-weight:700">📎 תצלום קישור · מצב קריאה בלבד${updated?' · '+heDate(updated):''}</div></div>`:'';
   const fcP0=fc.P0!=null?fc.P0:T.liq;
+  const priorSub=prior
+    ? `לפני חודש · נכון ל־${heDate(prior.d)}: <b>${ils(prior.v)}</b>`
+    : `לפני חודש: אין נקודת השוואה`;
   el.innerHTML=`${gistBox}${snapBadge}
     <div class="tz-assets">
       <div class="tz-assets-hd">מסגרת הנכסים</div>
       <div class="tz-card tz-total"><div class="tz-lbl">סה״כ נכסים</div>
         <div class="tz-val">${ils(T.fin)}</div>
-        <div class="tz-sub">נזילים + לא נזילים (ללא נדל״ן)</div></div>
+        <div class="tz-sub muted">${priorSub}</div></div>
       <div class="tz-pair">
-        <div class="tz-card tz-liq"><div class="tz-lbl">נזילים</div><div class="tz-val">${ils(T.liq)}</div></div>
-        <div class="tz-card tz-lock"><div class="tz-lbl">לא נזילים</div><div class="tz-val">${ils(T.locked)}</div></div>
+        <div class="tz-card tz-liq"><div class="tz-lbl">מתוכם נזילים</div><div class="tz-val">${ils(T.liq)}</div></div>
+        <div class="tz-card tz-lock"><div class="tz-lbl">מתוכם לא נזילים</div><div class="tz-val">${ils(T.locked)}</div></div>
       </div>
     </div>
     <div class="tz-card tz-save"><div class="tz-lbl">חסכון שנתי (${yr})</div>
