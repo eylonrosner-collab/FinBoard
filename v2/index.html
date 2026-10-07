@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/modern-screenshot@4.6.0/dist/index.js"></script>
 <style>
 :root{
   --bg:#0b1220;--bg2:#0f172a;--card:#121c2f;--card2:#16223a;--line:#22304b;--line2:#2c3d5e;
@@ -256,9 +257,10 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
 .tz-card.warn-tz{border-color:#b45309;box-shadow:4px 4px 0 #b45309;background:#fffbeb}
 .tz-card.warn-tz .tz-lbl{color:#b45309}
 .tz-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
-.tz-actions{display:flex;flex-wrap:nowrap;gap:8px;margin-top:2px}
-.tz-actions .btn{border-radius:12px;border:2px solid #1e3a5f;box-shadow:2px 2px 0 #1e3a5f;background:#1d4ed8;color:#fff;font-weight:700;padding:8px 12px;font-size:13px;flex:1}
+.tz-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
+.tz-actions .btn{border-radius:12px;border:2px solid #1e3a5f;box-shadow:2px 2px 0 #1e3a5f;background:#1d4ed8;color:#fff;font-weight:700;padding:8px 12px;font-size:13px;flex:1;min-width:140px}
 .tz-actions .btn.ghost{background:#fff;color:#1e3a5f}
+.tz-actions .btn.tz-shot{background:#0f766e;border-color:#0f766e;box-shadow:2px 2px 0 #0f766e}
 .tz-note{font-size:11px;color:#64748b;line-height:1.35;padding:2px;margin-top:6px}
 .tz-gist{display:flex;flex-direction:column;gap:6px;margin-top:6px}
 .tz-gist input{height:36px;border-radius:10px;border:2px solid #1e3a5f;background:#fff;color:#0f172a;padding:0 10px;font:inherit;direction:ltr}
@@ -294,8 +296,9 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
   .tz-card .tz-sub{font-size:11.5px;margin-top:4px;line-height:1.35}
   .tz-card .tz-sub .tz-fc-detail{display:none}
   .tz-pair{gap:8px;margin-bottom:0;flex-shrink:0}
-  .tz-actions{gap:8px;margin-top:0;flex-shrink:0}
-  .tz-actions .btn{padding:14px 12px;font-size:15px;border-radius:14px;box-shadow:3px 3px 0 #1e3a5f;border-width:2px}
+  .tz-actions{gap:6px;margin-top:0;flex-shrink:0;flex-wrap:nowrap}
+  .tz-actions .btn{padding:12px 8px;font-size:13px;border-radius:12px;box-shadow:3px 3px 0 #1e3a5f;border-width:2px;min-width:0}
+  .tz-actions .btn.tz-shot{box-shadow:3px 3px 0 #0f766e}
   .tz-actions .btn.ghost{display:none}
   .tz-snap-badge{display:none!important} /* chip shows snapshot source; save vertical space */
   .tz-note{font-size:11px;margin-top:0;line-height:1.35;flex-shrink:0;padding:4px 2px}
@@ -1439,6 +1442,61 @@ function tzShareUrl(withSnap){
   }else u.hash=TZ_SHARE_HASH;
   return u.toString();
 }
+function tzSnapShareUrl(){
+  /* Always pack current metrics (or re-encode opened snap) into #tzofik&s=… */
+  if(TZ_SNAP&&SRC==='example'){
+    const u=new URL(location.href);u.search='';u.hash=TZ_SHARE_HASH+'&s='+tzEncodeSnap(TZ_SNAP);return u.toString();
+  }
+  return tzShareUrl(true);
+}
+function tzWhatsAppUrl(text){
+  return 'https://wa.me/?text='+encodeURIComponent(text);
+}
+function tzOpenWhatsAppShare(){
+  const url=tzSnapShareUrl();
+  const msg='סיכום צופיק 💛\n'+url;
+  window.open(tzWhatsAppUrl(msg),'_blank','noopener,noreferrer');
+  toast('✓ נפתח וואטסאפ עם הקישור','ok');
+}
+async function ensureShotLib(){
+  const api=window.modernScreenshot;
+  if(api&&typeof api.domToBlob==='function')return api;
+  throw new Error('ספריית הצילום לא נטענה — בדקי חיבור לרשת');
+}
+function tzShotFilename(){
+  return `tzofik-${iso(TODAY).replace(/-/g,'')}.png`;
+}
+async function tzCapturePngBlob(){
+  const api=await ensureShotLib();
+  const target=document.querySelector('body.share-view .main')||$('#tzBody');
+  if(!target)throw new Error('אין מסך לצילום');
+  const blob=await api.domToBlob(target,{
+    scale:Math.min(2,window.devicePixelRatio||2),
+    backgroundColor:'#eef2f7',
+    filter:el=>!(el&&el.hasAttribute&&el.hasAttribute('data-html2canvas-ignore'))
+  });
+  if(!blob||!blob.size)throw new Error('יצירת PNG נכשלה');
+  return {blob};
+}
+async function tzDownloadOrSharePng(){
+  const btn=$('#tzShot');if(btn){btn.disabled=true;btn.textContent='מכין תמונה…';}
+  try{
+    toast('מכין תמונה לשליחה…','info');
+    const {blob}=await tzCapturePngBlob();
+    const name=tzShotFilename();
+    const file=new File([blob],name,{type:'image/png'});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      try{await navigator.share({files:[file],title:'סיכום צופיק',text:'סיכום צופיק'});toast('✓ נפתח לשיתוף','ok');return;}
+      catch(e){if(e&&e.name==='AbortError'){toast('השיתוף בוטל','dim');return;}}
+    }
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download=name;a.rel='noopener';
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),2500);
+    toast('✓ התמונה הורדה — אפשר לשתף בוואטסאפ','ok');
+  }catch(e){toast('❌ צילום נכשל: '+(e&&e.message?e.message:e),'err');}
+  finally{if(btn){btn.disabled=false;btn.textContent='צלם לשליחה';}}
+}
 function renderTzofik(){
   const el=$('#tzBody');if(!el)return;
   const snap=TZ_SNAP;
@@ -1483,27 +1541,22 @@ function renderTzofik(){
       <div class="tz-val">${ils(fc.exp)}</div>
       <div class="tz-sub">הון נזיל ${ilsT(fcP0)} · הפקדה ${ilsT(fc.monthly)}/ח׳ · תשואה ${(+fc.ret).toFixed(1)}% · ${fc.n} ח׳ · לחץ 50% <span class="tz-fc-detail"><br><b>תרחיש לחוץ על נזילים בלבד</b></span></div></div>
     <div class="tz-card tz-debt"><div class="tz-lbl">סה״כ התחייבויות</div><div class="tz-val">${ils(T.debt)}</div></div>
-    <div class="tz-actions">
-      <button class="btn" id="tzCopy">העתק קישור עם נתונים</button>
-      <button class="btn ghost" id="tzCopyBare" title="בלי תצלום — דורש Gist/דפדפן מחובר">קישור בלי נתונים</button>
+    <div class="tz-actions" data-html2canvas-ignore="1">
+      <button class="btn" id="tzWa" title="פותח וואטסאפ עם קישור תצלום (#tzofik&amp;s=…)">שלח קישור בוואטסאפ</button>
+      <button class="btn tz-shot" id="tzShot" title="שומר PNG לשליחה בוואטסאפ (או שיתוף מובנה בטלפון)">צלם לשליחה</button>
+      <button class="btn ghost" id="tzCopy" title="מעתיק קישור עם נתונים ללוח">העתק קישור</button>
     </div>
-    <div class="tz-note"><span class="num" id="tzUrl"></span>
+    <div class="tz-note" data-html2canvas-ignore="1"><span class="num" id="tzUrl"></span>
       <span class="tz-note-long"><br>הקישור עם נתונים כולל תצלום קריאה־בלבד ב־hash (בלי token). מי שפותח רואה את המספרים גם בלי Gist.</span>
       · עודכן ${updated?heDate(updated):'—'}</div>`;
-  const snapUrl=(!needData||snap)?tzShareUrl(true):tzShareUrl(false);
+  const snapUrl=tzSnapShareUrl();
   $('#tzUrl').textContent=snapUrl.length>72?snapUrl.slice(0,40)+'…'+snapUrl.slice(-18):snapUrl;
   $('#tzUrl').title=snapUrl;
   const copy=async(url,okMsg)=>{try{await navigator.clipboard.writeText(url);toast(okMsg,'ok');}
     catch(e){prompt('העתיקי את הקישור:',url);}};
-  $('#tzCopy').onclick=()=>{
-    /* Pack current Tzofik metrics into #tzofik&s=… (or re-encode an opened snapshot). */
-    let out;
-    if(snap&&SRC==='example'){
-      const u=new URL(location.href);u.search='';u.hash=TZ_SHARE_HASH+'&s='+tzEncodeSnap(snap);out=u.toString();
-    }else out=tzShareUrl(true);
-    copy(out,'✓ קישור עם נתונים הועתק');
-  };
-  $('#tzCopyBare').onclick=()=>copy(tzShareUrl(false),'✓ קישור בלי נתונים הועתק');
+  $('#tzWa').onclick=()=>tzOpenWhatsAppShare();
+  $('#tzCopy').onclick=()=>copy(tzSnapShareUrl(),'✓ קישור עם נתונים הועתק');
+  $('#tzShot').onclick=()=>tzDownloadOrSharePng();
   if(needData){$('#tzGistLoad').onclick=async()=>{const gist=$('#tzGistId').value.trim();
     if(!/^[0-9a-fA-F]{8,64}$/.test(gist)){$('#tzGistMsg').innerHTML='<span class="neg">Gist ID לא תקין</span>';return;}
     $('#tzGistMsg').textContent='טוען…';
