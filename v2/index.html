@@ -236,7 +236,12 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
 .tz-card .tz-val{font-size:28px;font-weight:800;letter-spacing:-.03em;line-height:1.1;color:#0f172a}
 .tz-card .tz-sub{font-size:11.5px;color:#64748b;margin-top:4px;line-height:1.35}
 .tz-card .tz-sub.muted{color:#94a3b8}
-.tz-card.tz-total{border-color:#0f766e;box-shadow:4px 4px 0 #0f766e;background:#f0fdfa}
+.tz-assets{border:3px solid #0f766e;border-radius:18px;box-shadow:4px 4px 0 #0f766e;background:#f0fdfa;padding:10px 10px 12px;margin-bottom:10px}
+.tz-assets .tz-assets-hd{font-size:12px;font-weight:800;color:#0f766e;margin:0 2px 8px;letter-spacing:.02em}
+.tz-assets .tz-card{margin-bottom:8px;box-shadow:2px 2px 0 #0f766e}
+.tz-assets .tz-pair{margin-bottom:0}
+.tz-assets .tz-pair .tz-card{margin-bottom:0}
+.tz-card.tz-total{border-color:#0f766e;box-shadow:3px 3px 0 #0f766e;background:#fff}
 .tz-card.tz-total .tz-val{font-size:34px;color:#0f766e}
 .tz-card.tz-save{border-color:#1d4ed8;box-shadow:4px 4px 0 #1d4ed8;background:#eff6ff}
 .tz-card.tz-save .tz-val{font-size:34px;color:#1d4ed8}
@@ -244,9 +249,9 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
 .tz-card.tz-fc .tz-val{font-size:26px;color:#0e7490}
 .tz-card.tz-debt{border-color:#64748b;box-shadow:4px 4px 0 #64748b;background:#f8fafc}
 .tz-card.tz-debt .tz-val{font-size:24px;color:#475569}
-.tz-card.tz-liq{border-color:#2563eb;box-shadow:3px 3px 0 #2563eb;background:#eff6ff;margin:0}
+.tz-card.tz-liq{border-color:#2563eb;box-shadow:2px 2px 0 #2563eb;background:#eff6ff;margin:0}
 .tz-card.tz-liq .tz-val{font-size:22px;color:#2563eb}
-.tz-card.tz-lock{border-color:#475569;box-shadow:3px 3px 0 #475569;background:#f8fafc;margin:0}
+.tz-card.tz-lock{border-color:#475569;box-shadow:2px 2px 0 #475569;background:#f8fafc;margin:0}
 .tz-card.tz-lock .tz-val{font-size:22px;color:#334155}
 .tz-card.warn-tz{border-color:#b45309;box-shadow:4px 4px 0 #b45309;background:#fffbeb}
 .tz-card.warn-tz .tz-lbl{color:#b45309}
@@ -270,21 +275,25 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
   body.share-view #p-tzofik.active{flex:1;display:flex!important;flex-direction:column;min-height:0}
   .tz-wrap{flex:1;display:flex;flex-direction:column;justify-content:space-between;padding:4px 0 2px;min-height:0;gap:0}
   .tz-card{border-width:3px;border-radius:16px;padding:14px 16px;margin-bottom:0;box-shadow:4px 4px 0 #1e3a5f;flex-shrink:0}
-  .tz-card.tz-total{box-shadow:4px 4px 0 #0f766e;padding:16px 16px}
-  .tz-card.tz-save{box-shadow:4px 4px 0 #1d4ed8;padding:16px 16px}
-  .tz-card.tz-fc{box-shadow:4px 4px 0 #0e7490}
+  .tz-assets{flex-shrink:0;padding:8px 8px 10px;margin-bottom:0;border-width:3px;border-radius:16px;box-shadow:3px 3px 0 #0f766e}
+  .tz-assets .tz-assets-hd{font-size:12px;margin-bottom:6px}
+  .tz-assets .tz-card{margin-bottom:6px;padding:10px 12px;border-width:2px;box-shadow:2px 2px 0 #0f766e}
+  .tz-card.tz-total{box-shadow:2px 2px 0 #0f766e;padding:12px 12px}
+  .tz-card.tz-save{box-shadow:4px 4px 0 #1d4ed8;padding:14px 14px}
+  .tz-card.tz-fc{box-shadow:4px 4px 0 #0e7490;padding:12px 14px}
   .tz-card.tz-debt{box-shadow:4px 4px 0 #64748b}
-  .tz-card .tz-lbl{font-size:13px;margin-bottom:4px}
-  .tz-card .tz-val{font-size:28px}
-  .tz-card.tz-total .tz-val,.tz-card.tz-save .tz-val{font-size:40px}
-  .tz-card.tz-fc .tz-val{font-size:30px}
-  .tz-card.tz-debt .tz-val{font-size:28px}
-  .tz-card.tz-liq .tz-val,.tz-card.tz-lock .tz-val{font-size:26px}
-  .tz-card.tz-liq,.tz-card.tz-lock{box-shadow:3px 3px 0 #2563eb;padding:14px 12px}
-  .tz-card.tz-lock{box-shadow:3px 3px 0 #475569}
-  .tz-card .tz-sub{font-size:12.5px;margin-top:6px;line-height:1.4}
+  .tz-card .tz-lbl{font-size:12px;margin-bottom:2px}
+  .tz-card .tz-val{font-size:26px}
+  .tz-card.tz-total .tz-val{font-size:34px}
+  .tz-card.tz-save .tz-val{font-size:36px}
+  .tz-card.tz-fc .tz-val{font-size:28px}
+  .tz-card.tz-debt .tz-val{font-size:26px}
+  .tz-card.tz-liq .tz-val,.tz-card.tz-lock .tz-val{font-size:22px}
+  .tz-card.tz-liq,.tz-card.tz-lock{box-shadow:2px 2px 0 #2563eb;padding:10px 10px}
+  .tz-card.tz-lock{box-shadow:2px 2px 0 #475569}
+  .tz-card .tz-sub{font-size:11.5px;margin-top:4px;line-height:1.35}
   .tz-card .tz-sub .tz-fc-detail{display:none}
-  .tz-pair{gap:10px;margin-bottom:0;flex-shrink:0}
+  .tz-pair{gap:8px;margin-bottom:0;flex-shrink:0}
   .tz-actions{gap:8px;margin-top:0;flex-shrink:0}
   .tz-actions .btn{padding:14px 12px;font-size:15px;border-radius:14px;box-shadow:3px 3px 0 #1e3a5f;border-width:2px}
   .tz-actions .btn.ghost{display:none}
@@ -1355,11 +1364,12 @@ function tzofikForecast(){
   const f=fcInputs();const usedDefaults=!P.fc||!Object.keys(P.fc).length;
   const date=f.date||iso(addMonths(TODAY,60));
   const baseMonthly=isFinite(f.monthly)?+f.monthly:Math.max(0,Math.round(avgMonthlyContrib()/100)*100);
-  const baseRet=isFinite(f.ret)?+f.ret:+assumedReturn('fin').toFixed(1);
-  const fee=isFinite(f.fee)?+f.fee:+(weightedFee('fin')??0.5).toFixed(2);
+  /* Tzofik forecast is always on liquid capital only (not locked / full fin). */
+  const scope='liq';
+  const baseRet=isFinite(f.ret)?+f.ret:+assumedReturn(scope).toFixed(1);
+  const fee=isFinite(f.fee)?+f.fee:+(weightedFee(scope)??0.5).toFixed(2);
   const growth=isFinite(f.growth)?+f.growth:0;
-  const scope=f.scope||'fin';
-  const T=totals();const P0=scope==='liq'?T.liq:T.fin;
+  const T=totals();const P0=T.liq;
   const n=Math.max(1,monthsBetween(TODAY,date));
   /* 50% stress on BOTH monthly deposits AND expected return (capital gains) — not fee/inflation. */
   const monthly=baseMonthly*0.5, ret=baseRet*0.5;
@@ -1388,7 +1398,8 @@ function tzBuildSnap(){
     fin:Math.round(+T.fin||0),liq:Math.round(+T.liq||0),locked:Math.round(+T.locked||0),debt:Math.round(+T.debt||0),
     yr,yNet:Math.round(+y.net||0),lyNet:Math.round(+ly.net||0),
     pctS:+(+y.pctSharon||0).toFixed(1),pctE:+(+y.pctEylon||0).toFixed(1),pctO:+(+y.pctOther||0).toFixed(1),
-    fcD:fc.date,fcExp:Math.round(+fc.exp||0),fcM:Math.round(+fc.monthly||0),fcR:+(+fc.ret||0).toFixed(2),fcN:+fc.n||0};
+    fcD:fc.date,fcExp:Math.round(+fc.exp||0),fcM:Math.round(+fc.monthly||0),fcR:+(+fc.ret||0).toFixed(2),fcN:+fc.n||0,
+    fcP0:Math.round(+fc.P0||0),fcScope:fc.scope||'liq'};
 }
 function tzEncodeSnap(obj){
   const json=JSON.stringify(obj);
@@ -1437,7 +1448,7 @@ function renderTzofik(){
     yr=snap.yr||TODAY.getFullYear();
     y={net:snap.yNet,pctSharon:snap.pctS||0,pctEylon:snap.pctE||0,pctOther:snap.pctO||0};
     ly={net:snap.lyNet||0};
-    fc={date:snap.fcD,exp:snap.fcExp,monthly:snap.fcM,ret:+snap.fcR||0,n:snap.fcN||0,hasPrefs:false};
+    fc={date:snap.fcD,exp:snap.fcExp,monthly:snap.fcM,ret:+snap.fcR||0,n:snap.fcN||0,P0:snap.fcP0!=null?snap.fcP0:snap.liq,scope:snap.fcScope||'liq',hasPrefs:false};
     updated=snap.u||null;
   }else{
     T=totals();yr=TODAY.getFullYear();
@@ -1453,20 +1464,24 @@ function renderTzofik(){
       <button class="btn" id="tzGistLoad">טעני מה-Gist</button></div>
     <div class="tz-sub" id="tzGistMsg"></div></div>`:'';
   const snapBadge=snap?`<div class="tz-snap-badge tz-card" style="border-color:#0f766e;box-shadow:3px 3px 0 #0f766e;background:#f0fdfa;padding:8px 12px"><div class="tz-sub" style="margin:0;color:#0f766e;font-weight:700">📎 תצלום קישור · מצב קריאה בלבד${updated?' · '+heDate(updated):''}</div></div>`:'';
+  const fcP0=fc.P0!=null?fc.P0:T.liq;
   el.innerHTML=`${gistBox}${snapBadge}
-    <div class="tz-card tz-total"><div class="tz-lbl">סה״כ נכסים</div>
-      <div class="tz-val">${ils(T.fin)}</div>
-      <div class="tz-sub">נזילים + סגורים לפרישה (ללא נדל״ן)</div></div>
-    <div class="tz-pair">
-      <div class="tz-card tz-liq"><div class="tz-lbl">נזילים</div><div class="tz-val">${ils(T.liq)}</div></div>
-      <div class="tz-card tz-lock"><div class="tz-lbl">סגורים לפרישה</div><div class="tz-val">${ils(T.locked)}</div></div>
+    <div class="tz-assets">
+      <div class="tz-assets-hd">מסגרת הנכסים</div>
+      <div class="tz-card tz-total"><div class="tz-lbl">סה״כ נכסים</div>
+        <div class="tz-val">${ils(T.fin)}</div>
+        <div class="tz-sub">נזילים + לא נזילים (ללא נדל״ן)</div></div>
+      <div class="tz-pair">
+        <div class="tz-card tz-liq"><div class="tz-lbl">נזילים</div><div class="tz-val">${ils(T.liq)}</div></div>
+        <div class="tz-card tz-lock"><div class="tz-lbl">לא נזילים</div><div class="tz-val">${ils(T.locked)}</div></div>
+      </div>
     </div>
     <div class="tz-card tz-save"><div class="tz-lbl">חסכון שנתי (${yr})</div>
       <div class="tz-val">${ils(y.net)}</div>
       <div class="tz-sub muted">${esc(splitTxt)}<br>שנה שעברה (${yr-1}): ${ils(ly.net)}</div></div>
-    <div class="tz-card tz-fc"><div class="tz-lbl">תחזית ל־${heDate(fc.date)} · הפקדה+תשואה 50%</div>
+    <div class="tz-card tz-fc"><div class="tz-lbl">תחזית על בסיס כספים נזילים · ל־${heDate(fc.date)}</div>
       <div class="tz-val">${ils(fc.exp)}</div>
-      <div class="tz-sub">הפקדה ${ilsT(fc.monthly)}/ח׳ · תשואה ${(+fc.ret).toFixed(1)}% · ${fc.n} ח׳ <span class="tz-fc-detail"><br><b>תרחיש לחוץ</b> (תצלום בקישור)</span></div></div>
+      <div class="tz-sub">הון נזיל ${ilsT(fcP0)} · הפקדה ${ilsT(fc.monthly)}/ח׳ · תשואה ${(+fc.ret).toFixed(1)}% · ${fc.n} ח׳ · לחץ 50% <span class="tz-fc-detail"><br><b>תרחיש לחוץ על נזילים בלבד</b></span></div></div>
     <div class="tz-card tz-debt"><div class="tz-lbl">סה״כ התחייבויות</div><div class="tz-val">${ils(T.debt)}</div></div>
     <div class="tz-actions">
       <button class="btn" id="tzCopy">העתק קישור עם נתונים</button>
