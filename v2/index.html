@@ -1330,8 +1330,10 @@ function renderTzofik(){
         ${fc.hasPrefs?'מבוסס על ברירות המחדל שנשמרו בעמוד התחזית.':'לא נשמרו עדיין העדפות תחזית — משתמש ב־+5 שנים / ממוצע הפקדות / תשואה לפי הקצאה.'}
         <br><b>זה תרחיש לחוץ:</b> גם ההפקדה וגם התשואה הצפויה הופחתו בחצי — לא תרחיש בסיס.</div></div>
     <div class="tz-grid">
-      <div class="tz-card"><div class="tz-lbl">סה״כ נכסים נזילים</div><div class="tz-val" style="font-size:28px">${ils(T.liq)}</div></div>
-      <div class="tz-card"><div class="tz-lbl">סה״כ נכסים שאינם נזילים</div><div class="tz-val" style="font-size:28px">${ils(T.locked)}</div></div>
+      <div class="tz-card"><div class="tz-lbl">סה״כ נכסים</div><div class="tz-val" style="font-size:30px">${ils(T.fin)}</div>
+        <div class="tz-sub">נזילים + סגורים לפרישה (ללא נדל״ן)</div></div>
+      <div class="tz-card"><div class="tz-lbl">נזילים</div><div class="tz-val" style="font-size:28px">${ils(T.liq)}</div></div>
+      <div class="tz-card"><div class="tz-lbl">סגורים לפרישה</div><div class="tz-val" style="font-size:28px">${ils(T.locked)}</div></div>
       <div class="tz-card"><div class="tz-lbl">סה״כ התחייבויות</div><div class="tz-val neg" style="font-size:28px">${ils(T.debt)}</div></div>
     </div>
     <div class="tz-actions">
