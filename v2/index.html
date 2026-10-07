@@ -1582,6 +1582,14 @@ async function tzResolveShareUrl(){
 function tzWhatsAppUrl(text){
   return 'https://wa.me/?text='+encodeURIComponent(text);
 }
+function tzShareAsOfIso(){
+  /* Same date the Tzofik card already shows as "עודכן": snapshot u, else lastUpdated, else today (what a new snap stores in u). */
+  if(TZ_SNAP&&TZ_SNAP.u)return String(TZ_SNAP.u).slice(0,10);
+  return S.lastUpdated?String(S.lastUpdated).slice(0,10):iso(TODAY);
+}
+function tzShareText(url){
+  return 'עדכון מצב פיננסי לתאריך '+heDate(tzShareAsOfIso())+'\n'+url;
+}
 async function tzShareAction(kind){
   if(TZ_BUSY)return;
   /* Open WhatsApp synchronously so the popup survives the shortener round-trip. */
@@ -1601,16 +1609,17 @@ async function tzShareAction(kind){
   }
   TZ_LAST_URL=url;
   TZ_BUSY=false;
+  const shareText=tzShareText(url);
   if(CUR==='tzofik')renderTzofik();
   if(kind==='wa'){
-    const waUrl=tzWhatsAppUrl('סיכום צופיק 💛\n'+url);
+    const waUrl=tzWhatsAppUrl(shareText);
     if(popup&&!popup.closed){try{popup.opener=null;}catch(err){}popup.location.replace(waUrl);}
     else window.open(waUrl,'_blank','noopener,noreferrer');
     toast(usedLegacy?'נפתח וואטסאפ עם הקישור המלא':'✓ נפתח וואטסאפ עם הקישור הקצר',usedLegacy?'warn':'ok');
   }else{
     if(popup&&!popup.closed)popup.close();
-    try{await navigator.clipboard.writeText(url);toast(usedLegacy?'הקישור המלא הועתק':'✓ קישור קצר הועתק',usedLegacy?'warn':'ok');}
-    catch(err){prompt('העתיקי את הקישור:',url);}
+    try{await navigator.clipboard.writeText(shareText);toast(usedLegacy?'הקישור המלא הועתק':'✓ קישור קצר הועתק',usedLegacy?'warn':'ok');}
+    catch(err){prompt('העתיקי את הקישור:',shareText);}
   }
 }
 async function ensureShotLib(){
