@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/modern-screenshot@4.6.0/dist/index.js"></script>
 <style>
 :root{
   --bg:#0b1220;--bg2:#0f172a;--card:#121c2f;--card2:#16223a;--line:#22304b;--line2:#2c3d5e;
@@ -236,7 +237,12 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
 .tz-card .tz-val{font-size:28px;font-weight:800;letter-spacing:-.03em;line-height:1.1;color:#0f172a}
 .tz-card .tz-sub{font-size:11.5px;color:#64748b;margin-top:4px;line-height:1.35}
 .tz-card .tz-sub.muted{color:#94a3b8}
-.tz-card.tz-total{border-color:#0f766e;box-shadow:4px 4px 0 #0f766e;background:#f0fdfa}
+.tz-assets{border:3px solid #0f766e;border-radius:18px;box-shadow:4px 4px 0 #0f766e;background:#f0fdfa;padding:10px 10px 12px;margin-bottom:10px}
+.tz-assets .tz-assets-hd{font-size:12px;font-weight:800;color:#0f766e;margin:0 2px 8px;letter-spacing:.02em}
+.tz-assets .tz-card{margin-bottom:8px;box-shadow:2px 2px 0 #0f766e}
+.tz-assets .tz-pair{margin-bottom:0}
+.tz-assets .tz-pair .tz-card{margin-bottom:0}
+.tz-card.tz-total{border-color:#0f766e;box-shadow:3px 3px 0 #0f766e;background:#fff}
 .tz-card.tz-total .tz-val{font-size:34px;color:#0f766e}
 .tz-card.tz-save{border-color:#1d4ed8;box-shadow:4px 4px 0 #1d4ed8;background:#eff6ff}
 .tz-card.tz-save .tz-val{font-size:34px;color:#1d4ed8}
@@ -244,16 +250,17 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
 .tz-card.tz-fc .tz-val{font-size:26px;color:#0e7490}
 .tz-card.tz-debt{border-color:#64748b;box-shadow:4px 4px 0 #64748b;background:#f8fafc}
 .tz-card.tz-debt .tz-val{font-size:24px;color:#475569}
-.tz-card.tz-liq{border-color:#2563eb;box-shadow:3px 3px 0 #2563eb;background:#eff6ff;margin:0}
+.tz-card.tz-liq{border-color:#2563eb;box-shadow:2px 2px 0 #2563eb;background:#eff6ff;margin:0}
 .tz-card.tz-liq .tz-val{font-size:22px;color:#2563eb}
-.tz-card.tz-lock{border-color:#475569;box-shadow:3px 3px 0 #475569;background:#f8fafc;margin:0}
+.tz-card.tz-lock{border-color:#475569;box-shadow:2px 2px 0 #475569;background:#f8fafc;margin:0}
 .tz-card.tz-lock .tz-val{font-size:22px;color:#334155}
 .tz-card.warn-tz{border-color:#b45309;box-shadow:4px 4px 0 #b45309;background:#fffbeb}
 .tz-card.warn-tz .tz-lbl{color:#b45309}
 .tz-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
-.tz-actions{display:flex;flex-wrap:nowrap;gap:8px;margin-top:2px}
-.tz-actions .btn{border-radius:12px;border:2px solid #1e3a5f;box-shadow:2px 2px 0 #1e3a5f;background:#1d4ed8;color:#fff;font-weight:700;padding:8px 12px;font-size:13px;flex:1}
+.tz-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
+.tz-actions .btn{border-radius:12px;border:2px solid #1e3a5f;box-shadow:2px 2px 0 #1e3a5f;background:#1d4ed8;color:#fff;font-weight:700;padding:8px 12px;font-size:13px;flex:1;min-width:140px}
 .tz-actions .btn.ghost{background:#fff;color:#1e3a5f}
+.tz-actions .btn.tz-shot{background:#0f766e;border-color:#0f766e;box-shadow:2px 2px 0 #0f766e}
 .tz-note{font-size:11px;color:#64748b;line-height:1.35;padding:2px;margin-top:6px}
 .tz-gist{display:flex;flex-direction:column;gap:6px;margin-top:6px}
 .tz-gist input{height:36px;border-radius:10px;border:2px solid #1e3a5f;background:#fff;color:#0f172a;padding:0 10px;font:inherit;direction:ltr}
@@ -270,23 +277,28 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
   body.share-view #p-tzofik.active{flex:1;display:flex!important;flex-direction:column;min-height:0}
   .tz-wrap{flex:1;display:flex;flex-direction:column;justify-content:space-between;padding:4px 0 2px;min-height:0;gap:0}
   .tz-card{border-width:3px;border-radius:16px;padding:14px 16px;margin-bottom:0;box-shadow:4px 4px 0 #1e3a5f;flex-shrink:0}
-  .tz-card.tz-total{box-shadow:4px 4px 0 #0f766e;padding:16px 16px}
-  .tz-card.tz-save{box-shadow:4px 4px 0 #1d4ed8;padding:16px 16px}
-  .tz-card.tz-fc{box-shadow:4px 4px 0 #0e7490}
+  .tz-assets{flex-shrink:0;padding:8px 8px 10px;margin-bottom:0;border-width:3px;border-radius:16px;box-shadow:3px 3px 0 #0f766e}
+  .tz-assets .tz-assets-hd{font-size:12px;margin-bottom:6px}
+  .tz-assets .tz-card{margin-bottom:6px;padding:10px 12px;border-width:2px;box-shadow:2px 2px 0 #0f766e}
+  .tz-card.tz-total{box-shadow:2px 2px 0 #0f766e;padding:12px 12px}
+  .tz-card.tz-save{box-shadow:4px 4px 0 #1d4ed8;padding:14px 14px}
+  .tz-card.tz-fc{box-shadow:4px 4px 0 #0e7490;padding:12px 14px}
   .tz-card.tz-debt{box-shadow:4px 4px 0 #64748b}
-  .tz-card .tz-lbl{font-size:13px;margin-bottom:4px}
-  .tz-card .tz-val{font-size:28px}
-  .tz-card.tz-total .tz-val,.tz-card.tz-save .tz-val{font-size:40px}
-  .tz-card.tz-fc .tz-val{font-size:30px}
-  .tz-card.tz-debt .tz-val{font-size:28px}
-  .tz-card.tz-liq .tz-val,.tz-card.tz-lock .tz-val{font-size:26px}
-  .tz-card.tz-liq,.tz-card.tz-lock{box-shadow:3px 3px 0 #2563eb;padding:14px 12px}
-  .tz-card.tz-lock{box-shadow:3px 3px 0 #475569}
-  .tz-card .tz-sub{font-size:12.5px;margin-top:6px;line-height:1.4}
+  .tz-card .tz-lbl{font-size:12px;margin-bottom:2px}
+  .tz-card .tz-val{font-size:26px}
+  .tz-card.tz-total .tz-val{font-size:34px}
+  .tz-card.tz-save .tz-val{font-size:36px}
+  .tz-card.tz-fc .tz-val{font-size:28px}
+  .tz-card.tz-debt .tz-val{font-size:26px}
+  .tz-card.tz-liq .tz-val,.tz-card.tz-lock .tz-val{font-size:22px}
+  .tz-card.tz-liq,.tz-card.tz-lock{box-shadow:2px 2px 0 #2563eb;padding:10px 10px}
+  .tz-card.tz-lock{box-shadow:2px 2px 0 #475569}
+  .tz-card .tz-sub{font-size:11.5px;margin-top:4px;line-height:1.35}
   .tz-card .tz-sub .tz-fc-detail{display:none}
-  .tz-pair{gap:10px;margin-bottom:0;flex-shrink:0}
-  .tz-actions{gap:8px;margin-top:0;flex-shrink:0}
-  .tz-actions .btn{padding:14px 12px;font-size:15px;border-radius:14px;box-shadow:3px 3px 0 #1e3a5f;border-width:2px}
+  .tz-pair{gap:8px;margin-bottom:0;flex-shrink:0}
+  .tz-actions{gap:6px;margin-top:0;flex-shrink:0;flex-wrap:nowrap}
+  .tz-actions .btn{padding:12px 8px;font-size:13px;border-radius:12px;box-shadow:3px 3px 0 #1e3a5f;border-width:2px;min-width:0}
+  .tz-actions .btn.tz-shot{box-shadow:3px 3px 0 #0f766e}
   .tz-actions .btn.ghost{display:none}
   .tz-snap-badge{display:none!important} /* chip shows snapshot source; save vertical space */
   .tz-note{font-size:11px;margin-top:0;line-height:1.35;flex-shrink:0;padding:4px 2px}
@@ -1355,11 +1367,12 @@ function tzofikForecast(){
   const f=fcInputs();const usedDefaults=!P.fc||!Object.keys(P.fc).length;
   const date=f.date||iso(addMonths(TODAY,60));
   const baseMonthly=isFinite(f.monthly)?+f.monthly:Math.max(0,Math.round(avgMonthlyContrib()/100)*100);
-  const baseRet=isFinite(f.ret)?+f.ret:+assumedReturn('fin').toFixed(1);
-  const fee=isFinite(f.fee)?+f.fee:+(weightedFee('fin')??0.5).toFixed(2);
+  /* Tzofik forecast is always on liquid capital only (not locked / full fin). */
+  const scope='liq';
+  const baseRet=isFinite(f.ret)?+f.ret:+assumedReturn(scope).toFixed(1);
+  const fee=isFinite(f.fee)?+f.fee:+(weightedFee(scope)??0.5).toFixed(2);
   const growth=isFinite(f.growth)?+f.growth:0;
-  const scope=f.scope||'fin';
-  const T=totals();const P0=scope==='liq'?T.liq:T.fin;
+  const T=totals();const P0=T.liq;
   const n=Math.max(1,monthsBetween(TODAY,date));
   /* 50% stress on BOTH monthly deposits AND expected return (capital gains) — not fee/inflation. */
   const monthly=baseMonthly*0.5, ret=baseRet*0.5;
@@ -1388,7 +1401,8 @@ function tzBuildSnap(){
     fin:Math.round(+T.fin||0),liq:Math.round(+T.liq||0),locked:Math.round(+T.locked||0),debt:Math.round(+T.debt||0),
     yr,yNet:Math.round(+y.net||0),lyNet:Math.round(+ly.net||0),
     pctS:+(+y.pctSharon||0).toFixed(1),pctE:+(+y.pctEylon||0).toFixed(1),pctO:+(+y.pctOther||0).toFixed(1),
-    fcD:fc.date,fcExp:Math.round(+fc.exp||0),fcM:Math.round(+fc.monthly||0),fcR:+(+fc.ret||0).toFixed(2),fcN:+fc.n||0};
+    fcD:fc.date,fcExp:Math.round(+fc.exp||0),fcM:Math.round(+fc.monthly||0),fcR:+(+fc.ret||0).toFixed(2),fcN:+fc.n||0,
+    fcP0:Math.round(+fc.P0||0),fcScope:fc.scope||'liq'};
 }
 function tzEncodeSnap(obj){
   const json=JSON.stringify(obj);
@@ -1428,6 +1442,61 @@ function tzShareUrl(withSnap){
   }else u.hash=TZ_SHARE_HASH;
   return u.toString();
 }
+function tzSnapShareUrl(){
+  /* Always pack current metrics (or re-encode opened snap) into #tzofik&s=… */
+  if(TZ_SNAP&&SRC==='example'){
+    const u=new URL(location.href);u.search='';u.hash=TZ_SHARE_HASH+'&s='+tzEncodeSnap(TZ_SNAP);return u.toString();
+  }
+  return tzShareUrl(true);
+}
+function tzWhatsAppUrl(text){
+  return 'https://wa.me/?text='+encodeURIComponent(text);
+}
+function tzOpenWhatsAppShare(){
+  const url=tzSnapShareUrl();
+  const msg='סיכום צופיק 💛\n'+url;
+  window.open(tzWhatsAppUrl(msg),'_blank','noopener,noreferrer');
+  toast('✓ נפתח וואטסאפ עם הקישור','ok');
+}
+async function ensureShotLib(){
+  const api=window.modernScreenshot;
+  if(api&&typeof api.domToBlob==='function')return api;
+  throw new Error('ספריית הצילום לא נטענה — בדקי חיבור לרשת');
+}
+function tzShotFilename(){
+  return `tzofik-${iso(TODAY).replace(/-/g,'')}.png`;
+}
+async function tzCapturePngBlob(){
+  const api=await ensureShotLib();
+  const target=document.querySelector('body.share-view .main')||$('#tzBody');
+  if(!target)throw new Error('אין מסך לצילום');
+  const blob=await api.domToBlob(target,{
+    scale:Math.min(2,window.devicePixelRatio||2),
+    backgroundColor:'#eef2f7',
+    filter:el=>!(el&&el.hasAttribute&&el.hasAttribute('data-html2canvas-ignore'))
+  });
+  if(!blob||!blob.size)throw new Error('יצירת PNG נכשלה');
+  return {blob};
+}
+async function tzDownloadOrSharePng(){
+  const btn=$('#tzShot');if(btn){btn.disabled=true;btn.textContent='מכין תמונה…';}
+  try{
+    toast('מכין תמונה לשליחה…','info');
+    const {blob}=await tzCapturePngBlob();
+    const name=tzShotFilename();
+    const file=new File([blob],name,{type:'image/png'});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      try{await navigator.share({files:[file],title:'סיכום צופיק',text:'סיכום צופיק'});toast('✓ נפתח לשיתוף','ok');return;}
+      catch(e){if(e&&e.name==='AbortError'){toast('השיתוף בוטל','dim');return;}}
+    }
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download=name;a.rel='noopener';
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),2500);
+    toast('✓ התמונה הורדה — אפשר לשתף בוואטסאפ','ok');
+  }catch(e){toast('❌ צילום נכשל: '+(e&&e.message?e.message:e),'err');}
+  finally{if(btn){btn.disabled=false;btn.textContent='צלם לשליחה';}}
+}
 function renderTzofik(){
   const el=$('#tzBody');if(!el)return;
   const snap=TZ_SNAP;
@@ -1437,7 +1506,7 @@ function renderTzofik(){
     yr=snap.yr||TODAY.getFullYear();
     y={net:snap.yNet,pctSharon:snap.pctS||0,pctEylon:snap.pctE||0,pctOther:snap.pctO||0};
     ly={net:snap.lyNet||0};
-    fc={date:snap.fcD,exp:snap.fcExp,monthly:snap.fcM,ret:+snap.fcR||0,n:snap.fcN||0,hasPrefs:false};
+    fc={date:snap.fcD,exp:snap.fcExp,monthly:snap.fcM,ret:+snap.fcR||0,n:snap.fcN||0,P0:snap.fcP0!=null?snap.fcP0:snap.liq,scope:snap.fcScope||'liq',hasPrefs:false};
     updated=snap.u||null;
   }else{
     T=totals();yr=TODAY.getFullYear();
@@ -1453,42 +1522,41 @@ function renderTzofik(){
       <button class="btn" id="tzGistLoad">טעני מה-Gist</button></div>
     <div class="tz-sub" id="tzGistMsg"></div></div>`:'';
   const snapBadge=snap?`<div class="tz-snap-badge tz-card" style="border-color:#0f766e;box-shadow:3px 3px 0 #0f766e;background:#f0fdfa;padding:8px 12px"><div class="tz-sub" style="margin:0;color:#0f766e;font-weight:700">📎 תצלום קישור · מצב קריאה בלבד${updated?' · '+heDate(updated):''}</div></div>`:'';
+  const fcP0=fc.P0!=null?fc.P0:T.liq;
   el.innerHTML=`${gistBox}${snapBadge}
-    <div class="tz-card tz-total"><div class="tz-lbl">סה״כ נכסים</div>
-      <div class="tz-val">${ils(T.fin)}</div>
-      <div class="tz-sub">נזילים + סגורים לפרישה (ללא נדל״ן)</div></div>
-    <div class="tz-pair">
-      <div class="tz-card tz-liq"><div class="tz-lbl">נזילים</div><div class="tz-val">${ils(T.liq)}</div></div>
-      <div class="tz-card tz-lock"><div class="tz-lbl">סגורים לפרישה</div><div class="tz-val">${ils(T.locked)}</div></div>
+    <div class="tz-assets">
+      <div class="tz-assets-hd">מסגרת הנכסים</div>
+      <div class="tz-card tz-total"><div class="tz-lbl">סה״כ נכסים</div>
+        <div class="tz-val">${ils(T.fin)}</div>
+        <div class="tz-sub">נזילים + לא נזילים (ללא נדל״ן)</div></div>
+      <div class="tz-pair">
+        <div class="tz-card tz-liq"><div class="tz-lbl">נזילים</div><div class="tz-val">${ils(T.liq)}</div></div>
+        <div class="tz-card tz-lock"><div class="tz-lbl">לא נזילים</div><div class="tz-val">${ils(T.locked)}</div></div>
+      </div>
     </div>
     <div class="tz-card tz-save"><div class="tz-lbl">חסכון שנתי (${yr})</div>
       <div class="tz-val">${ils(y.net)}</div>
       <div class="tz-sub muted">${esc(splitTxt)}<br>שנה שעברה (${yr-1}): ${ils(ly.net)}</div></div>
-    <div class="tz-card tz-fc"><div class="tz-lbl">תחזית ל־${heDate(fc.date)} · הפקדה+תשואה 50%</div>
+    <div class="tz-card tz-fc"><div class="tz-lbl">תחזית על בסיס כספים נזילים · ל־${heDate(fc.date)}</div>
       <div class="tz-val">${ils(fc.exp)}</div>
-      <div class="tz-sub">הפקדה ${ilsT(fc.monthly)}/ח׳ · תשואה ${(+fc.ret).toFixed(1)}% · ${fc.n} ח׳ <span class="tz-fc-detail"><br><b>תרחיש לחוץ</b> (תצלום בקישור)</span></div></div>
+      <div class="tz-sub">הון נזיל ${ilsT(fcP0)} · הפקדה ${ilsT(fc.monthly)}/ח׳ · תשואה ${(+fc.ret).toFixed(1)}% · ${fc.n} ח׳ · לחץ 50% <span class="tz-fc-detail"><br><b>תרחיש לחוץ על נזילים בלבד</b></span></div></div>
     <div class="tz-card tz-debt"><div class="tz-lbl">סה״כ התחייבויות</div><div class="tz-val">${ils(T.debt)}</div></div>
-    <div class="tz-actions">
-      <button class="btn" id="tzCopy">העתק קישור עם נתונים</button>
-      <button class="btn ghost" id="tzCopyBare" title="בלי תצלום — דורש Gist/דפדפן מחובר">קישור בלי נתונים</button>
+    <div class="tz-actions" data-html2canvas-ignore="1">
+      <button class="btn" id="tzWa" title="פותח וואטסאפ עם קישור תצלום (#tzofik&amp;s=…)">שלח קישור בוואטסאפ</button>
+      <button class="btn tz-shot" id="tzShot" title="שומר PNG לשליחה בוואטסאפ (או שיתוף מובנה בטלפון)">צלם לשליחה</button>
+      <button class="btn ghost" id="tzCopy" title="מעתיק קישור עם נתונים ללוח">העתק קישור</button>
     </div>
-    <div class="tz-note"><span class="num" id="tzUrl"></span>
+    <div class="tz-note" data-html2canvas-ignore="1"><span class="num" id="tzUrl"></span>
       <span class="tz-note-long"><br>הקישור עם נתונים כולל תצלום קריאה־בלבד ב־hash (בלי token). מי שפותח רואה את המספרים גם בלי Gist.</span>
       · עודכן ${updated?heDate(updated):'—'}</div>`;
-  const snapUrl=(!needData||snap)?tzShareUrl(true):tzShareUrl(false);
+  const snapUrl=tzSnapShareUrl();
   $('#tzUrl').textContent=snapUrl.length>72?snapUrl.slice(0,40)+'…'+snapUrl.slice(-18):snapUrl;
   $('#tzUrl').title=snapUrl;
   const copy=async(url,okMsg)=>{try{await navigator.clipboard.writeText(url);toast(okMsg,'ok');}
     catch(e){prompt('העתיקי את הקישור:',url);}};
-  $('#tzCopy').onclick=()=>{
-    /* Pack current Tzofik metrics into #tzofik&s=… (or re-encode an opened snapshot). */
-    let out;
-    if(snap&&SRC==='example'){
-      const u=new URL(location.href);u.search='';u.hash=TZ_SHARE_HASH+'&s='+tzEncodeSnap(snap);out=u.toString();
-    }else out=tzShareUrl(true);
-    copy(out,'✓ קישור עם נתונים הועתק');
-  };
-  $('#tzCopyBare').onclick=()=>copy(tzShareUrl(false),'✓ קישור בלי נתונים הועתק');
+  $('#tzWa').onclick=()=>tzOpenWhatsAppShare();
+  $('#tzCopy').onclick=()=>copy(tzSnapShareUrl(),'✓ קישור עם נתונים הועתק');
+  $('#tzShot').onclick=()=>tzDownloadOrSharePng();
   if(needData){$('#tzGistLoad').onclick=async()=>{const gist=$('#tzGistId').value.trim();
     if(!/^[0-9a-fA-F]{8,64}$/.test(gist)){$('#tzGistMsg').innerHTML='<span class="neg">Gist ID לא תקין</span>';return;}
     $('#tzGistMsg').textContent='טוען…';
