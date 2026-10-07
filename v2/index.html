@@ -259,33 +259,36 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
 .tz-gist input{height:36px;border-radius:10px;border:2px solid #1e3a5f;background:#fff;color:#0f172a;padding:0 10px;font:inherit;direction:ltr}
 /* iPhone / narrow: fit one viewport (~390×844) without scroll */
 @media(max-width:430px){
-  body.share-view{overflow:hidden}
-  body.share-view .main{padding:0 10px 8px;max-width:100%}
-  body.share-view .topbar{padding:6px 0 2px;margin-bottom:2px;min-height:0}
-  body.share-view .page-title{font-size:16px}
-  body.share-view #srcChip{transform:scale(.9);transform-origin:left center}
-  body.share-view .toast,.toast{display:none!important} /* avoid toast eating space in share shot */
-  .tz-wrap{padding-bottom:0}
-  .tz-card{border-width:2px;border-radius:12px;padding:7px 10px;margin-bottom:6px;box-shadow:3px 3px 0 #1e3a5f}
-  .tz-card.tz-total{box-shadow:3px 3px 0 #0f766e}
-  .tz-card.tz-save{box-shadow:3px 3px 0 #1d4ed8}
-  .tz-card.tz-fc{box-shadow:3px 3px 0 #0e7490}
-  .tz-card.tz-debt{box-shadow:3px 3px 0 #64748b}
-  .tz-card .tz-lbl{font-size:10px;margin-bottom:0}
-  .tz-card .tz-val{font-size:22px}
-  .tz-card.tz-total .tz-val,.tz-card.tz-save .tz-val{font-size:26px}
-  .tz-card.tz-fc .tz-val{font-size:20px}
-  .tz-card.tz-debt .tz-val{font-size:18px}
-  .tz-card.tz-liq .tz-val,.tz-card.tz-lock .tz-val{font-size:18px}
-  .tz-card.tz-liq{box-shadow:2px 2px 0 #2563eb}
-  .tz-card.tz-lock{box-shadow:2px 2px 0 #475569}
-  .tz-card .tz-sub{font-size:10px;margin-top:2px;line-height:1.25}
-  .tz-card .tz-sub .tz-fc-detail{display:none} /* keep forecast one-liner on phone */
-  .tz-pair{gap:6px;margin-bottom:6px}
-  .tz-actions{gap:6px;margin-top:0}
-  .tz-actions .btn{padding:7px 8px;font-size:12px;border-radius:10px;box-shadow:2px 2px 0 #1e3a5f}
-  .tz-actions .btn.ghost{display:none} /* copy-link only — saves a row */
-  .tz-note{font-size:9px;margin-top:4px;line-height:1.2}
+  /* Fill full iPhone viewport: larger type + space-between spread, no scroll */
+  body.share-view{overflow:hidden;height:100dvh;max-height:100dvh}
+  body.share-view .app{min-height:100dvh;height:100dvh;display:flex;flex-direction:column}
+  body.share-view .main{padding:0 14px 10px;max-width:100%;flex:1;display:flex;flex-direction:column;min-height:0;box-sizing:border-box}
+  body.share-view .topbar{padding:14px 0 8px;margin-bottom:0;min-height:0;flex-shrink:0}
+  body.share-view .page-title{font-size:22px;letter-spacing:-.02em}
+  body.share-view #srcChip{font-size:12px;padding:4px 10px}
+  body.share-view .toast,.toast{display:none!important}
+  body.share-view #p-tzofik.active{flex:1;display:flex!important;flex-direction:column;min-height:0}
+  .tz-wrap{flex:1;display:flex;flex-direction:column;justify-content:space-between;padding:4px 0 2px;min-height:0;gap:0}
+  .tz-card{border-width:3px;border-radius:16px;padding:14px 16px;margin-bottom:0;box-shadow:4px 4px 0 #1e3a5f;flex-shrink:0}
+  .tz-card.tz-total{box-shadow:4px 4px 0 #0f766e;padding:16px 16px}
+  .tz-card.tz-save{box-shadow:4px 4px 0 #1d4ed8;padding:16px 16px}
+  .tz-card.tz-fc{box-shadow:4px 4px 0 #0e7490}
+  .tz-card.tz-debt{box-shadow:4px 4px 0 #64748b}
+  .tz-card .tz-lbl{font-size:13px;margin-bottom:4px}
+  .tz-card .tz-val{font-size:28px}
+  .tz-card.tz-total .tz-val,.tz-card.tz-save .tz-val{font-size:40px}
+  .tz-card.tz-fc .tz-val{font-size:30px}
+  .tz-card.tz-debt .tz-val{font-size:28px}
+  .tz-card.tz-liq .tz-val,.tz-card.tz-lock .tz-val{font-size:26px}
+  .tz-card.tz-liq,.tz-card.tz-lock{box-shadow:3px 3px 0 #2563eb;padding:14px 12px}
+  .tz-card.tz-lock{box-shadow:3px 3px 0 #475569}
+  .tz-card .tz-sub{font-size:12.5px;margin-top:6px;line-height:1.4}
+  .tz-card .tz-sub .tz-fc-detail{display:none}
+  .tz-pair{gap:10px;margin-bottom:0;flex-shrink:0}
+  .tz-actions{gap:8px;margin-top:0;flex-shrink:0}
+  .tz-actions .btn{padding:14px 12px;font-size:15px;border-radius:14px;box-shadow:3px 3px 0 #1e3a5f;border-width:2px}
+  .tz-actions .btn.ghost{display:none}
+  .tz-note{font-size:11px;margin-top:0;line-height:1.35;flex-shrink:0;padding:4px 2px}
   .tz-note .tz-note-long{display:none}
 }
 .liq-tog{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--dim);cursor:pointer;user-select:none;white-space:nowrap}
