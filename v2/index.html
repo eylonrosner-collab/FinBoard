@@ -356,7 +356,7 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
       </div>
       <div class="grid g-2-1 mt">
         <div class="card">
-          <div class="card-head"><h3>הון פיננסי לאורך זמן מול סך ההפקדות</h3>
+          <div class="card-head"><h3>הון פיננסי לאורך זמן מול הפקדות</h3>
             <div class="tools"><div class="seg" id="ovRange"><button data-r="12">שנה</button><button data-r="36">3 שנים</button><button data-r="0" class="on">הכל</button></div></div></div>
           <div class="chart" ><canvas id="cNet"></canvas></div>
           <div class="legend mt" style="margin-top:8px">הפער בין הקווים = רווח שוק (תשואה), לא הפקדות.</div>
@@ -561,6 +561,10 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
    in storage but ignored everywhere in v2 UI and calculations.
    ===================================================================== */
 const KEY_STATE='fin26', KEY_SNAPS='fin26_snaps', KEY_GEMINI='fin26_gemini', KEY_V2='fin26_v2';
+/* Sanitized historical total-assets ({d,v} only — no names/accounts). Merged into fin26_snaps when missing. */
+const HIST_ASSETS_SEED=[{"d":"2021-03-03","v":1874094},{"d":"2021-04-19","v":2322700},{"d":"2021-05-21","v":2503105},{"d":"2021-06-16","v":2503837},{"d":"2021-07-26","v":2600825},{"d":"2021-09-04","v":2620038},{"d":"2021-10-12","v":2609376},{"d":"2021-11-18","v":2711865},{"d":"2022-01-03","v":2732161},{"d":"2022-04-03","v":2827800},{"d":"2022-05-28","v":2821720},{"d":"2022-08-12","v":2940593},{"d":"2022-09-26","v":2894643},{"d":"2022-11-01","v":2228223},{"d":"2022-12-29","v":2069782},{"d":"2023-02-25","v":1777480},{"d":"2023-04-16","v":1846249},{"d":"2023-05-02","v":1901751},{"d":"2023-08-17","v":2236798},{"d":"2023-10-06","v":2310518},{"d":"2023-11-07","v":2402398},{"d":"2023-12-18","v":2445840},{"d":"2024-01-21","v":2522538},{"d":"2024-02-12","v":2548365},{"d":"2024-03-12","v":2718985},{"d":"2024-04-15","v":2885158},{"d":"2024-06-16","v":3034121},{"d":"2024-08-07","v":3090608},{"d":"2024-08-25","v":3139931},{"d":"2024-10-05","v":3290608},{"d":"2024-12-15","v":3599527},{"d":"2025-02-08","v":3685127},{"d":"2025-05-29","v":3629830},{"d":"2025-07-02","v":3834031},{"d":"2025-08-06","v":3996395},{"d":"2025-09-13","v":4089904},{"d":"2025-12-15","v":4393438},{"d":"2026-10-07","v":4421972}];
+const HIST_ASSETS_META={n:38,from:'2021-03-03',to:'2026-10-07',src:'xlsx-import'};
+
 const LIQ_CATS=['gamel','forex','cash','crypto'];
 const CATS={gamel:'גמל להשקעה',kupa:'קה"ש וקופ"ג',forex:'מט"ח ומניות',cash:'מזומן ופיקדונות',crypto:'קריפטו',realestate:'נדל"ן'};
 const FIN_CATS=Object.fromEntries(Object.entries(CATS).filter(([k])=>k!=='realestate')); // v2 UI/calc — RE ignored
@@ -678,7 +682,7 @@ let S,SNAPS=[],SRC='example',SRC_NOTE='',SRC_MSG='',SRC_MSG_KIND='info',GIST_MET
 const GIST_FILENAME='finance_data.json'; // same file name the original site uses
 const KEY_TOKEN='fin26_token', KEY_GIST='fin26_gist'; // original keys — READ ONLY here
 function v2raw(){try{return JSON.parse(localStorage.getItem(KEY_V2)||'{}')||{};}catch(e){return {};}}
-const V2_META=['auth','cache','backups','pendingSync'];
+const V2_META=['auth','cache','backups','pendingSync','histAssets'];
 function writeV2(v){ // quota-safe: drop oldest backups, then cache, if storage is full
   for(let k=0;k<14;k++){try{localStorage.setItem(KEY_V2,JSON.stringify(v));return true;}catch(e){
     if(v.backups&&v.backups.length>1)v.backups.pop();else if(v.cache)delete v.cache;else if(v.backups&&v.backups.length)v.backups.pop();else{console.warn('fin26_v2 write failed',e);return false;}}}
@@ -743,6 +747,7 @@ async function loadData(){
   S.tracks=S.tracks||[];S.loans=S.loans||[];S.slog=(S.slog||[]).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));S.set=S.set||{};
   S.investments.forEach(i=>{i.bal=+i.bal||0;});
   BASE_TS=tsOf(S);DRAFT={inv:{},loan:{}};
+  try{mergeHistAssetsSeed();}catch(e){console.warn('hist merge',e);}
 }
 const isRealSrc=()=>SRC!=='example';
 /* prefs */
@@ -801,6 +806,42 @@ function portVol(scope){
 function weightedFee(scope){const hs=S.investments.filter(scope==='liq'?isLiq:isFin);const withFee=hs.filter(i=>isFinite(i.feePct));
   if(!withFee.length)return null;return sum(withFee,i=>i.bal*i.feePct)/(sum(withFee,i=>i.bal)||1);}
 
+function persistSnaps(snaps){
+  const clean=(snaps||[]).filter(x=>x&&x.d&&isFinite(x.v)).map(x=>({d:iso(x.d),v:Math.round(+x.v)}))
+    .sort((a,b)=>a.d.localeCompare(b.d));
+  const trimmed=clean.length>400?clean.slice(clean.length-400):clean;
+  try{localStorage.setItem(KEY_SNAPS,JSON.stringify(trimmed));}catch(e){console.warn('snaps persist',e);}
+  SNAPS=trimmed;return trimmed;
+}
+/* Merge HIST_ASSETS_SEED into fin26_snaps: skip exact dates and points within ±3 days of an existing snap. Never overwrite. */
+function mergeHistAssetsSeed(){
+  if(typeof HIST_ASSETS_SEED==='undefined'||!HIST_ASSETS_SEED.length)return 0;
+  const existing=SNAPS.slice();
+  const byDate=new Map(existing.map(s=>[iso(s.d),s]));
+  let added=0;
+  for(const p of HIST_ASSETS_SEED){
+    const d=iso(p.d);if(!d||!isFinite(p.v))continue;
+    if(byDate.has(d))continue;
+    let near=false;for(const ed of byDate.keys()){if(Math.abs(daysBetween(ed,d))<=3){near=true;break;}}
+    if(near)continue;
+    const row={d,v:Math.round(+p.v)};existing.push(row);byDate.set(d,row);added++;
+  }
+  if(added)persistSnaps(existing);
+  v2patch(v=>{
+    const prev=v.histAssets||{};
+    v.histAssets={
+      mergedAt:new Date().toISOString(),
+      lastAdded:added,
+      addedTotal:(prev.addedTotal||0)+added,
+      total:HIST_ASSETS_META.n,
+      from:HIST_ASSETS_META.from,
+      to:HIST_ASSETS_META.to,
+      src:HIST_ASSETS_META.src,
+      inSnaps:SNAPS.length
+    };
+  });
+  return added;
+}
 /* timeline of total financial assets: fin26_snaps + reconstruction from per-holding history, + today */
 function timeline(){
   const map=new Map();
@@ -1031,14 +1072,18 @@ function renderOverview(){
   const per=[['חודש',addMonths(TODAY,-1)],['3 חודשים',addMonths(TODAY,-3)],['מתחילת השנה',new Date(yr-1,11,31)],['שנה',addMonths(TODAY,-12)],['מההתחלה',new Date(1900,0,1)]];
   $('#ovPeriods').innerHTML=per.map(([n,d])=>{const r=periodReturn(d);if(!r)return `<div class="period"><div class="p-l">${n}</div><div class="p-v faint">—</div><div class="p-s">אין נתונים</div></div>`;
     return `<div class="period"><div class="p-l">${n}</div><div class="p-v">${pct(r.r)}</div><div class="p-s">${ilsSigned(r.gain)} ${r.approx?`<span title="נקודת ההתחלה הקרובה ביותר">· מ-${heDate(r.from)}</span>`:''}</div></div>`;}).join('');
-  // net chart
+  // net chart — assets (snaps+history) vs cumulative net deposits from slog starting 2021
   const tl=timeline();const rng=P.ovRange;const from=rng?iso(addMonths(TODAY,-rng)):'0000';
-  const pts=tl.filter(p=>p.d>=from);const base=pts[0];
-  const contrib=pts.map(p=>({x:p.d,y:base.v+contribBetween(base.d,p.d)}));
+  const depFrom='2021-01-01';
+  const pts=tl.filter(p=>p.d>=from);
+  const depSeries=pts.map(p=>({x:p.d,y:contribBetween(depFrom,p.d)}));
+  const ha=v2raw().histAssets;const histNote=ha?` · היסטוריה מיובאת ${ha.total||HIST_ASSETS_META.n} נק׳ (${heDate(ha.from||HIST_ASSETS_META.from)}–${heDate(ha.to||HIST_ASSETS_META.to)}${(ha.lastAdded||ha.added)?`, +${ha.lastAdded??ha.added} חדשות בטעינה`:''})`:'';
+  const leg=$('#cNet')?.closest('.card')?.querySelector('.legend');
+  if(leg)leg.innerHTML=`הפער בין הקווים = רווח שוק מול סך הפקדות נטו מ־2021.${histNote}`;
   mk('cNet',{type:'line',data:{datasets:[
-    {label:'הון פיננסי',data:pts.map(p=>({x:p.d,y:p.v})),borderColor:cv('--pri'),backgroundColor:cv('--pri')+'22',fill:true,tension:.3,pointRadius:0,borderWidth:2.2},
-    {label:'שווי התחלתי + הפקדות נטו',data:contrib,borderColor:cv('--dim'),borderDash:[5,4],pointRadius:0,borderWidth:1.5,stepped:true}]},
-    options:{interaction:{mode:'index',intersect:false},scales:{x:xTime(),y:yMoney},plugins:{tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${ilsT(c.raw.y)}`}}}}});
+    {label:'הון פיננסי',data:pts.map(p=>({x:p.d,y:p.v})),borderColor:cv('--pri'),backgroundColor:cv('--pri')+'22',fill:true,tension:.25,pointRadius:pts.length<60?2:0,borderWidth:2.2},
+    {label:'סך הפקדות נטו מ־2021',data:depSeries,borderColor:cv('--dim'),borderDash:[5,4],pointRadius:0,borderWidth:1.6,stepped:true}]},
+    options:{interaction:{mode:'index',intersect:false},scales:{x:xTime(pts.length>40?'month':'day'),y:yMoney},plugins:{tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${ilsT(c.raw.y)}`}}}}});
   $$('#ovRange button').forEach(b=>{b.classList.toggle('on',+b.dataset.r===P.ovRange);b.onclick=()=>{P.ovRange=+b.dataset.r;savePrefs();renderOverview();};});
   const e=exposures('fin');donut('cOvAlloc',Object.keys(CLASSES).filter(k=>e.cls[k]>0).map(k=>({n:CLASSES[k].n,v:e.cls[k],c:CLASSES[k].c})));
   $('#ovDrift').innerHTML=Object.keys(CLASSES).filter(k=>(e.cls[k]||0)>0||P.targets[k]>0).map(k=>{const c=(e.cls[k]||0)/e.tot*100,d=c-P.targets[k];
@@ -1542,9 +1587,11 @@ function renderTzofik(){
     <div class="tz-sub" id="tzGistMsg"></div></div>`:'';
   const snapBadge=snap?`<div class="tz-snap-badge tz-card" style="border-color:#0f766e;box-shadow:3px 3px 0 #0f766e;background:#f0fdfa;padding:8px 12px"><div class="tz-sub" style="margin:0;color:#0f766e;font-weight:700">📎 תצלום קישור · מצב קריאה בלבד${updated?' · '+heDate(updated):''}</div></div>`:'';
   const fcP0=fc.P0!=null?fc.P0:T.liq;
-  const priorSub=prior
-    ? `לפני חודש · נכון ל־${heDate(prior.d)}: <b>${ils(prior.v)}</b>`
-    : `לפני חודש: אין נקודת השוואה`;
+  const priorSub=prior?( ()=>{
+      const dlt=(+T.fin||0)-(+prior.v||0);
+      const pr=(+prior.v)?dlt/(+prior.v):null;
+      return `לפני חודש · נכון ל־${heDate(prior.d)}: <b>${ils(prior.v)}</b> · שינוי ${ilsSigned(dlt)}${pr!=null?` (${pct(pr)})`:''}`;
+    })():`לפני חודש: אין נקודת השוואה`;
   el.innerHTML=`${gistBox}${snapBadge}
     <div class="tz-assets">
       <div class="tz-assets-hd">מסגרת הנכסים</div>
@@ -1590,7 +1637,9 @@ function renderTzofik(){
 /* SETTINGS */
 function renderSettings(){
   const nSn=SNAPS.length;
-  const cnt=`${S.investments.length} אחזקות, ${S.loans.length} הלוואות, ${S.slog.length} רשומות חיסכון; <span class="num">fin26_snaps</span> (מקומי): ${nSn} נקודות. עדכון אחרון בנתונים: ${S.lastUpdated?heDate(S.lastUpdated):'—'}.`;
+  const ha=v2raw().histAssets;
+  const histTxt=ha?` · יבוא היסטוריה: ${ha.total||0} נק׳ (${ha.from||'—'}→${ha.to||'—'}), נוספו מצטבר ${ha.addedTotal??ha.added??'—'}`:'';
+  const cnt=`${S.investments.length} אחזקות, ${S.loans.length} הלוואות, ${S.slog.length} רשומות חיסכון; <span class="num">fin26_snaps</span> (מקומי): ${nSn} נקודות${histTxt}. עדכון אחרון בנתונים: ${S.lastUpdated?heDate(S.lastUpdated):'—'}.`;
   const ro='<p class="dim">עריכה בעמוד "עדכון" נשמרת בפורמט של האתר המקורי ב-<span class="num">fin26</span> (וב-Gist אם יש token), כך ששני האתרים מסונכרנים. העדפות, מטמון וגיבויים של v2 נשמרים ב-<span class="num">fin26_v2</span>.</p>';
   $('#setSrc').innerHTML=SRC==='gist'?`<div class="chip gist">☁ Gist (live)</div><p class="mt">נטען עכשיו מ-GitHub Gist (<span class="num">${GIST_FILENAME}</span>, עודכן ב-GitHub: ${GIST_META&&GIST_META.gistUpdated?heDate(GIST_META.gistUpdated):'—'}). ${cnt}</p>${ro}`
    :SRC==='gistCache'?`<div class="chip gist">☁ Gist (עותק שמור)</div><p class="mt">${cnt}</p>${ro}`
@@ -1665,11 +1714,10 @@ function applyBalance(inv,newBal,date,extra={}){
   if(isCurrent){const raw=newBal-inv.bal;inv.lastChange=Math.abs(raw)<100?0:raw;inv.lastChangePct=inv.bal?((raw/inv.bal)*100):0;inv.bal=newBal;}
   return true;
 }
-function updateSnapshot(){ // same shape/rules as v1 bootApp auto-snapshot: {d:'YYYY-MM-DD', v: liquid+kupa}, max 200
-  try{const snaps=JSON.parse(localStorage.getItem(KEY_SNAPS)||'[]');const today=new Date().toISOString().slice(0,10);const v=totals().fin;
+function updateSnapshot(){ // same shape/rules as v1 bootApp auto-snapshot: {d:'YYYY-MM-DD', v: liquid+kupa}, max 400
+  try{const snaps=SNAPS.slice();const today=iso(TODAY);const v=totals().fin;
     const last=snaps[snaps.length-1];if(last&&last.d===today)last.v=v;else snaps.push({d:today,v});
-    if(snaps.length>200)snaps.splice(0,snaps.length-200);localStorage.setItem(KEY_SNAPS,JSON.stringify(snaps));
-    SNAPS=snaps.filter(x=>x&&x.d&&isFinite(x.v));}catch(e){console.warn('snapshot',e);}
+    persistSnaps(snaps);}catch(e){console.warn('snapshot',e);}
 }
 async function patchGist(c,data){ // identical request to v1 gistSave()
   const r=await fetch(`https://api.github.com/gists/${c.gist}`,{method:'PATCH',
