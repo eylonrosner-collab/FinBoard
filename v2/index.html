@@ -143,7 +143,7 @@ pre.json{max-height:320px;overflow:auto;direction:ltr;text-align:left;font-size:
 .ugrp{padding:0;overflow:hidden}
 .ugrp-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--card2)}
 .ugrp-head h3{margin:0}.ugrp-head .tot{margin-right:auto;font-size:13px;color:var(--dim)}
-.urow{display:grid;grid-template-columns:minmax(0,2fr) .9fr 1fr 1.15fr .9fr 40px;gap:10px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line)}
+.urow{display:grid;grid-template-columns:minmax(0,1.8fr) .85fr .95fr 1fr 1.1fr .85fr 40px;gap:8px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line)}
 .urow:last-child{border-bottom:0}
 .urow.dirty{background:color-mix(in srgb,var(--pri) 9%,transparent)}
 .urow .nm{font-weight:600}.urow .meta{font-size:11px;color:var(--faint)}
@@ -215,6 +215,36 @@ pre.json{max-height:320px;overflow:auto;direction:ltr;text-align:left;font-size:
   .bottom-nav button{flex:1 0 auto;min-width:64px;border:0;background:none;color:var(--dim);font:inherit;font-size:11px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px;cursor:pointer}
   .bottom-nav button.active{color:var(--pri)}
   .bottom-nav .nav-ic{font-size:17px}
+}
+/* Tzofik share view — minimal chrome */
+body.share-view .side, body.share-view .bottom-nav, body.share-view #exBanner, body.share-view #syncBar,
+body.share-view #srcMsg, body.share-view .top-actions #privBtn, body.share-view .top-actions #themeBtn{display:none!important}
+body.share-view .app{grid-template-columns:1fr}
+body.share-view .main{padding:0 18px 40px;max-width:560px;margin:0 auto}
+body.share-view .topbar{border:0;margin-bottom:8px;justify-content:center}
+body.share-view .page-sub{display:none}
+.tz-wrap{display:flex;flex-direction:column;gap:14px;padding-bottom:24px}
+.tz-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px;box-shadow:var(--shadow)}
+.tz-card .tz-lbl{font-size:13px;color:var(--dim);margin-bottom:4px;font-weight:500}
+.tz-card .tz-val{font-size:34px;font-weight:800;letter-spacing:-.02em;line-height:1.15}
+.tz-card .tz-sub{font-size:12px;color:var(--dim);margin-top:8px;line-height:1.45}
+.tz-card.hero-tz .tz-val{font-size:40px;color:var(--pri)}
+.tz-card.warn-tz{border-color:color-mix(in srgb,var(--warn) 40%,var(--line))}
+.tz-card.warn-tz .tz-lbl{color:var(--warn)}
+.tz-grid{display:grid;grid-template-columns:1fr;gap:12px}
+.tz-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.tz-note{font-size:12px;color:var(--faint);line-height:1.45;padding:0 4px}
+.tz-gist{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.tz-gist input{height:40px;border-radius:10px;border:1px solid var(--line2);background:var(--bg);color:var(--text);padding:0 12px;font:inherit;direction:ltr}
+.liq-tog{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--dim);cursor:pointer;user-select:none;white-space:nowrap}
+.liq-tog input{width:16px;height:16px;accent-color:var(--pos)}
+.liq-tog.locked{color:var(--warn)}
+.urow .liqw{font-size:11px}
+@media(max-width:760px){
+  .urow{grid-template-areas:"nm ed" "lu lu" "liq liq" "cur cur" "in in" "dl dl"}
+  .urow .liqw{grid-area:liq}
+  body.share-view .main{padding:0 12px 28px}
+  .tz-card .tz-val{font-size:28px}.tz-card.hero-tz .tz-val{font-size:32px}
 }
 </style>
 </head>
@@ -406,6 +436,11 @@ pre.json{max-height:320px;overflow:auto;direction:ltr;text-align:left;font-size:
       <div class="card mt"><div class="card-head"><h3>יומן הפקדות</h3><div class="tools"><button class="btn sm" data-edit-slog="">+ רשומה</button><select id="savYear" class="icon-btn"></select></div></div><div class="tbl-wrap"><table id="tblSav"></table></div></div>
     </section>
 
+    <!-- TZOFÍK SUMMARY -->
+    <section class="page" id="p-tzofik">
+      <div class="tz-wrap" id="tzBody"></div>
+    </section>
+
     <!-- SETTINGS -->
     <section class="page" id="p-settings">
       <div class="grid g2">
@@ -521,9 +556,9 @@ function makeExample(){
   for(let d=new Date(2023,0,8);d<new Date(TODAY.getFullYear(),TODAY.getMonth(),1);d=addMonths(d,1)){
     const base=d.getFullYear()===2023?9000:d.getFullYear()===2024?11000:d.getFullYear()===2025?13000:12000;
     const amt=Math.round((base+(R()-.5)*6000)/100)*100;
-    slog.push({id:'x'+id++,date:iso(d),acc:R()<.6?'חשבון א (דוגמה)':'חשבון ב (דוגמה)',amount:amt,total:0,note:'הפקדה (דוגמה)'});
+    slog.push({id:'x'+id++,date:iso(d),acc:R()<.55?'שרון (דוגמה)':'אילון (דוגמה)',amount:amt,total:0,note:'הפקדה (דוגמה)'});
     if(R()<.12){const w=-Math.round((8000+R()*15000)/100)*100;const d2=new Date(d);d2.setDate(20);
-      slog.push({id:'x'+id++,date:iso(d2),acc:'חשבון א (דוגמה)',amount:w,total:0,note:'משיכה (דוגמה)'});}
+      slog.push({id:'x'+id++,date:iso(d2),acc:'שרון (דוגמה)',amount:w,total:0,note:'משיכה (דוגמה)'});}
   }
   // monthly total-financial-asset series (synthetic market path)
   const snaps=[];let V=780000;const start=new Date(2023,0,1);
@@ -651,11 +686,14 @@ function savePrefs(){const v=v2raw();const out={...P};V2_META.forEach(k=>{if(v[k
 
 /* ---------------- CORE ANALYTICS ---------------- */
 const isFin=i=>i.cat!=='realestate';
-const isLiq=i=>LIQ_CATS.includes(i.cat);
+/* Default liquidity by category (kupa locked); override with additive holding.liquid boolean. */
+const defaultLiquid=i=>LIQ_CATS.includes(i.cat);
+const isLiq=i=>{if(!isFin(i))return false;return typeof i.liquid==='boolean'?!!i.liquid:defaultLiquid(i);};
 const sum=(a,f=x=>x)=>a.reduce((s,x)=>s+f(x),0);
 function totals(){
-  const fin=sum(S.investments.filter(isFin),i=>i.bal), liq=sum(S.investments.filter(isLiq),i=>i.bal);
-  const locked=sum(S.investments.filter(i=>i.cat==='kupa'),i=>i.bal), re=sum(S.investments.filter(i=>i.cat==='realestate'),i=>i.bal); // re kept in storage; ignored in v2
+  const finH=S.investments.filter(isFin);
+  const fin=sum(finH,i=>i.bal), liq=sum(finH.filter(isLiq),i=>i.bal), locked=sum(finH.filter(i=>!isLiq(i)),i=>i.bal);
+  const re=sum(S.investments.filter(i=>i.cat==='realestate'),i=>i.bal); // re kept in storage; ignored in v2
   const debt=sum(S.loans.filter(l=>!l.closed),l=>+l.bal||0);
   return {fin,liq,locked,re,debt,net:fin-debt}; // RE excluded from net worth in v2
 }
@@ -867,8 +905,11 @@ const PAGES=[
   ['overview','סקירה','🏠','שווי נקי, תשואות ומגמות'],['update','עדכון','✏️','עדכון יתרות בכל האפיקים'],['alloc','הקצאה','🧩','פיזור, חשיפות ואיזון מול יעד'],
   ['perf','ביצועים','📊','תשואה ותרומה לפי אחזקה'],['forecast','תחזית','🔮','חיסכון ותשואה לתאריך שתבחר'],
   ['recs','המלצות','💡','תובנות מבוססות כללים + AI'],['loans','הלוואות','🏦','לוח סילוק, עלות ריבית ופירעון מוקדם'],
-  ['savings','חיסכון','💰','קצב הפקדות ומגמות'],['settings','הגדרות','⚙️','יעדים, הנחות ומקור נתונים']];
+  ['savings','חיסכון','💰','קצב הפקדות ומגמות'],['tzofik','סיכום צופיק','💛','תמצית לשיתוף — חיסכון, תחזית ויתרות'],
+  ['settings','הגדרות','⚙️','יעדים, הנחות ומקור נתונים']];
+const PAGE_ALIASES={'סיכום-צופיק':'tzofik','סיכום_צופיק':'tzofik','tzofík':'tzofik'};
 let CUR='overview';
+function resolvePage(p){p=decodeURIComponent(String(p||'').replace(/^#/,''));if(PAGE_ALIASES[p])p=PAGE_ALIASES[p];return PAGES.find(x=>x[0]===p)?p:'overview';}
 function buildNav(){
   $('#navList').innerHTML=PAGES.map(([k,n,ic])=>`<button class="nav-btn" data-p="${k}"><span class="nav-ic">${ic}</span>${n}</button>`).join('');
   $('#bottomNav').innerHTML=PAGES.map(([k,n,ic])=>`<button data-p="${k}"><span class="nav-ic">${ic}</span>${n}</button>`).join('');
@@ -876,7 +917,8 @@ function buildNav(){
   document.addEventListener('click',e=>{const g=e.target.closest('[data-go]');if(g)location.hash=g.dataset.go;});
 }
 function show(p){
-  if(!PAGES.find(x=>x[0]===p))p='overview';CUR=p;
+  p=resolvePage(p);CUR=p;
+  document.body.classList.toggle('share-view',p==='tzofik');
   $$('.page').forEach(s=>s.classList.toggle('active',s.id==='p-'+p));
   $$('[data-p]').forEach(b=>b.classList.toggle('active',b.dataset.p===p));
   const meta=PAGES.find(x=>x[0]===p);$('#pageTitle').textContent=meta[1];$('#pageSub').textContent=meta[3];
@@ -890,7 +932,7 @@ function renderOverview(){
   $('#ovNetFoot').innerHTML=`הון פיננסי ${ils(T.fin)} − התחייבויות ${ils(T.debt)}`+(r1m?` · חודש: ${ilsSigned(r1m.v1-r1m.v0)}`:'');
   $('#ovFin').innerHTML=ils(T.fin);
   $('#ovFinSplit').innerHTML=`<div style="width:${T.liq/T.fin*100}%;background:var(--pri)"></div><div style="width:${T.locked/T.fin*100}%;background:var(--pri2)"></div>`;
-  $('#ovFinLeg').innerHTML=`<span><i style="background:var(--pri)"></i>נזיל ${ils(T.liq)}</span><span><i style="background:var(--pri2)"></i>נעול (קופות) ${ils(T.locked)}</span>`;
+  $('#ovFinLeg').innerHTML=`<span><i style="background:var(--pri)"></i>נזיל ${ils(T.liq)}</span><span><i style="background:var(--pri2)"></i>לא נזיל ${ils(T.locked)}</span>`;
   const all=periodReturn(new Date(1900,0,1));
   if(all){$('#ovGain').innerHTML=`<span class="${all.gain>=0?'pos':'neg'}">${ilsSigned(all.gain)}</span>`;
     $('#ovGainFoot').innerHTML=`${pct(all.r)} מצטבר${all.ann!=null?` · ${pct(all.ann)} לשנה`:''} · מ-${heDate(all.from)} · הפקדות נטו ${ils(all.C)}`;}
@@ -1225,6 +1267,90 @@ function invOptions(sel){
   return `<option value="">— ללא ייחוס —</option>`+hs.map(i=>`<option value="${esc(i.id)}" ${i.id===sel?'selected':''}>${esc(i.name)} (${esc(CATS[i.cat]||i.cat)} · ${ilsT(i.bal)})</option>`).join('');
 }
 
+/* ---------------- TZOFÍK SUMMARY ---------------- */
+const TZ_SHARE_HASH='tzofik';
+function partyOfSlog(s){
+  /* Match slog.acc (and note / attributed holding.owner) to שרון / אילון — same name fields used in the original site. */
+  const blob=(String(s.acc||'')+' '+String(s.note||'')).toLowerCase();
+  if(/שרון|sharon/.test(blob))return 'sharon';
+  if(/אילון|איילון|eylon|eilon/.test(blob))return 'eylon';
+  if(s.invId){const inv=S.investments.find(i=>i.id===s.invId);if(inv){const o=String(inv.owner||'').toLowerCase();
+    if(/שרון|sharon/.test(o))return 'sharon';if(/אילון|איילון|eylon|eilon/.test(o))return 'eylon';}}
+  return 'other';
+}
+function yearNetSavings(yr){
+  const rows=(S.slog||[]).filter(s=>String(s.date||'').startsWith(String(yr)));
+  const net=sum(rows,s=>+s.amount||0);
+  const by={sharon:0,eylon:0,other:0};rows.forEach(s=>{by[partyOfSlog(s)]+=(+s.amount||0);});
+  /* % of positive deposits attributed (withdrawals stay in net but split % is of |positive| shares of net contributors) */
+  const pos={sharon:Math.max(0,by.sharon),eylon:Math.max(0,by.eylon),other:Math.max(0,by.other)};
+  const posTot=pos.sharon+pos.eylon+pos.other;
+  const pct=k=>posTot>0?pos[k]/posTot*100:0;
+  return {net,by,pctSharon:pct('sharon'),pctEylon:pct('eylon'),pctOther:pct('other'),rows:rows.length};
+}
+function tzofikForecast(){
+  const f=fcInputs();const usedDefaults=!P.fc||!Object.keys(P.fc).length;
+  const date=f.date||iso(addMonths(TODAY,60));
+  const baseMonthly=isFinite(f.monthly)?+f.monthly:Math.max(0,Math.round(avgMonthlyContrib()/100)*100);
+  const baseRet=isFinite(f.ret)?+f.ret:+assumedReturn('fin').toFixed(1);
+  const fee=isFinite(f.fee)?+f.fee:+(weightedFee('fin')??0.5).toFixed(2);
+  const growth=isFinite(f.growth)?+f.growth:0;
+  const scope=f.scope||'fin';
+  const T=totals();const P0=scope==='liq'?T.liq:T.fin;
+  const n=Math.max(1,monthsBetween(TODAY,date));
+  /* 50% stress on BOTH monthly deposits AND expected return (capital gains) — not fee/inflation. */
+  const monthly=baseMonthly*0.5, ret=baseRet*0.5;
+  const series=project(P0,monthly,ret,fee,growth,n);
+  const exp=series[n].v;
+  return {date,n,P0,baseMonthly,baseRet,monthly,ret,fee,growth,scope,exp,usedDefaults,hasPrefs:!!(P.fc&&(P.fc.date||P.fc.monthly!=null||P.fc.ret!=null))};
+}
+function tzShareUrl(){
+  const u=new URL(location.href);u.hash=TZ_SHARE_HASH;u.search=''; // clean share URL
+  return u.toString();
+}
+function renderTzofik(){
+  const el=$('#tzBody');if(!el)return;
+  const T=totals();const yr=TODAY.getFullYear();
+  const y=yearNetSavings(yr), ly=yearNetSavings(yr-1);
+  const fc=tzofikForecast();
+  const splitTxt=`שרון ${y.pctSharon.toFixed(0)}% · אילון ${y.pctEylon.toFixed(0)}%`+(y.pctOther>0.5?` · אחר ${y.pctOther.toFixed(0)}%`:'');
+  const needData=SRC==='example';
+  const gistBox=needData?`<div class="tz-card warn-tz"><div class="tz-lbl">אין נתונים אמיתיים בדפדפן הזה</div>
+    <div class="tz-sub">כדי לראות את המספרים החיים: הזיני Gist ID (קריאה בלבד — בלי token אם ה-Gist נגיש לפי ID), או פתחי קישור <span class="num">#access=…</span> מהאתר המקורי, או השתמשי באותו דפדפן שבו FinBoard כבר מחובר.</div>
+    <div class="tz-gist"><input id="tzGistId" placeholder="Gist ID (hex)" autocomplete="off">
+      <button class="btn" id="tzGistLoad">טעני מה-Gist</button></div>
+    <div class="tz-sub" id="tzGistMsg"></div></div>`:'';
+  el.innerHTML=`${gistBox}
+    <div class="tz-card hero-tz"><div class="tz-lbl">חסכון שנתי (${yr})</div>
+      <div class="tz-val">${ils(y.net)}</div>
+      <div class="tz-sub">${esc(splitTxt)}<br>שנה שעברה (${yr-1}): ${ils(ly.net)}</div></div>
+    <div class="tz-card warn-tz"><div class="tz-lbl">תחזית ל־${heDate(fc.date)} · הפקדות ותשואה ב־50%</div>
+      <div class="tz-val">${ils(fc.exp)}</div>
+      <div class="tz-sub">הון התחלתי ${ils(fc.P0)} · הפקדה ${ilsT(fc.monthly)}/חודש (50% מ־${ilsT(fc.baseMonthly)}) · תשואה ${fc.ret.toFixed(1)}% (50% מ־${fc.baseRet.toFixed(1)}%) · ${fc.n} חודשים.
+        ${fc.hasPrefs?'מבוסס על ברירות המחדל שנשמרו בעמוד התחזית.':'לא נשמרו עדיין העדפות תחזית — משתמש ב־+5 שנים / ממוצע הפקדות / תשואה לפי הקצאה.'}
+        <br><b>זה תרחיש לחוץ:</b> גם ההפקדה וגם התשואה הצפויה הופחתו בחצי — לא תרחיש בסיס.</div></div>
+    <div class="tz-grid">
+      <div class="tz-card"><div class="tz-lbl">סה״כ נכסים נזילים</div><div class="tz-val" style="font-size:28px">${ils(T.liq)}</div></div>
+      <div class="tz-card"><div class="tz-lbl">סה״כ נכסים שאינם נזילים</div><div class="tz-val" style="font-size:28px">${ils(T.locked)}</div></div>
+      <div class="tz-card"><div class="tz-lbl">סה״כ התחייבויות</div><div class="tz-val neg" style="font-size:28px">${ils(T.debt)}</div></div>
+    </div>
+    <div class="tz-actions">
+      <button class="btn" id="tzCopy">העתק קישור לשיתוף</button>
+      <button class="btn ghost" id="tzFull" data-go="overview">למסך המלא</button>
+    </div>
+    <div class="tz-note">קישור השיתוף: <span class="num" id="tzUrl"></span><br>
+      מי שמקבל את הקישור רואה את הנתונים רק אם בדפדפן שלו כבר יש גישה (אותו מכשיר / Gist ID / קישור <span class="num">#access=</span>). עדכון אחרון בנתונים: ${S.lastUpdated?heDate(S.lastUpdated):'—'}.</div>`;
+  $('#tzUrl').textContent=tzShareUrl();
+  $('#tzCopy').onclick=async()=>{const url=tzShareUrl();try{await navigator.clipboard.writeText(url);toast('✓ הקישור הועתק','ok');}
+    catch(e){prompt('העתיקי את הקישור:',url);}};
+  if(needData){$('#tzGistLoad').onclick=async()=>{const gist=$('#tzGistId').value.trim();
+    if(!/^[0-9a-fA-F]{8,64}$/.test(gist)){$('#tzGistMsg').innerHTML='<span class="neg">Gist ID לא תקין</span>';return;}
+    $('#tzGistMsg').textContent='טוען…';
+    try{await fetchGist({gist,token:''});v2patch(v=>{v.auth={gist,token:'',savedAt:new Date().toISOString(),via:'tzofik'};});
+      await reloadData();location.hash=TZ_SHARE_HASH;}
+    catch(e){$('#tzGistMsg').innerHTML=`<span class="neg">${esc(e.message)}</span>`;}};}
+}
+
 /* SETTINGS */
 function renderSettings(){
   const nSn=SNAPS.length;
@@ -1248,7 +1374,7 @@ function renderSettings(){
     return `<tr style="${used.has(t)?'':'opacity:.55'}"><td><b>${esc(t)}</b>${used.has(t)?'':' <span class="faint">(לא בשימוש)</span>'}</td><td>${f(L.cls)}</td><td>${f(L.ccy)}</td><td class="hide-m">${f(L.geo)}</td><td class="n m ${tr&&tr.rate>15?'warn':''}">${tr?tr.rate+'%':'—'}</td></tr>`;}).join('');
   $('#resetPrefs').onclick=()=>{if(confirm('לאפס את הגדרות FinBoard 2.0? (פרטי ה-Gist של v2 נשמרים)')){const v=v2raw();const keep={};V2_META.forEach(k=>{if(v[k]!==undefined)keep[k]=v[k];});writeV2(keep);loadPrefs();applyTheme();show(CUR);}};
 }
-const RENDER={update:renderUpdate,overview:renderOverview,alloc:renderAlloc,perf:renderPerf,forecast:()=>renderForecast(true),recs:renderRecs,loans:renderLoans,savings:renderSavings,settings:renderSettings};
+const RENDER={update:renderUpdate,overview:renderOverview,alloc:renderAlloc,perf:renderPerf,forecast:()=>renderForecast(true),recs:renderRecs,loans:renderLoans,savings:renderSavings,tzofik:renderTzofik,settings:renderSettings};
 
 /* =====================================================================
    EDITING — writes the ORIGINAL format so v1 and v2 stay in sync:
@@ -1381,6 +1507,9 @@ function editHolding(id,cat){
     <div class="field crf"><label>כמות מטבעות</label><input id="eCa" inputmode="decimal" value="${inv&&inv.cryptoAmt||0}" style="direction:ltr"></div>
     <div class="field"><label>דמי ניהול (% מצבירה)</label><input id="eFee" inputmode="decimal" value="${inv&&isFinite(inv.feePct)?inv.feePct:''}" placeholder="לא ידוע" style="direction:ltr"></div>
     <div class="field"><label>עלות / סך הפקדות (₪)</label><input id="eCost" inputmode="decimal" value="${inv&&isFinite(inv.costBasis)?inv.costBasis:''}" placeholder="לחישוב תשואה" style="direction:ltr"></div>
+    <div class="field" style="grid-column:1/-1"><label>נזילות</label>
+      <label class="liq-tog ${isLiq(inv||{cat:c})?'':'locked'}" style="margin-top:6px"><input type="checkbox" id="eLiq" ${isLiq(inv||{cat:c})?'checked':''}> נזיל (אפשר למשוך לפני פרישה)</label>
+      <div class="hint">אם לא מסומן — סגור עד לפרישה. ברירת מחדל לפי קטגוריה (קה״ש/קופות = סגור); הסימון נשמר בשדה <span class="num">liquid</span> שהאתר המקורי מתעלם ממנו.</div></div>
     <div class="field" style="grid-column:1/-1"><label>הערות</label><textarea id="eNotes">${esc(inv?inv.notes||'':'')}</textarea></div>
   </div>${histAll.length?`<div class="mt"><b style="font-size:13px">יתרה לאורך זמן</b><div class="hold-chart"><canvas id="cHoldHist"></canvas></div>
     <b style="font-size:13px">היסטוריית יתרות אחרונה</b><table class="hist-mini">${hist.map(h=>`<tr><td class="m">${heDate(h.date)}</td><td class="n">${ils(+h.bal)}</td></tr>`).join('')}</table>
@@ -1401,6 +1530,7 @@ function saveHolding(id){
   if(d.foreignAmt>0&&d.currency!=='ILS'){const r=RATES.fx[d.currency];d.bal=Math.round(d.foreignAmt*(r?r.rate:(FX_FALLBACK[d.currency]||1)));}
   if(d.cryptoAmt>0){const r=RATES.crypto[d.cryptoSymbol];if(r)d.bal=Math.round(d.cryptoAmt*r.p);}
   const fee=opt('eFee'),cost=opt('eCost');const today=iso(new Date());
+  const liquid=!!$('#eLiq')?.checked;
   closeModal();
   commit(x=>{
     let inv=id?x.investments.find(i=>i.id===id):null;
@@ -1408,6 +1538,7 @@ function saveHolding(id){
     else{const {bal,...rest}=d;applyBalance(inv,bal,today,rest);}
     if(fee!=null)inv.feePct=fee;else delete inv.feePct;
     if(cost!=null)inv.costBasis=cost;else delete inv.costBasis;
+    inv.liquid=liquid; // additive field; original site ignores unknown keys
   },id?`עריכת ${name}`:`הוספת ${name}`);
 }
 function editLoan(id){
@@ -1455,15 +1586,16 @@ function renderUpdate(){
   const cats=[...Object.keys(FIN_CATS),...new Set(S.investments.filter(isFin).map(i=>i.cat).filter(k=>!FIN_CATS[k]&&k!=='realestate'))];
   const row=i=>{const u=unitOf(i),lu=lastUpdate(i),stale=lu&&daysBetween(lu,TODAY)>60,d=DRAFT.inv[i.id];
     const pr=priceOf(i);const curTxt=u.kind==='ils'?ils(i.bal):`<span class="m">${(+u.amt).toLocaleString('en-US',{maximumFractionDigits:6})} ${esc(u.code)}</span> <span class="faint">≈ ${ils(i.bal)}</span>`;
-    const days=lu?daysBetween(lu,TODAY):null;
+    const days=lu?daysBetween(lu,TODAY):null;const liq=isLiq(i);
     return `<div class="urow ${d&&isFinite(d.v)?'dirty':''}" data-row="${esc(i.id)}">
       <div class="nmw"><div class="nm">${esc(i.name)}</div><div class="meta">${esc([i.inst,i.track,i.owner].filter(Boolean).join(' · '))}</div></div>
       <div class="lu ${stale?'warn':''}" title="${lu?'עדכון אחרון בהיסטוריית היתרות':''}"><b>${lu?heDate(lu):'—'}</b>${days!=null?`<div class="faint">${days===0?'היום':days===1?'אתמול':`לפני ${days} ימים`}</div>`:''}</div>
+      <div class="liqw"><label class="liq-tog ${liq?'':'locked'}"><input type="checkbox" data-liq="${esc(i.id)}" ${liq?'checked':''} ${ed?'':'disabled'}> ${liq?'נזיל':'סגור עד לפרישה'}</label></div>
       <div class="cur"><span class="lbl dim">נוכחי: </span>${curTxt}</div>
       <div class="uin"><input data-inv="${esc(i.id)}" inputmode="decimal" autocomplete="off" ${ed?'':'disabled'} placeholder="${esc(String(u.kind==='ils'?Math.round(i.bal):u.amt))}" value="${d&&isFinite(d.v)?esc(String(d.raw)):''}" aria-label="יתרה חדשה — ${esc(i.name)}"><span class="unit">${esc(u.code)}${u.kind!=='ils'?`<br><span class="faint">@${nf.format(Math.round(pr.p*100)/100)}${pr.live?'':' *'}</span>`:''}</span></div>
       <div class="udelta" data-dl="${esc(i.id)}"></div>
       <div class="edw"><button class="edit-ic" data-edit-inv="${esc(i.id)}" title="עריכת פרטים" ${ed?'':'disabled'}>✏️</button></div></div>`;};
-  const head='<div class="uhead urow" style="padding-top:6px;padding-bottom:6px"><span>אחזקה</span><span>עדכון אחרון</span><span>יתרה נוכחית</span><span>יתרה חדשה</span><span>שינוי</span><span></span></div>';
+  const head='<div class="uhead urow" style="padding-top:6px;padding-bottom:6px"><span>אחזקה</span><span>עדכון אחרון</span><span>נזילות</span><span>יתרה נוכחית</span><span>יתרה חדשה</span><span>שינוי</span><span></span></div>';
   let html=cats.map(k=>{const hs=S.investments.filter(i=>i.cat===k&&isFin(i));
     return `<div class="card ugrp mt"><div class="ugrp-head"><h3>${esc(FIN_CATS[k]||CATS[k]||k)}</h3><span class="tot" data-gt="${esc(k)}"></span><button class="btn ghost sm" data-add-cat="${esc(k)}" ${ed?'':'disabled'}>+ הוסף</button></div>
       ${hs.length?head+hs.map(row).join(''):'<div class="empty" style="padding:14px">אין אחזקות בקטגוריה</div>'}</div>`;}).join('');
@@ -1485,6 +1617,8 @@ function renderUpdate(){
   $('#updGroups').innerHTML=html;
   $$('#updGroups [data-inv]').forEach(el=>el.oninput=()=>{const v=parseNum(el.value);if(el.value.trim()==='')delete DRAFT.inv[el.dataset.inv];else DRAFT.inv[el.dataset.inv]={v,raw:el.value};updDeltas();});
   $$('#updGroups [data-loan]').forEach(el=>el.oninput=()=>{const v=parseNum(el.value);if(el.value.trim()==='')delete DRAFT.loan[el.dataset.loan];else DRAFT.loan[el.dataset.loan]={v,raw:el.value};updDeltas();});
+  $$('#updGroups [data-liq]').forEach(el=>el.onchange=()=>{const id=el.dataset.liq, liquid=!!el.checked;
+    commit(x=>{const inv=x.investments.find(i=>i.id===id);if(inv)inv.liquid=liquid;}, liquid?'סימון נזיל':'סימון סגור עד לפרישה');});
   $('#qsAdd').onclick=()=>{const a=parseNum(fv('qsAmt'));if(!isFinite(a)||!fv('qsDate')){toast('הזן תאריך וסכום','err');return;}
     const invId=fv('qsInv')||'';const d={date:fv('qsDate'),acc:fv('qsAcc'),amount:a,note:fv('qsNote')};if(invId)d.invId=invId;
     commit(x=>{x.slog.push({id:uid(),total:0,...d});},'הוספת רשומת חיסכון');};
@@ -1587,9 +1721,9 @@ async function boot(){
   applyTheme();buildNav();applySource();
   $('#themeBtn').onclick=()=>{P.theme=document.documentElement.dataset.theme==='dark'?'light':'dark';savePrefs();applyTheme();show(CUR);};
   $('#privBtn').onclick=()=>{P.privacy=!P.privacy;savePrefs();applyTheme();};
-  window.addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(h.startsWith('access='))return;show(h);});
+  window.addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(h.startsWith('access='))return;show(resolvePage(h));});
   initEditing();
-  show(location.hash.slice(1)||'overview');
+  show(resolvePage(location.hash.slice(1)||'overview'));
 }
 document.addEventListener('DOMContentLoaded',boot);
 </script>
