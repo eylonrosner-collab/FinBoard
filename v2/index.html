@@ -536,7 +536,7 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
         </div>
         <div class="chips-row" style="margin-top:10px"><button class="btn ghost" id="gReload">טען מחדש מה-Gist</button><button class="btn ghost" id="gForget">שכח פרטי Gist של v2</button></div>
         <div id="gMsg" class="mt" style="font-size:13px"></div>
-        <div class="faint mt" style="font-size:11px">טעינה: <span class="num">GET api.github.com/gists/{id}</span>. שמירה (רק כשאתה לוחץ "שמור"): <span class="num">PATCH</span> של <span class="num">finance_data.json</span>, אותה בקשה כמו באתר המקורי, אחרי בדיקה שה-Gist לא עודכן בינתיים ממקום אחר. אם האתר המקורי כבר מחובר בדפדפן הזה, נעשה שימוש ב-<span class="num">fin26_token</span>/<span class="num">fin26_gist</span> שלו. פרטים שהוזנו כאן נשמרים רק ב-<span class="num">fin26_v2</span>. קישור גישה מהאתר המקורי (<span class="num">#access=…</span>) נתמך גם בכתובת v2.</div>
+        <div class="faint mt" style="font-size:11px">טעינה: <span class="num">GET api.github.com/gists/{id}</span>. שמירה (רק כשאתה לוחץ "שמור"): <span class="num">PATCH</span> של <span class="num">finance_data.json</span>, אותה בקשה כמו באתר המקורי, אחרי בדיקה שה-Gist לא עודכן בינתיים ממקום אחר. אם האתר המקורי כבר מחובר בדפדפן הזה, נעשה שימוש ב-<span class="num">fin26_token</span>/<span class="num">fin26_gist</span> שלו. פרטים שהוזנו כאן נשמרים רק ב-<span class="num">fin26_v2</span>. קישור גישה מהאתר המקורי (<span class="num">#access=…</span>) נתמך גם בכתובת v2. קישור קצר של סיכום צופיק נשמר ב-Gist סודי נפרד (<span class="num">tzofik_shares.json</span>), לא בתוך הנתונים הפיננסיים — נוצר אוטומטית עם אותו token.</div>
       </div>
       <div class="card mt"><h3>הקצאת יעד והנחות לפי סוג נכס</h3>
         <div class="tbl-wrap"><table id="tblTargets"></table></div>
@@ -682,7 +682,7 @@ let S,SNAPS=[],SRC='example',SRC_NOTE='',SRC_MSG='',SRC_MSG_KIND='info',GIST_MET
 const GIST_FILENAME='finance_data.json'; // same file name the original site uses
 const KEY_TOKEN='fin26_token', KEY_GIST='fin26_gist'; // original keys — READ ONLY here
 function v2raw(){try{return JSON.parse(localStorage.getItem(KEY_V2)||'{}')||{};}catch(e){return {};}}
-const V2_META=['auth','cache','backups','pendingSync','histAssets','dismissedRecs'];
+const V2_META=['auth','cache','backups','pendingSync','histAssets','dismissedRecs','tzShareGist','tzShareIndex'];
 function writeV2(v){ // quota-safe: drop oldest backups, then cache, if storage is full
   for(let k=0;k<14;k++){try{localStorage.setItem(KEY_V2,JSON.stringify(v));return true;}catch(e){
     if(v.backups&&v.backups.length>1)v.backups.pop();else if(v.cache)delete v.cache;else if(v.backups&&v.backups.length)v.backups.pop();else{console.warn('fin26_v2 write failed',e);return false;}}}
@@ -757,7 +757,7 @@ function loadPrefs(){
   P=Object.assign({theme:null,privacy:false,targets:{...DEF_TARGETS},assume:JSON.parse(JSON.stringify(DEF_ASSUME)),
     monthlyExpenses:isRealSrc()?null:18000,emMonths:6,concPct:20,driftPct:5,feeHigh:0.6,fc:{},alScope:'fin',rbNewMoney:false,ovRange:0},p);
   P.targets=Object.assign({...DEF_TARGETS},P.targets||{});
-  P.auth=p.auth;delete P.cache;delete P.backups;delete P.pendingSync; // meta keys live only in storage
+  P.auth=p.auth;delete P.cache;delete P.backups;delete P.pendingSync;delete P.tzShareGist;delete P.tzShareIndex; // meta keys live only in storage
   Object.keys(DEF_ASSUME).forEach(k=>P.assume[k]=Object.assign({...DEF_ASSUME[k]},(P.assume||{})[k]||{}));
 }
 function savePrefs(){const v=v2raw();const out={...P};V2_META.forEach(k=>{if(v[k]!==undefined)out[k]=v[k];else delete out[k];});writeV2(out);}
@@ -1423,7 +1423,15 @@ function invOptions(sel){
 
 /* ---------------- TZOFÍK SUMMARY ---------------- */
 const TZ_SHARE_HASH='tzofik';
-let TZ_SNAP=null; /* read-only snapshot from #tzofik&s=… — no Gist/localStorage needed */
+const TZ_SHARES_FILE='tzofik_shares.json';
+const TZ_SHARE_KEEP=400;
+let TZ_SNAP=null; /* read-only snapshot from a share link — no finance Gist/localStorage needed */
+let TZ_SHARE_REF=null; /* {gist,id} when opened via #tzofik&id=… */
+let TZ_SHARE_ERR='';
+let TZ_LINK_MSG='';
+let TZ_LAST_URL='';
+let TZ_LOAD_GEN=0;
+let TZ_BUSY=false;
 function partyOfSlog(s){
   /* Match slog.acc (and note / attributed holding.owner) to שרון / אילון — same name fields used in the original site. */
   const blob=(String(s.acc||'')+' '+String(s.note||'')).toLowerCase();
@@ -1460,7 +1468,11 @@ function tzofikForecast(){
   const exp=series[n].v;
   return {date,n,P0,baseMonthly,baseRet,monthly,ret,fee,growth,scope,exp,usedDefaults,hasPrefs:!!(P.fc&&(P.fc.date||P.fc.monthly!=null||P.fc.ret!=null))};
 }
-/* —— self-contained share: pack Tzofik metrics into #tzofik&s=… (base64url JSON, no token) —— */
+/* —— share link ——
+   Short: #tzofik&id=<sharesGistId>.<shortId>
+   The snapshot JSON lives in a dedicated unlisted Gist file (tzofik_shares.json),
+   created with the existing gist token. The finance gist id is never put in the URL.
+   Legacy: #tzofik&s=<base64url JSON> still decodes locally (no network). */
 function tzB64url(bytes){
   let bin='';bytes.forEach(b=>bin+=String.fromCharCode(b));
   return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
@@ -1503,43 +1515,218 @@ function tzDecodeSnap(enc){
     return o;
   }catch(e){return null;}
 }
+function tzValidSnap(o){return !!(o&&o.v===1&&isFinite(+o.fin));}
 function parseTzHash(raw){
-  let h=decodeURIComponent(String(raw||'').replace(/^#/,''));
-  if(h.startsWith('access='))return {page:null,snapEnc:null};
+  let h;try{h=decodeURIComponent(String(raw||'').replace(/^#/,''));}catch(e){h=String(raw||'').replace(/^#/,'');}
+  if(h.startsWith('access='))return {page:null,snapEnc:null,share:null};
+  /* #tzofik&id=GIST.SHORT | #tzofik?id= | #tzofik/id/ */
+  let m=h.match(/^tzofik(?:[&?]id=|\/id\/)([0-9a-fA-F]{8,64})\.([0-9a-zA-Z]{4,16})/i);
+  if(m)return {page:'tzofik',snapEnc:null,share:{gist:m[1].toLowerCase(),id:m[2].toLowerCase()}};
+  if(/^tzofik(?:[&?]id=|\/id\/)/i.test(h))return {page:'tzofik',snapEnc:null,share:{gist:'',id:''}};
   /* #tzofik&s=ENC | #tzofik?s=ENC | #tzofik/s/ENC */
-  let m=h.match(/^(tzofik)(?:[&?]s=|\/s\/)([^&?#]+)/i);
-  if(m)return {page:'tzofik',snapEnc:m[2]};
+  m=h.match(/^tzofik(?:[&?]s=|\/s\/)([^&?#]+)/i);
+  if(m)return {page:'tzofik',snapEnc:m[1],share:null};
   const page=h.split(/[&?]/)[0].split('/')[0]||'';
-  return {page,snapEnc:null};
+  return {page,snapEnc:null,share:null};
 }
 function ingestTzHash(raw){
-  const {page,snapEnc}=parseTzHash(raw);
-  TZ_SNAP=snapEnc?tzDecodeSnap(snapEnc):null;
-  return page;
+  const parsed=parseTzHash(raw);
+  TZ_SHARE_ERR='';TZ_LINK_MSG='';TZ_LAST_URL='';
+  if(parsed.share){
+    TZ_SHARE_REF=parsed.share;
+    TZ_SNAP=null;
+    if(!parsed.share.gist||!parsed.share.id){TZ_LOAD_GEN++;TZ_SHARE_ERR='הקישור הקצר לא תקין.';}
+    else tzLoadShare(parsed.share);
+  }else if(parsed.snapEnc){
+    TZ_LOAD_GEN++;TZ_SHARE_REF=null;
+    TZ_SNAP=tzDecodeSnap(parsed.snapEnc);
+    if(!TZ_SNAP)TZ_SHARE_ERR='הקישור הישן לא תקין או שהנתונים שבו פגומים.';
+  }else{
+    TZ_LOAD_GEN++;TZ_SHARE_REF=null;TZ_SNAP=null;
+  }
+  return parsed.page;
 }
-function tzShareUrl(withSnap){
-  const u=new URL(location.href);u.search='';
-  if(withSnap){
-    const enc=tzEncodeSnap(tzBuildSnap());
-    u.hash=TZ_SHARE_HASH+'&s='+enc;
-  }else u.hash=TZ_SHARE_HASH;
+async function tzLoadShare(share){
+  const gen=++TZ_LOAD_GEN;
+  try{
+    const snap=await tzFetchShare(share);
+    if(gen!==TZ_LOAD_GEN)return;
+    TZ_SNAP=snap;TZ_SHARE_ERR='';
+  }catch(e){
+    if(gen!==TZ_LOAD_GEN)return;
+    TZ_SNAP=null;TZ_SHARE_ERR=e&&e.message?e.message:'טעינת הקישור נכשלה';
+  }
+  if(CUR==='tzofik'){try{applySource();}catch(err){}renderTzofik();}
+}
+function tzPageUrl(){const u=new URL(location.href);u.search='';return u;}
+function tzShortUrl(gist,id){
+  const u=tzPageUrl();u.hash=TZ_SHARE_HASH+'&id='+gist+'.'+id;return u.toString();
+}
+function tzLegacyShareUrl(snap){
+  const u=tzPageUrl();
+  u.hash=TZ_SHARE_HASH+'&s='+tzEncodeSnap(snap||(TZ_SNAP||tzBuildSnap()));
   return u.toString();
 }
-function tzSnapShareUrl(){
-  /* Always pack current metrics (or re-encode opened snap) into #tzofik&s=… */
-  if(TZ_SNAP&&SRC==='example'){
-    const u=new URL(location.href);u.search='';u.hash=TZ_SHARE_HASH+'&s='+tzEncodeSnap(TZ_SNAP);return u.toString();
+function tzSnapKey(snap){return JSON.stringify(snap);}
+function tzWriteToken(){
+  const c=getCreds();
+  if(c&&c.token)return c.token;
+  const t=(localStorage.getItem(KEY_TOKEN)||'').trim();
+  if(t)return t;
+  const a=v2raw().auth||{};
+  return String(a.token||'').trim();
+}
+function tzCachedShare(snap){
+  const idx=v2raw().tzShareIndex||{};
+  const hit=idx[tzSnapKey(snap)];
+  if(hit&&/^[0-9a-f]{8,64}$/.test(hit.gist||'')&&/^[0-9a-z]{4,16}$/.test(hit.id||''))return hit;
+  return null;
+}
+function tzRememberShare(snap,gist,id){
+  v2patch(v=>{
+    v.tzShareGist=gist;
+    const idx=v.tzShareIndex&&typeof v.tzShareIndex==='object'?{...v.tzShareIndex}:{};
+    idx[tzSnapKey(snap)]={gist,id,at:new Date().toISOString()};
+    const entries=Object.entries(idx).sort((a,b)=>String(b[1]&&b[1].at||'').localeCompare(String(a[1]&&a[1].at||''))).slice(0,40);
+    v.tzShareIndex=Object.fromEntries(entries);
+  });
+}
+function tzReadyShareUrl(){
+  if(TZ_SNAP&&TZ_SHARE_REF&&TZ_SHARE_REF.gist&&TZ_SHARE_REF.id)return tzShortUrl(TZ_SHARE_REF.gist,TZ_SHARE_REF.id);
+  if(TZ_SNAP)return tzLegacyShareUrl(TZ_SNAP);
+  const hit=tzCachedShare(tzBuildSnap());
+  if(hit)return tzShortUrl(hit.gist,hit.id);
+  return '';
+}
+async function tzGh(method,path,token,body){
+  const ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),15000);
+  try{
+    const headers={Accept:'application/vnd.github+json'};
+    if(token)headers.Authorization='Bearer '+token;
+    if(body!=null)headers['Content-Type']='application/json';
+    const r=await fetch('https://api.github.com'+path,{method,headers,body:body!=null?JSON.stringify(body):undefined,signal:ctl.signal,cache:'no-store'});
+    if(!r.ok){
+      if(r.status===401)throw new Error('401 — ה-token לא תקין או שפג תוקפו');
+      if(r.status===404)throw new Error('404 — ה-Gist לא נמצא');
+      if(r.status===403)throw new Error('403 — אין הרשאה או שחרגת ממכסת GitHub');
+      throw new Error('שגיאת GitHub '+r.status);
+    }
+    return r.status===204?null:await r.json();
+  }catch(e){
+    if(e.name==='AbortError')throw new Error('תם הזמן לחיבור ל-GitHub (אין רשת?)');
+    if(e instanceof TypeError)throw new Error('אין חיבור לרשת או ש-GitHub לא זמין');
+    throw e;
+  }finally{clearTimeout(to);}
+}
+async function tzItemsFromGist(d){
+  const f=d&&d.files&&d.files[TZ_SHARES_FILE];
+  if(!f)return {};
+  let content=f.content||'';
+  if(f.truncated&&f.raw_url){
+    const rr=await fetch(f.raw_url,{cache:'no-store'});
+    if(!rr.ok)throw new Error('טעינת קובץ השיתופים נכשלה ('+rr.status+')');
+    content=await rr.text();
   }
-  return tzShareUrl(true);
+  if(!String(content).trim())return {};
+  let p;try{p=JSON.parse(content);}catch(e){throw new Error('קובץ השיתופים אינו JSON תקין');}
+  return p&&p.items&&typeof p.items==='object'&&!Array.isArray(p.items)?p.items:{};
+}
+function tzNewSid(items){
+  let id='';
+  do{id='';while(id.length<8)id+=Math.random().toString(36).slice(2);id=id.slice(0,8).toLowerCase();}
+  while(items[id]);
+  return id;
+}
+function tzPruneShares(items){
+  const entries=Object.entries(items).sort((a,b)=>String((b[1]&&b[1].at)||'').localeCompare(String((a[1]&&a[1].at)||'')));
+  return Object.fromEntries(entries.slice(0,TZ_SHARE_KEEP));
+}
+async function tzPublishSnap(snap){
+  const token=tzWriteToken();
+  if(!token)throw new Error('אין token עם הרשאת gist — הזן token בהגדרות');
+  let gist=String(v2raw().tzShareGist||'').trim().toLowerCase();
+  let items={};
+  let have=false;
+  if(/^[0-9a-f]{8,64}$/.test(gist)){
+    try{items=await tzItemsFromGist(await tzGh('GET','/gists/'+encodeURIComponent(gist),token));have=true;}
+    catch(e){if(!/404/.test(String(e.message)))throw e;gist='';}
+  }
+  if(!have){
+    const created=await tzGh('POST','/gists',token,{
+      description:'FinBoard Tzofik share snapshots (unlisted)',
+      public:false,
+      files:{[TZ_SHARES_FILE]:{content:JSON.stringify({v:1,items:{}},null,2)}}
+    });
+    gist=String(created&&created.id||'').toLowerCase();
+    if(!/^[0-9a-f]{8,64}$/.test(gist))throw new Error('יצירת Gist לשיתוף נכשלה');
+    items={};
+    v2patch(v=>{v.tzShareGist=gist;});
+  }
+  const key=tzSnapKey(snap);
+  let id='';
+  for(const [k,row] of Object.entries(items)){
+    const s=row&&row.snap?row.snap:row;
+    if(s&&tzSnapKey(s)===key){id=k;break;}
+  }
+  if(!id)id=tzNewSid(items);
+  items[id]={at:new Date().toISOString(),snap};
+  const pruned=tzPruneShares(items);
+  await tzGh('PATCH','/gists/'+encodeURIComponent(gist),token,{
+    files:{[TZ_SHARES_FILE]:{content:JSON.stringify({v:1,items:pruned},null,2)}}
+  });
+  tzRememberShare(snap,gist,id);
+  return tzShortUrl(gist,id);
+}
+async function tzFetchShare(share){
+  if(!share||!/^[0-9a-f]{8,64}$/.test(share.gist||'')||!/^[0-9a-z]{4,16}$/.test(share.id||''))
+    throw new Error('הקישור הקצר לא תקין');
+  const items=await tzItemsFromGist(await tzGh('GET','/gists/'+encodeURIComponent(share.gist),''));
+  const row=items[share.id];
+  if(!row)throw new Error('הסיכום לא נמצא בקישור הזה');
+  const snap=row.snap&&typeof row.snap==='object'?row.snap:row;
+  if(!tzValidSnap(snap))throw new Error('הסיכום בקישור פגום');
+  return snap;
+}
+async function tzResolveShareUrl(){
+  const ready=tzReadyShareUrl();
+  if(ready)return {url:ready,fresh:false,legacy:!!(TZ_SNAP&&!(TZ_SHARE_REF&&TZ_SHARE_REF.id))};
+  const url=await tzPublishSnap(tzBuildSnap());
+  return {url,fresh:true,legacy:false};
 }
 function tzWhatsAppUrl(text){
   return 'https://wa.me/?text='+encodeURIComponent(text);
 }
-function tzOpenWhatsAppShare(){
-  const url=tzSnapShareUrl();
-  const msg='סיכום צופיק 💛\n'+url;
-  window.open(tzWhatsAppUrl(msg),'_blank','noopener,noreferrer');
-  toast('✓ נפתח וואטסאפ עם הקישור','ok');
+async function tzShareAction(kind){
+  if(TZ_BUSY)return;
+  /* Open WhatsApp synchronously so the popup survives the Gist round-trip. */
+  const popup=kind==='wa'?window.open('','_blank'):null;
+  TZ_BUSY=true;
+  const wa=$('#tzWa'),cp=$('#tzCopy'),urlEl=$('#tzUrl');
+  if(wa)wa.disabled=true;if(cp)cp.disabled=true;
+  const publishing=!tzReadyShareUrl();
+  if(publishing&&urlEl)urlEl.textContent='יוצר קישור קצר…';
+  let usedLegacy=false,url='';
+  try{
+    const res=await tzResolveShareUrl();
+    url=res.url;usedLegacy=res.legacy;
+    if(!usedLegacy)TZ_LINK_MSG='';
+  }catch(e){
+    url=tzLegacyShareUrl();usedLegacy=true;
+    TZ_LINK_MSG=(e&&e.message?e.message:'יצירת קישור קצר נכשלה')+' — נשלח הקישור המלא.';
+  }
+  TZ_LAST_URL=url;
+  TZ_BUSY=false;
+  if(CUR==='tzofik')renderTzofik();
+  if(kind==='wa'){
+    const waUrl=tzWhatsAppUrl('סיכום צופיק 💛\n'+url);
+    if(popup&&!popup.closed){try{popup.opener=null;}catch(err){}popup.location.replace(waUrl);}
+    else window.open(waUrl,'_blank','noopener,noreferrer');
+    toast(usedLegacy?'נפתח וואטסאפ עם הקישור המלא':'✓ נפתח וואטסאפ עם הקישור הקצר',usedLegacy?'warn':'ok');
+  }else{
+    if(popup&&!popup.closed)popup.close();
+    try{await navigator.clipboard.writeText(url);toast(usedLegacy?'הקישור המלא הועתק':'✓ קישור קצר הועתק',usedLegacy?'warn':'ok');}
+    catch(err){prompt('העתיקי את הקישור:',url);}
+  }
 }
 async function ensureShotLib(){
   const api=window.modernScreenshot;
@@ -1582,6 +1769,18 @@ async function tzDownloadOrSharePng(){
 }
 function renderTzofik(){
   const el=$('#tzBody');if(!el)return;
+  if(TZ_SHARE_REF&&!TZ_SNAP&&!TZ_SHARE_ERR){
+    el.innerHTML=`<div class="tz-card"><div class="tz-lbl">טוען את הסיכום…</div><div class="tz-sub">טוען את התצלום מהקישור הקצר.</div></div>`;
+    return;
+  }
+  if(!TZ_SNAP&&TZ_SHARE_ERR){
+    el.innerHTML=`<div class="tz-card warn-tz"><div class="tz-lbl">לא הצלחתי לפתוח את הקישור</div><div class="tz-sub">${esc(TZ_SHARE_ERR)}</div>
+      <div class="tz-sub">קישור ישן עם הנתונים בכתובת (<span class="num">#tzofik&amp;s=…</span>) אמור להיפתח בלי רשת.</div>
+      ${TZ_SHARE_REF&&TZ_SHARE_REF.gist?'<div class="tz-actions"><button class="btn" id="tzRetry">נסה שוב</button></div>':''}</div>`;
+    const retry=$('#tzRetry');
+    if(retry)retry.onclick=()=>{TZ_SHARE_ERR='';renderTzofik();tzLoadShare(TZ_SHARE_REF);};
+    return;
+  }
   const snap=TZ_SNAP;
   let T,yr,y,ly,fc,updated;
   let prior=null;
@@ -1635,20 +1834,20 @@ function renderTzofik(){
       <div class="tz-sub">הון נזיל ${ilsT(fcP0)} · הפקדה ${ilsT(fc.monthly)}/ח׳ · תשואה ${(+fc.ret).toFixed(1)}% · ${fc.n} ח׳ · לחץ 50% <span class="tz-fc-detail"><br><b>תרחיש לחוץ על נזילים בלבד</b></span></div></div>
     <div class="tz-card tz-debt"><div class="tz-lbl">סה״כ התחייבויות</div><div class="tz-val">${ils(T.debt)}</div></div>
     <div class="tz-actions" data-html2canvas-ignore="1">
-      <button class="btn" id="tzWa" title="פותח וואטסאפ עם קישור תצלום (#tzofik&amp;s=…)">שלח קישור בוואטסאפ</button>
+      <button class="btn" id="tzWa" title="פותח וואטסאפ עם קישור קצר לתצלום">שלח קישור בוואטסאפ</button>
       <button class="btn tz-shot" id="tzShot" title="שומר PNG לשליחה בוואטסאפ (או שיתוף מובנה בטלפון)">צלם לשליחה</button>
-      <button class="btn ghost" id="tzCopy" title="מעתיק קישור עם נתונים ללוח">העתק קישור</button>
+      <button class="btn ghost" id="tzCopy" title="מעתיק קישור קצר (תצלום ב-Gist, בלי token)">העתק קישור</button>
     </div>
     <div class="tz-note" data-html2canvas-ignore="1"><span class="num" id="tzUrl"></span>
-      <span class="tz-note-long"><br>הקישור עם נתונים כולל תצלום קריאה־בלבד ב־hash (בלי token). מי שפותח רואה את המספרים גם בלי Gist.</span>
+      <span class="tz-note-long"><br>${snap&&TZ_SHARE_REF?'קישור קצר · התצלום נשמר ב-Gist נפרד (בלי token בכתובת).':snap?'קישור ישן · הנתונים מוטמעים בכתובת ועדיין נפתחים.':'הקישור הקצר שומר תצלום ב-Gist נפרד (בלי token). קישורים ישנים עם הנתונים ב-hash עדיין נפתחים.'}</span>
+      ${TZ_LINK_MSG?`<br><span class="warn">${esc(TZ_LINK_MSG)}</span>`:''}
       · עודכן ${updated?heDate(updated):'—'}</div>`;
-  const snapUrl=tzSnapShareUrl();
-  $('#tzUrl').textContent=snapUrl.length>72?snapUrl.slice(0,40)+'…'+snapUrl.slice(-18):snapUrl;
-  $('#tzUrl').title=snapUrl;
-  const copy=async(url,okMsg)=>{try{await navigator.clipboard.writeText(url);toast(okMsg,'ok');}
-    catch(e){prompt('העתיקי את הקישור:',url);}};
-  $('#tzWa').onclick=()=>tzOpenWhatsAppShare();
-  $('#tzCopy').onclick=()=>copy(tzSnapShareUrl(),'✓ קישור עם נתונים הועתק');
+  const snapUrl=tzReadyShareUrl()||TZ_LAST_URL;
+  const urlShown=snapUrl||'קישור קצר ייווצר בשליחה או בהעתקה';
+  $('#tzUrl').textContent=urlShown.length>88?urlShown.slice(0,48)+'…'+urlShown.slice(-24):urlShown;
+  $('#tzUrl').title=snapUrl||urlShown;
+  $('#tzWa').onclick=()=>tzShareAction('wa');
+  $('#tzCopy').onclick=()=>tzShareAction('copy');
   $('#tzShot').onclick=()=>tzDownloadOrSharePng();
   if(needData){$('#tzGistLoad').onclick=async()=>{const gist=$('#tzGistId').value.trim();
     if(!/^[0-9a-fA-F]{8,64}$/.test(gist)){$('#tzGistMsg').innerHTML='<span class="neg">Gist ID לא תקין</span>';return;}
@@ -2088,14 +2287,14 @@ function renderGistCard(){
 }
 function applySource(){
   const chip=$('#srcChip');
-  if(TZ_SNAP){
-    chip.className='chip gist';chip.textContent='📎 תצלום קישור';chip.title='נתונים מתצלום ב־URL (קריאה בלבד)';
+  if(TZ_SNAP||TZ_SHARE_REF){
+    chip.className='chip gist';chip.textContent=TZ_SNAP?'📎 תצלום קישור':TZ_SHARE_ERR?'📎 קישור לא נטען':'📎 טוען תצלום…';chip.title='נתונים מתצלום קישור (קריאה בלבד)';
     chip.style.cursor='default';chip.onclick=null;
   }else{
   const C={gist:['chip gist','☁ Gist (live)'],gistCache:['chip gist','☁ Gist (עותק שמור)'],local:['chip real','💾 נתוני דפדפן מקומיים'],example:['chip ex','נתוני דוגמה']}[SRC];
   chip.className=C[0];chip.textContent=C[1];chip.title='מקור הנתונים — לחץ לפרטים';chip.style.cursor='pointer';chip.onclick=()=>{location.hash='settings';};
   }
-  $('#exBanner').style.display=(SRC==='example'&&!TZ_SNAP)?'':'none';
+  $('#exBanner').style.display=(SRC==='example'&&!TZ_SNAP&&!TZ_SHARE_REF)?'':'none';
   const m=[ACCESS_MSG,SRC_MSG].filter(Boolean).join(' ');const el=$('#srcMsg');
   el.style.display=m?'':'none';el.className='banner '+(SRC_MSG_KIND==='err'&&SRC_MSG?'err':'info');el.textContent=m;
   const ps=v2raw().pendingSync,c=getCreds(),sb=$('#syncBar');
