@@ -216,7 +216,7 @@ pre.json{max-height:320px;overflow:auto;direction:ltr;text-align:left;font-size:
   .bottom-nav button.active{color:var(--pri)}
   .bottom-nav .nav-ic{font-size:17px}
 }
-/* Tzofik share view — option D: office blues + bold frames */
+/* Tzofik share view — option D office look; compact on phone so no scroll */
 body.share-view{background:#eef2f7;color:#1e293b}
 body.share-view::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background:
   radial-gradient(circle at 8% 0%,#bfdbfe55,transparent 42%),
@@ -224,39 +224,70 @@ body.share-view::before{content:"";position:fixed;inset:0;pointer-events:none;z-
   radial-gradient(circle at 50% 100%,#cbd5e155,transparent 45%)}
 body.share-view .side, body.share-view .bottom-nav, body.share-view #exBanner, body.share-view #syncBar,
 body.share-view #srcMsg, body.share-view .top-actions #privBtn, body.share-view .top-actions #themeBtn{display:none!important}
-body.share-view .app{grid-template-columns:1fr;position:relative;z-index:1;background:transparent}
-body.share-view .main{padding:0 18px 40px;max-width:460px;margin:0 auto;background:transparent}
-body.share-view .topbar{border:0;margin-bottom:8px;justify-content:center;background:transparent;backdrop-filter:none}
-body.share-view .page-title{color:#0f172a;font-size:26px;font-weight:800}
+body.share-view .app{grid-template-columns:1fr;position:relative;z-index:1;background:transparent;min-height:100dvh}
+body.share-view .main{padding:0 18px 24px;max-width:460px;margin:0 auto;background:transparent}
+body.share-view .topbar{border:0;margin-bottom:6px;justify-content:center;background:transparent;backdrop-filter:none;padding:10px 0 4px;gap:8px}
+body.share-view .page-title{color:#0f172a;font-size:22px;font-weight:800}
 body.share-view .page-sub{display:none}
-body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f}
-.tz-wrap{display:flex;flex-direction:column;gap:0;padding-bottom:24px}
-.tz-card{background:#fff;border:3px solid #1e3a5f;border-radius:18px;padding:16px 18px;margin-bottom:12px;box-shadow:5px 5px 0 #1e3a5f}
-.tz-card .tz-lbl{font-size:12px;color:#64748b;margin-bottom:4px;font-weight:700;letter-spacing:.03em}
-.tz-card .tz-val{font-size:34px;font-weight:800;letter-spacing:-.03em;line-height:1.1;color:#0f172a}
-.tz-card .tz-sub{font-size:12.5px;color:#64748b;margin-top:8px;line-height:1.45}
+body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;font-size:11px;padding:2px 8px}
+.tz-wrap{display:flex;flex-direction:column;gap:0;padding-bottom:8px}
+.tz-card{background:#fff;border:3px solid #1e3a5f;border-radius:16px;padding:12px 14px;margin-bottom:10px;box-shadow:4px 4px 0 #1e3a5f}
+.tz-card .tz-lbl{font-size:11px;color:#64748b;margin-bottom:2px;font-weight:700;letter-spacing:.02em}
+.tz-card .tz-val{font-size:28px;font-weight:800;letter-spacing:-.03em;line-height:1.1;color:#0f172a}
+.tz-card .tz-sub{font-size:11.5px;color:#64748b;margin-top:4px;line-height:1.35}
 .tz-card .tz-sub.muted{color:#94a3b8}
-.tz-card.tz-total{border-color:#0f766e;box-shadow:5px 5px 0 #0f766e;background:#f0fdfa}
-.tz-card.tz-total .tz-val{font-size:40px;color:#0f766e}
-.tz-card.tz-save{border-color:#1d4ed8;box-shadow:5px 5px 0 #1d4ed8;background:#eff6ff}
-.tz-card.tz-save .tz-val{font-size:40px;color:#1d4ed8}
-.tz-card.tz-fc{border-color:#0e7490;box-shadow:5px 5px 0 #0e7490;background:#ecfeff}
-.tz-card.tz-fc .tz-val{color:#0e7490}
-.tz-card.tz-debt{border-color:#64748b;box-shadow:5px 5px 0 #64748b;background:#f8fafc}
-.tz-card.tz-debt .tz-val{font-size:28px;color:#475569}
-.tz-card.tz-liq{border-color:#2563eb;box-shadow:4px 4px 0 #2563eb;background:#eff6ff;margin:0}
-.tz-card.tz-liq .tz-val{font-size:26px;color:#2563eb}
-.tz-card.tz-lock{border-color:#475569;box-shadow:4px 4px 0 #475569;background:#f8fafc;margin:0}
-.tz-card.tz-lock .tz-val{font-size:26px;color:#334155}
-.tz-card.warn-tz{border-color:#b45309;box-shadow:5px 5px 0 #b45309;background:#fffbeb}
+.tz-card.tz-total{border-color:#0f766e;box-shadow:4px 4px 0 #0f766e;background:#f0fdfa}
+.tz-card.tz-total .tz-val{font-size:34px;color:#0f766e}
+.tz-card.tz-save{border-color:#1d4ed8;box-shadow:4px 4px 0 #1d4ed8;background:#eff6ff}
+.tz-card.tz-save .tz-val{font-size:34px;color:#1d4ed8}
+.tz-card.tz-fc{border-color:#0e7490;box-shadow:4px 4px 0 #0e7490;background:#ecfeff}
+.tz-card.tz-fc .tz-val{font-size:26px;color:#0e7490}
+.tz-card.tz-debt{border-color:#64748b;box-shadow:4px 4px 0 #64748b;background:#f8fafc}
+.tz-card.tz-debt .tz-val{font-size:24px;color:#475569}
+.tz-card.tz-liq{border-color:#2563eb;box-shadow:3px 3px 0 #2563eb;background:#eff6ff;margin:0}
+.tz-card.tz-liq .tz-val{font-size:22px;color:#2563eb}
+.tz-card.tz-lock{border-color:#475569;box-shadow:3px 3px 0 #475569;background:#f8fafc;margin:0}
+.tz-card.tz-lock .tz-val{font-size:22px;color:#334155}
+.tz-card.warn-tz{border-color:#b45309;box-shadow:4px 4px 0 #b45309;background:#fffbeb}
 .tz-card.warn-tz .tz-lbl{color:#b45309}
-.tz-pair{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
-.tz-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
-.tz-actions .btn{border-radius:14px;border:2px solid #1e3a5f;box-shadow:3px 3px 0 #1e3a5f;background:#1d4ed8;color:#fff;font-weight:700}
+.tz-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.tz-actions{display:flex;flex-wrap:nowrap;gap:8px;margin-top:2px}
+.tz-actions .btn{border-radius:12px;border:2px solid #1e3a5f;box-shadow:2px 2px 0 #1e3a5f;background:#1d4ed8;color:#fff;font-weight:700;padding:8px 12px;font-size:13px;flex:1}
 .tz-actions .btn.ghost{background:#fff;color:#1e3a5f}
-.tz-note{font-size:12px;color:#64748b;line-height:1.45;padding:4px 2px;margin-top:8px}
-.tz-gist{display:flex;flex-direction:column;gap:8px;margin-top:10px}
-.tz-gist input{height:40px;border-radius:10px;border:2px solid #1e3a5f;background:#fff;color:#0f172a;padding:0 12px;font:inherit;direction:ltr}
+.tz-note{font-size:11px;color:#64748b;line-height:1.35;padding:2px;margin-top:6px}
+.tz-gist{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.tz-gist input{height:36px;border-radius:10px;border:2px solid #1e3a5f;background:#fff;color:#0f172a;padding:0 10px;font:inherit;direction:ltr}
+/* iPhone / narrow: fit one viewport (~390×844) without scroll */
+@media(max-width:430px){
+  body.share-view{overflow:hidden}
+  body.share-view .main{padding:0 10px 8px;max-width:100%}
+  body.share-view .topbar{padding:6px 0 2px;margin-bottom:2px;min-height:0}
+  body.share-view .page-title{font-size:16px}
+  body.share-view #srcChip{transform:scale(.9);transform-origin:left center}
+  body.share-view .toast,.toast{display:none!important} /* avoid toast eating space in share shot */
+  .tz-wrap{padding-bottom:0}
+  .tz-card{border-width:2px;border-radius:12px;padding:7px 10px;margin-bottom:6px;box-shadow:3px 3px 0 #1e3a5f}
+  .tz-card.tz-total{box-shadow:3px 3px 0 #0f766e}
+  .tz-card.tz-save{box-shadow:3px 3px 0 #1d4ed8}
+  .tz-card.tz-fc{box-shadow:3px 3px 0 #0e7490}
+  .tz-card.tz-debt{box-shadow:3px 3px 0 #64748b}
+  .tz-card .tz-lbl{font-size:10px;margin-bottom:0}
+  .tz-card .tz-val{font-size:22px}
+  .tz-card.tz-total .tz-val,.tz-card.tz-save .tz-val{font-size:26px}
+  .tz-card.tz-fc .tz-val{font-size:20px}
+  .tz-card.tz-debt .tz-val{font-size:18px}
+  .tz-card.tz-liq .tz-val,.tz-card.tz-lock .tz-val{font-size:18px}
+  .tz-card.tz-liq{box-shadow:2px 2px 0 #2563eb}
+  .tz-card.tz-lock{box-shadow:2px 2px 0 #475569}
+  .tz-card .tz-sub{font-size:10px;margin-top:2px;line-height:1.25}
+  .tz-card .tz-sub .tz-fc-detail{display:none} /* keep forecast one-liner on phone */
+  .tz-pair{gap:6px;margin-bottom:6px}
+  .tz-actions{gap:6px;margin-top:0}
+  .tz-actions .btn{padding:7px 8px;font-size:12px;border-radius:10px;box-shadow:2px 2px 0 #1e3a5f}
+  .tz-actions .btn.ghost{display:none} /* copy-link only — saves a row */
+  .tz-note{font-size:9px;margin-top:4px;line-height:1.2}
+  .tz-note .tz-note-long{display:none}
+}
 .liq-tog{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--dim);cursor:pointer;user-select:none;white-space:nowrap}
 .liq-tog input{width:16px;height:16px;accent-color:var(--pos)}
 .liq-tog.locked{color:var(--warn)}
@@ -264,11 +295,7 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f}
 @media(max-width:760px){
   .urow{grid-template-areas:"nm ed" "lu lu" "liq liq" "cur cur" "in in" "dl dl"}
   .urow .liqw{grid-area:liq}
-  body.share-view .main{padding:0 12px 28px}
-  .tz-card .tz-val{font-size:28px}
-  .tz-card.tz-total .tz-val,.tz-card.tz-save .tz-val{font-size:34px}
-  .tz-card.tz-liq .tz-val,.tz-card.tz-lock .tz-val{font-size:22px}
-  .tz-pair{gap:10px}
+
 }
 </style>
 </head>
@@ -1355,18 +1382,17 @@ function renderTzofik(){
     <div class="tz-card tz-save"><div class="tz-lbl">חסכון שנתי (${yr})</div>
       <div class="tz-val">${ils(y.net)}</div>
       <div class="tz-sub muted">${esc(splitTxt)}<br>שנה שעברה (${yr-1}): ${ils(ly.net)}</div></div>
-    <div class="tz-card tz-fc"><div class="tz-lbl">תחזית ל־${heDate(fc.date)} · הפקדות ותשואה ב־50%</div>
+    <div class="tz-card tz-fc"><div class="tz-lbl">תחזית ל־${heDate(fc.date)} · הפקדה+תשואה 50%</div>
       <div class="tz-val">${ils(fc.exp)}</div>
-      <div class="tz-sub">הון התחלתי ${ils(fc.P0)} · הפקדה ${ilsT(fc.monthly)}/חודש (50% מ־${ilsT(fc.baseMonthly)}) · תשואה ${fc.ret.toFixed(1)}% (50% מ־${fc.baseRet.toFixed(1)}%) · ${fc.n} חודשים.
-        ${fc.hasPrefs?'מבוסס על ברירות המחדל שנשמרו בעמוד התחזית.':'לא נשמרו עדיין העדפות תחזית — משתמש ב־+5 שנים / ממוצע הפקדות / תשואה לפי הקצאה.'}
-        <br><b>זה תרחיש לחוץ:</b> גם ההפקדה וגם התשואה הצפויה הופחתו בחצי — לא תרחיש בסיס.</div></div>
+      <div class="tz-sub">הפקדה ${ilsT(fc.monthly)}/ח׳ · תשואה ${fc.ret.toFixed(1)}% · ${fc.n} ח׳ <span class="tz-fc-detail"><br>הון ${ils(fc.P0)} · 50% מ־${ilsT(fc.baseMonthly)} / ${fc.baseRet.toFixed(1)}% · ${fc.hasPrefs?'מהעדפות התחזית':'ברירות מחדל'} · <b>תרחיש לחוץ</b></span></div></div>
     <div class="tz-card tz-debt"><div class="tz-lbl">סה״כ התחייבויות</div><div class="tz-val">${ils(T.debt)}</div></div>
     <div class="tz-actions">
       <button class="btn" id="tzCopy">העתק קישור לשיתוף</button>
       <button class="btn ghost" id="tzFull" data-go="overview">למסך המלא</button>
     </div>
-    <div class="tz-note">קישור השיתוף: <span class="num" id="tzUrl"></span><br>
-      מי שמקבל את הקישור רואה את הנתונים רק אם בדפדפן שלו כבר יש גישה (אותו מכשיר / Gist ID / קישור <span class="num">#access=</span>). עדכון אחרון בנתונים: ${S.lastUpdated?heDate(S.lastUpdated):'—'}.</div>`;
+    <div class="tz-note"><span class="num" id="tzUrl"></span>
+      <span class="tz-note-long"><br>מי שמקבל את הקישור רואה נתונים רק עם גישה בדפדפן / Gist / <span class="num">#access=</span>.</span>
+      · עודכן ${S.lastUpdated?heDate(S.lastUpdated):'—'}</div>`;
   $('#tzUrl').textContent=tzShareUrl();
   $('#tzCopy').onclick=async()=>{const url=tzShareUrl();try{await navigator.clipboard.writeText(url);toast('✓ הקישור הועתק','ok');}
     catch(e){prompt('העתיקי את הקישור:',url);}};
