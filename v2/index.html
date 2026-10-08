@@ -863,10 +863,18 @@ function mergeTaskDocs(base,local,remote){
 }
 function taskStorageKey(){return SRC==='example'?'demoTasks':'tasks';}
 function saveTasksLocal(){
+  clearTimeout(taskLocalTimer);taskLocalTimer=null;
   const doc=normalizeTaskDoc(TASKS);
-  v2patch(v=>{v[taskStorageKey()]=doc;});
+  const key=taskStorageKey();
+  v2patch(v=>{v[key]=doc;});
+  const back=normalizeTaskDoc((v2raw()||{})[key]);
+  if(back.items.length!==doc.items.length||back.items.some((t,i)=>t.text!==doc.items[i].text||t.done!==doc.items[i].done)){
+    taskStatusKind='err';taskStatusErr='השמירה בדפדפן נכשלה';
+    return false;
+  }
+  return true;
 }
-function flushTasksLocal(){clearTimeout(taskLocalTimer);taskLocalTimer=null;saveTasksLocal();}
+function flushTasksLocal(){return saveTasksLocal();}
 async function readGistTasks(files,ctl){
   const f=files&&files[TASKS_FILE];
   if(!f)return {state:'missing',doc:null};
@@ -898,8 +906,10 @@ function adoptTasks(g){
 }
 function touchTasks(){
   TASKS.v=1;TASKS.updatedAt=new Date().toISOString();
-  taskStatusKind='saving';taskStatusErr='';updateTaskStatus();
-  clearTimeout(taskLocalTimer);taskLocalTimer=setTimeout(saveTasksLocal,120);
+  const ok=saveTasksLocal();
+  taskStatusKind=ok?(SRC==='example'?'demo':'local'):'err';
+  if(!ok&&!taskStatusErr)taskStatusErr='השמירה בדפדפן נכשלה';
+  updateTaskStatus();
   clearTimeout(taskSaveTimer);taskSaveTimer=setTimeout(()=>pushTasksGist(),700);
 }
 function queueTaskPush(){clearTimeout(taskSaveTimer);taskSaveTimer=setTimeout(()=>pushTasksGist(),400);}
@@ -910,7 +920,7 @@ async function patchGistFile(c,filename,content){
   if(!r.ok)throw new Error(r.status===401?'401 — token לא תקין':(r.status===403||r.status===404)?r.status+' — אין הרשאת gist':'שגיאת GitHub '+r.status);
 }
 async function pushTasksGist(){
-  if(SRC==='example'){taskStatusKind='demo';updateTaskStatus();return;}
+  if(SRC==='example'){if(taskStatusKind!=='err')taskStatusKind='demo';updateTaskStatus();return;}
   const c=getCreds();
   if(!c||!c.token){taskStatusKind='local';updateTaskStatus();return;}
   if(taskPushing){taskAgain=true;return;}
@@ -937,11 +947,13 @@ async function pushTasksGist(){
 }
 function updateTaskStatus(){
   const el=$('#ovTaskNote');if(!el)return;
-  if(taskStatusKind==='demo')el.textContent='נשמר בדפדפן הזה (נתוני דוגמה — לא נכתב ל-Gist).';
+  const n=TASKS.items.length;
+  const count=n?` · ${n} משימות`:'';
+  if(taskStatusKind==='demo')el.textContent='נשמר בדפדפן הזה'+count+' (נתוני דוגמה — לא נכתב ל-Gist).';
   else if(taskStatusKind==='saving')el.textContent='שומר…';
-  else if(taskStatusKind==='gist')el.textContent='נשמר במכשיר ומסונכרן ל-Gist.';
-  else if(taskStatusKind==='err')el.textContent='נשמר במכשיר. סנכרון ל-Gist נכשל'+(taskStatusErr?': '+taskStatusErr:'')+'.';
-  else el.textContent='נשמר במכשיר הזה. סנכרון בין מכשירים דורש token עם הרשאת gist.';
+  else if(taskStatusKind==='gist')el.textContent='נשמר במכשיר ומסונכרן ל-Gist'+count+'.';
+  else if(taskStatusKind==='err')el.textContent='שמירה לא הושלמה'+(taskStatusErr?': '+taskStatusErr:'')+'.';
+  else el.textContent='נשמר במכשיר הזה'+count+'. סנכרון בין מכשירים דורש token עם הרשאת gist.';
 }
 function renderTaskList(){
   const box=$('#ovTasks');if(!box)return;
