@@ -72,16 +72,26 @@
     return normHe(inst).split(/[^\p{L}\p{N}]+/u).filter(w => w.length >= 4 && !STOP.has(fold(w)));
   }
 
+  function tokens(s) {
+    return normHe(s).split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  }
+  function hasToken(hay, token) {
+    const t = fold(token);
+    return tokens(hay).some(w => fold(w) === t);
+  }
+  /* Whole tokens only. "מור" is inside "למורים", and a substring match would
+     attach the teachers' hishtalmut funds to a More holding. */
   function managerMatches(inst, fund) {
     const s = String(inst || '');
     const manager = (fund && fund.manager) || '';
     const name = (fund && fund.name) || '';
     const policy = fund && fund.source === 'bituach';
-    if (/מור|more/i.test(s)) return policy ? /מור/.test(manager + ' ' + name) : /מור/.test(manager);
-    if (/ילין|לפידות/.test(s)) return policy ? /ילין|לפידות/.test(manager + ' ' + name) : /ילין|לפידות/.test(manager);
+    const hay = policy ? manager + ' ' + name : manager;
+    if (/מור|more/i.test(s)) return hasToken(hay, 'מור') || hasToken(hay, 'more');
+    if (/ילין|לפידות/.test(s)) return hasToken(hay, 'ילין') || hasToken(hay, 'לפידות');
     const words = distinctive(s);
     if (!words.length) return false;
-    return words.every(w => manager.includes(w));
+    return words.every(w => hasToken(manager, w));
   }
 
   function matchFund(inv, funds) {

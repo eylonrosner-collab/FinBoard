@@ -26,10 +26,10 @@ function near(a, b, eps) { assert.ok(Math.abs(a - b) <= (eps || 0.02), `${a} !~ 
 
 /* Same track / manager / product shape as the app's holdings. No balances, names of people, or account numbers. */
 const CASES = [
-  {id:'sp', cat:'gamel', name:'גמל להשקעה', inst:'מור בית השקעות', track:'S&P 500', expect:'public', fundId:7958},
-  {id:'klali-gi', cat:'gamel', name:'גמל להשקעה', inst:'מור בית השקעות', track:'כללי', expect:'public', fundId:12538},
-  {id:'klali-h', cat:'kupa', name:'קה"ש חדשה', inst:'מור בית השקעות', track:'כללי', expect:'public', fundId:12535},
-  {id:'stocks', cat:'kupa', name:'קופת גמל', inst:'ילין לפידות', track:'מניות', expect:'public', fundId:1036},
+  {id:'sp', cat:'gamel', name:'גמל להשקעה', inst:'מור בית השקעות', track:'S&P 500', expect:'public', expectId:7958},
+  {id:'klali-gi', cat:'gamel', name:'גמל להשקעה', inst:'מור בית השקעות', track:'כללי', expect:'public', expectId:12538},
+  {id:'klali-h', cat:'kupa', name:'קה"ש חדשה', inst:'מור בית השקעות', track:'כללי', expect:'public', expectId:12535},
+  {id:'stocks', cat:'kupa', name:'קופת גמל', inst:'ילין לפידות', track:'מניות', expect:'public', expectId:1036},
   {id:'blend-h', cat:'kupa', name:'קה"ש', inst:'ילין לפידות', track:'50% מניות + S&P 50%', expect:'assume', why:'no-track'},
   {id:'blend-g', cat:'kupa', name:'קופת גמל', inst:'ילין לפידות', track:'50% מניות + S&P 50%', expect:'assume', why:'no-track'},
   {id:'broker', cat:'forex', name:'תיק ברוקר', inst:'Schwab', track:'SP500,NASDAQ,AI', expect:'assume', why:'no-track'},
@@ -49,7 +49,7 @@ for (const c of CASES) {
   const composed = hit.fund ? FinLook.composePublic(base, hit.fund) : null;
   if (c.expect === 'public') {
     assert.ok(hit.fund, `${c.id} should match, got ${hit.why}`);
-    if (c.fundId) assert.strictEqual(hit.fund.fundId, c.fundId, c.id);
+    if (c.expectId) assert.strictEqual(hit.fund.fundId, c.expectId, c.id);
     assert.ok(composed);
     near(sum(composed.cls), 1, 0.001);
     near(sum(composed.geo), 1, 0.001);
@@ -98,6 +98,15 @@ assert.strictEqual(pensiaAmb.why, 'ambiguous');
 
 /* Notes that mention פנסיה must not reclassify a gemel cup. */
 assert.strictEqual(FinLook.holdingProduct({cat:'kupa', name:'קופת גמל', notes:'סגור לפנסיה'}), 'gemel-savings');
+
+/* "מור" is a substring of "למורים" — those teacher funds must not match More. */
+const teachers = pub.funds.find(f => f.source==='gemelnet' && f.fundId===284);
+assert.strictEqual(FinLook.managerMatches('מור בית השקעות', teachers), false);
+
+/* An explicit public fund id on the holding is used; a lookalike account number is not. */
+const byId = FinLook.matchFund({cat:'kupa', name:'קה"ש', inst:'מור בית השקעות', track:'כללי', fundId:12535}, pub.funds);
+assert.strictEqual(byId.why, 'fundId');
+assert.strictEqual(byId.fund.fundId, 12535);
 
 /* A long account-style number on the holding is not a fund id unless fundId is set. */
 const notAcc = FinLook.matchFund({cat:'gamel', name:'גמל להשקעה', inst:'מור בית השקעות', track:'S&P 500', accNum:'100000001'}, pub.funds);
