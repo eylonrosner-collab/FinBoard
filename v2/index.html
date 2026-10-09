@@ -118,6 +118,28 @@ td.n,th.n{text-align:left}
 .scen>div{border:1px solid var(--line);border-radius:12px;padding:10px;background:var(--card2)}
 .scen .s-l{font-size:12px;color:var(--dim)}.scen .s-v{font-weight:700;font-size:17px}
 .formula{font-family:ui-monospace,Consolas,monospace;direction:ltr;text-align:left;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--dim);white-space:pre-wrap}
+/* overview: compact forecast + tasks in the freed space */
+.ov-bottom{grid-template-columns:minmax(0,1.2fr) minmax(200px,.85fr) minmax(230px,1.05fr);align-items:start}
+.ov-fc-when{font-size:12px;line-height:1.4}
+.ov-fc-val{font-size:26px;font-weight:800;letter-spacing:-.4px;line-height:1.15;margin:4px 0 2px}
+.ov-fc-range{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--dim);margin-top:2px}
+.ov-fc-meta{font-size:12px;line-height:1.45;margin-top:6px}
+.task-add{display:flex;gap:8px;margin-bottom:8px}
+.task-add input{flex:1;min-width:0;height:36px;border-radius:9px;border:1px solid var(--line2);background:var(--card2);color:var(--text);padding:0 10px;font:inherit}
+.task-add input:focus{outline:2px solid color-mix(in srgb,var(--pri) 50%,transparent);border-color:var(--pri)}
+.task-list{display:flex;flex-direction:column}
+.task-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--line)}
+.task-row:last-child{border-bottom:0}
+.task-row input[type=checkbox]{width:18px;height:18px;accent-color:var(--pri);flex:0 0 auto}
+.task-text{flex:1;min-width:0;border:0;background:transparent;color:var(--text);font:inherit;font-size:13px;padding:4px 2px;text-align:right}
+.task-text:focus{outline:2px solid color-mix(in srgb,var(--pri) 45%,transparent);border-radius:6px;background:var(--card2)}
+.task-row.done .task-text{text-decoration:line-through;color:var(--faint)}
+.task-x{border:0;background:transparent;color:var(--faint);cursor:pointer;width:32px;height:32px;border-radius:8px;flex:0 0 auto;font-size:15px}
+.task-x:hover{color:var(--neg);background:color-mix(in srgb,var(--neg) 12%,transparent)}
+.task-empty{color:var(--faint);font-size:12px;padding:8px 0;line-height:1.45}
+.task-note{font-size:11px;margin-top:8px;line-height:1.4}
+.qchip:disabled{opacity:.45;cursor:default}
+@media(min-width:761px){.task-list{max-height:220px;overflow:auto}}
 /* recommendations */
 .rec{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:var(--card);display:grid;grid-template-columns:36px 1fr;gap:12px;box-shadow:var(--shadow)}
 .rec+.rec{margin-top:10px}
@@ -195,7 +217,7 @@ pre.json{max-height:320px;overflow:auto;direction:ltr;text-align:left;font-size:
 .alloc-charts .card{position:relative}
 .alloc-charts .card.active-slice{outline:2px solid var(--pri);outline-offset:1px}
 /* responsive */
-@media (max-width:1100px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g-2-1,.g3{grid-template-columns:1fr}}
+@media (max-width:1100px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g-2-1,.g3{grid-template-columns:1fr}.ov-bottom{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.ov-tasks{grid-column:1/-1}}
 @media (max-width:760px){
   .urow{grid-template-columns:1fr 1fr;grid-template-areas:"nm ed" "lu lu" "cur cur" "in in" "dl dl";gap:6px 10px}
   .urow .nmw{grid-area:nm}.urow .lu{grid-area:lu}.urow .cur{grid-area:cur}.urow .uin{grid-area:in}.urow .udelta{grid-area:dl;text-align:right}.urow .edw{grid-area:ed;justify-self:end}
@@ -212,6 +234,14 @@ pre.json{max-height:320px;overflow:auto;direction:ltr;text-align:left;font-size:
   .scen{grid-template-columns:1fr}
   .hide-m{display:none}
   .topbar{padding:10px 0}.page-title{font-size:17px}
+  .ov-bottom{grid-template-columns:1fr}.ov-tasks{grid-column:auto}
+  .ov-fc-val{font-size:24px}
+  .task-add input,.task-text{font-size:16px}
+  .task-add input{height:44px}
+  .task-add .btn{min-height:44px;padding:8px 14px}
+  .task-row{padding:8px 0}
+  .task-row input[type=checkbox]{width:22px;height:22px}
+  .task-x{width:44px;height:44px}
   .bottom-nav{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:30;background:var(--bg2);border-top:1px solid var(--line);overflow-x:auto;padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
   .bottom-nav button{flex:1 0 auto;min-width:64px;border:0;background:none;color:var(--dim);font:inherit;font-size:11px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px;cursor:pointer}
   .bottom-nav button.active{color:var(--pri)}
@@ -368,9 +398,21 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
           <div id="ovDrift" class="mt" style="font-size:12px"></div>
         </div>
       </div>
-      <div class="grid g2 mt">
+      <div class="grid ov-bottom mt">
         <div class="card"><div class="card-head"><h3>3 תובנות עיקריות</h3><div class="tools"><button class="qchip" data-go="recs">לכל ההמלצות ←</button></div></div><div id="ovRecs"></div></div>
-        <div class="card"><div class="card-head"><h3>תחזית מהירה</h3><div class="tools"><button class="qchip" data-go="forecast">לתחזית המלאה ←</button></div></div><div id="ovFc"></div></div>
+        <div class="card ov-fc-card"><div class="card-head"><h3>תחזית מהירה</h3><div class="tools"><button class="qchip" data-go="forecast">לתחזית המלאה ←</button></div></div><div id="ovFc"></div></div>
+        <div class="card ov-tasks">
+          <div class="card-head"><h3>משימות</h3><div class="tools">
+            <button type="button" class="qchip" id="ovTaskHide">הסתר שבוצעו</button>
+            <button type="button" class="qchip" id="ovTaskClear">נקה שבוצעו</button>
+          </div></div>
+          <form class="task-add" id="ovTaskForm" autocomplete="off">
+            <input id="ovTaskIn" type="text" maxlength="200" placeholder="למשל: לעדכן יתרת פנסיה" enterkeyhint="done" aria-label="משימה חדשה">
+            <button class="btn sm" type="submit">הוסף</button>
+          </form>
+          <div class="task-list" id="ovTasks"></div>
+          <div class="task-note faint" id="ovTaskNote"></div>
+        </div>
       </div>
     </section>
 
@@ -537,7 +579,7 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
         </div>
         <div class="chips-row" style="margin-top:10px"><button class="btn ghost" id="gReload">טען מחדש מה-Gist</button><button class="btn ghost" id="gForget">שכח פרטי Gist של v2</button></div>
         <div id="gMsg" class="mt" style="font-size:13px"></div>
-        <div class="faint mt" style="font-size:11px">טעינה: <span class="num">GET api.github.com/gists/{id}</span>. שמירה (רק כשאתה לוחץ "שמור"): <span class="num">PATCH</span> של <span class="num">finance_data.json</span>, אותה בקשה כמו באתר המקורי, אחרי בדיקה שה-Gist לא עודכן בינתיים ממקום אחר. אם האתר המקורי כבר מחובר בדפדפן הזה, נעשה שימוש ב-<span class="num">fin26_token</span>/<span class="num">fin26_gist</span> שלו. פרטים שהוזנו כאן נשמרים רק ב-<span class="num">fin26_v2</span>. קישור גישה מהאתר המקורי (<span class="num">#access=…</span>) נתמך גם בכתובת v2.</div>
+        <div class="faint mt" style="font-size:11px">טעינה: <span class="num">GET api.github.com/gists/{id}</span>. שמירה (רק כשאתה לוחץ "שמור"): <span class="num">PATCH</span> של <span class="num">finance_data.json</span>, אותה בקשה כמו באתר המקורי, אחרי בדיקה שה-Gist לא עודכן בינתיים ממקום אחר. אם האתר המקורי כבר מחובר בדפדפן הזה, נעשה שימוש ב-<span class="num">fin26_token</span>/<span class="num">fin26_gist</span> שלו. פרטים שהוזנו כאן נשמרים רק ב-<span class="num">fin26_v2</span>. קישור גישה מהאתר המקורי (<span class="num">#access=…</span>) נתמך גם בכתובת v2. משימות הסקירה נשמרות בנפרד — ב-<span class="num">fin26_v2</span> ובקובץ <span class="num">tasks.json</span> באותו Gist (לא בתוך <span class="num">finance_data.json</span>), כדי שהאתר המקורי לא יושפע.</div>
       </div>
       <div class="card mt"><h3>הקצאת יעד והנחות לפי סוג נכס</h3>
         <div class="tbl-wrap"><table id="tblTargets"></table></div>
@@ -560,6 +602,9 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
    'fin26' (state S), 'fin26_snaps' (daily totals), 'fin26_gemini' (AI key).
    Prefs / backups / cache live in 'fin26_v2'. Real-estate holdings are kept
    in storage but ignored everywhere in v2 UI and calculations.
+   Overview tasks are NOT inside finance_data.json. They live in fin26_v2.tasks
+   (fin26_v2.demoTasks while showing example data) and, when a gist token
+   exists, in the same Gist as tasks.json. v1 only reads finance_data.json.
    ===================================================================== */
 const KEY_STATE='fin26', KEY_SNAPS='fin26_snaps', KEY_GEMINI='fin26_gemini', KEY_V2='fin26_v2';
 /* Sanitized historical total-assets ({d,v} only — no names/accounts). Merged into fin26_snaps when missing. */
@@ -680,10 +725,14 @@ function makeExample(){
 
 /* ---------------- LOAD (read-only) ---------------- */
 let S,SNAPS=[],SRC='example',SRC_NOTE='',SRC_MSG='',SRC_MSG_KIND='info',GIST_META=null,ACCESS_MSG='';
+let TASKS={v:1,updatedAt:null,items:[]},TASKS_BASE={v:1,updatedAt:null,items:[]};
+let taskSaveTimer=null,taskLocalTimer=null,taskPushing=false,taskAgain=false;
+let taskStatusKind='local',taskStatusErr='';
 const GIST_FILENAME='finance_data.json'; // same file name the original site uses
+const TASKS_FILE='tasks.json'; // separate gist file — v1 never reads it, and v1's PATCH of finance_data.json leaves other files in place
 const KEY_TOKEN='fin26_token', KEY_GIST='fin26_gist'; // original keys — READ ONLY here
 function v2raw(){try{return JSON.parse(localStorage.getItem(KEY_V2)||'{}')||{};}catch(e){return {};}}
-const V2_META=['auth','cache','backups','pendingSync','histAssets','dismissedRecs','tzShortCache'];
+const V2_META=['auth','cache','backups','pendingSync','histAssets','dismissedRecs','tzShortCache','tasks','demoTasks'];
 function writeV2(v){ // quota-safe: drop oldest backups, then cache, if storage is full
   for(let k=0;k<14;k++){try{localStorage.setItem(KEY_V2,JSON.stringify(v));return true;}catch(e){
     if(v.backups&&v.backups.length>1)v.backups.pop();else if(v.cache)delete v.cache;else if(v.backups&&v.backups.length)v.backups.pop();else{console.warn('fin26_v2 write failed',e);return false;}}}
@@ -718,7 +767,8 @@ async function fetchGist(c){
     if(f.truncated&&f.raw_url){const rr=await fetch(f.raw_url,{method:'GET',signal:ctl.signal,cache:'no-store'});if(!rr.ok)throw new Error('טעינת הקובץ המלא נכשלה ('+rr.status+')');content=await rr.text();}
     let p;try{p=JSON.parse(content);}catch(e){throw new Error(`${GIST_FILENAME} אינו JSON תקין`);}
     if(!p||!Array.isArray(p.investments))throw new Error(`מבנה לא צפוי ב-${GIST_FILENAME} (אין investments)`);
-    return {S:p,gistUpdated:d.updated_at||null};
+    const tasksParsed=await readGistTasks(d.files,ctl);
+    return {S:p,gistUpdated:d.updated_at||null,tasksState:tasksParsed.state,tasks:tasksParsed.doc};
   }catch(e){
     if(e.name==='AbortError')throw new Error('תם הזמן לחיבור ל-GitHub (אין רשת?)');
     if(e instanceof TypeError)throw new Error('אין חיבור לרשת או ש-GitHub לא זמין');
@@ -730,9 +780,11 @@ const tsOf=o=>{const t=Date.parse(o&&o.lastUpdated||'');return isFinite(t)?t:0;}
 async function loadData(){
   S=null;SNAPS=[];SRC='example';SRC_NOTE='';SRC_MSG='';SRC_MSG_KIND='info';GIST_META=null;
   const forceDemo=/[?&]demo=1/.test(location.search);
+  let gistPack=null;
   if(!forceDemo){
     const local=readLocal(),c=getCreds();let g=null,err='';
     if(c){try{g=await fetchGist(c);}catch(e){err=e.message;console.warn('Gist load (read-only):',e.message);}}
+    gistPack=g;
     if(g){
       if(local&&tsOf(local)>tsOf(g.S)){S=local;SRC='local';SRC_MSG=`הנתונים בדפדפן הזה (${heDate(local.lastUpdated)}) חדשים יותר מה-Gist (${g.S.lastUpdated?heDate(g.S.lastUpdated):'ללא תאריך'}) — מוצגים הנתונים המקומיים.`;}
       else{S=g.S;SRC='gist';GIST_META={from:c.from,gistUpdated:g.gistUpdated,at:new Date().toISOString()};
@@ -747,6 +799,7 @@ async function loadData(){
   else S=JSON.parse(JSON.stringify(S)); // work on a private copy — never mutate stored objects
   S.tracks=S.tracks||[];S.loans=S.loans||[];S.slog=(S.slog||[]).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));S.set=S.set||{};
   S.investments.forEach(i=>{i.bal=+i.bal||0;});
+  adoptTasks(gistPack);
   BASE_TS=tsOf(S);DRAFT={inv:{},loan:{}};
   try{mergeHistAssetsSeed();}catch(e){console.warn('hist merge',e);}
 }
@@ -755,13 +808,219 @@ const isRealSrc=()=>SRC!=='example';
 let P;
 function loadPrefs(){
   let p={};try{p=JSON.parse(localStorage.getItem(KEY_V2)||'{}')||{};}catch(e){}
-  P=Object.assign({theme:null,privacy:false,targets:{...DEF_TARGETS},assume:JSON.parse(JSON.stringify(DEF_ASSUME)),
+  P=Object.assign({theme:null,privacy:false,hideDoneTasks:false,targets:{...DEF_TARGETS},assume:JSON.parse(JSON.stringify(DEF_ASSUME)),
     monthlyExpenses:isRealSrc()?null:18000,emMonths:6,concPct:20,driftPct:5,feeHigh:0.6,fc:{},alScope:'fin',rbNewMoney:false,ovRange:0},p);
   P.targets=Object.assign({...DEF_TARGETS},P.targets||{});
-  P.auth=p.auth;delete P.cache;delete P.backups;delete P.pendingSync;delete P.tzShortCache;delete P.tzShareGist;delete P.tzShareIndex; // meta keys live only in storage
+  P.hideDoneTasks=!!P.hideDoneTasks;
+  P.auth=p.auth;delete P.cache;delete P.backups;delete P.pendingSync;delete P.tzShortCache;delete P.tzShareGist;delete P.tzShareIndex;delete P.tasks;delete P.demoTasks; // meta keys live only in storage
   Object.keys(DEF_ASSUME).forEach(k=>P.assume[k]=Object.assign({...DEF_ASSUME[k]},(P.assume||{})[k]||{}));
 }
 function savePrefs(){const v=v2raw();const out={...P};V2_META.forEach(k=>{if(v[k]!==undefined)out[k]=v[k];else delete out[k];});writeV2(out);}
+
+/* ---------------- OVERVIEW TASKS ----------------
+   Stored outside finance_data.json so the original site (which JSON.parses that
+   file and ignores unknown keys, but rewrites the whole file on save) cannot
+   drop or be broken by the list. Local copy: fin26_v2.tasks / .demoTasks.
+   Cross-device: tasks.json in the same Gist, PATCH of that file only.
+   ---------------- */
+function taskDocTime(d){const n=Date.parse(d&&d.updatedAt||'');return isFinite(n)?n:0;}
+function taskTime(t){const n=Date.parse(t&&(t.updatedAt||t.createdAt)||'');return isFinite(n)?n:0;}
+function cloneTaskDoc(d){return JSON.parse(JSON.stringify(normalizeTaskDoc(d)));}
+function normalizeTaskDoc(raw){
+  const empty={v:1,updatedAt:null,items:[]};
+  if(!raw||typeof raw!=='object')return empty;
+  const arr=Array.isArray(raw.items)?raw.items:(Array.isArray(raw)?raw:[]);
+  const items=[];const seen=new Set();
+  for(const t of arr){
+    if(!t||typeof t!=='object')continue;
+    const text=String(t.text??'').replace(/[\u0000-\u001f]/g,'').trim().slice(0,200);
+    if(!text)continue;
+    let id=String(t.id||'').replace(/[^\w-]/g,'').slice(0,32);
+    if(!id||seen.has(id))id=(typeof uid==='function'?uid():('_'+Math.random().toString(36).slice(2,11)));
+    if(seen.has(id))continue;
+    seen.add(id);
+    const createdAt=/^\d{4}-\d{2}-\d{2}T/.test(String(t.createdAt||''))?String(t.createdAt):new Date().toISOString();
+    const updatedAt=/^\d{4}-\d{2}-\d{2}T/.test(String(t.updatedAt||''))?String(t.updatedAt):createdAt;
+    items.push({id,text,done:!!t.done,createdAt,updatedAt});
+    if(items.length>=200)break;
+  }
+  const updatedAt=/^\d{4}-\d{2}-\d{2}T/.test(String(raw.updatedAt||''))?String(raw.updatedAt):(items.length?items.reduce((m,t)=>t.updatedAt>m?t.updatedAt:m,''):null);
+  return {v:1,updatedAt:updatedAt||null,items};
+}
+function mergeTaskDocs(base,local,remote){
+  const bm=new Map((base.items||[]).map(t=>[t.id,t]));
+  const lm=new Map((local.items||[]).map(t=>[t.id,t]));
+  const rm=new Map((remote.items||[]).map(t=>[t.id,t]));
+  const items=[];
+  for(const id of new Set([...lm.keys(),...rm.keys()])){
+    const b=bm.get(id),l=lm.get(id),r=rm.get(id);
+    if(b&&!l&&r){if(taskTime(r)>taskTime(b))items.push(r);continue;}
+    if(b&&l&&!r){if(taskTime(l)>taskTime(b))items.push(l);continue;}
+    if(l&&r)items.push(taskTime(l)>=taskTime(r)?l:r);
+    else if(l)items.push(l);
+    else if(r)items.push(r);
+  }
+  return {v:1,updatedAt:new Date().toISOString(),items};
+}
+function taskStorageKey(){return SRC==='example'?'demoTasks':'tasks';}
+function saveTasksLocal(){
+  clearTimeout(taskLocalTimer);taskLocalTimer=null;
+  const doc=normalizeTaskDoc(TASKS);
+  const key=taskStorageKey();
+  v2patch(v=>{v[key]=doc;});
+  const back=normalizeTaskDoc((v2raw()||{})[key]);
+  if(back.items.length!==doc.items.length||back.items.some((t,i)=>t.text!==doc.items[i].text||t.done!==doc.items[i].done)){
+    taskStatusKind='err';taskStatusErr='השמירה בדפדפן נכשלה';
+    return false;
+  }
+  return true;
+}
+function flushTasksLocal(){return saveTasksLocal();}
+async function readGistTasks(files,ctl){
+  const f=files&&files[TASKS_FILE];
+  if(!f)return {state:'missing',doc:null};
+  let content=f.content||'';
+  try{
+    if(f.truncated&&f.raw_url){
+      const rr=await fetch(f.raw_url,{method:'GET',signal:ctl?ctl.signal:undefined,cache:'no-store'});
+      if(!rr.ok)return {state:'bad',doc:null};
+      content=await rr.text();
+    }
+    if(!String(content).trim())return {state:'missing',doc:null};
+    return {state:'ok',doc:normalizeTaskDoc(JSON.parse(content))};
+  }catch(e){return {state:'bad',doc:null};}
+}
+function adoptTasks(g){
+  const local=normalizeTaskDoc((v2raw()||{})[taskStorageKey()]);
+  taskStatusErr='';
+  if(SRC==='example'||!g){TASKS=local;TASKS_BASE=cloneTaskDoc(local);taskStatusKind=SRC==='example'?'demo':'local';return;}
+  if(g.tasksState==='bad'){TASKS=local;TASKS_BASE=cloneTaskDoc(local);taskStatusKind='err';taskStatusErr='tasks.json לא תקין';return;}
+  if(g.tasksState==='ok'&&g.tasks){
+    if(taskDocTime(g.tasks)>=taskDocTime(local)){TASKS=cloneTaskDoc(g.tasks);saveTasksLocal();}
+    else{TASKS=local;if(getCreds()&&getCreds().token)queueTaskPush();}
+  }else{
+    TASKS=local;
+    if(local.items.length&&getCreds()&&getCreds().token)queueTaskPush();
+  }
+  TASKS_BASE=cloneTaskDoc(TASKS);
+  if(taskStatusKind!=='err')taskStatusKind=(getCreds()&&getCreds().token)?'gist':'local';
+}
+function touchTasks(){
+  TASKS.v=1;TASKS.updatedAt=new Date().toISOString();
+  const ok=saveTasksLocal();
+  taskStatusKind=ok?(SRC==='example'?'demo':'local'):'err';
+  if(!ok&&!taskStatusErr)taskStatusErr='השמירה בדפדפן נכשלה';
+  updateTaskStatus();
+  clearTimeout(taskSaveTimer);taskSaveTimer=setTimeout(()=>pushTasksGist(),700);
+}
+function queueTaskPush(){clearTimeout(taskSaveTimer);taskSaveTimer=setTimeout(()=>pushTasksGist(),400);}
+async function patchGistFile(c,filename,content){
+  const r=await fetch('https://api.github.com/gists/'+encodeURIComponent(c.gist),{method:'PATCH',
+    headers:{Authorization:'Bearer '+c.token,Accept:'application/vnd.github+json','Content-Type':'application/json'},
+    body:JSON.stringify({files:{[filename]:{content}}})});
+  if(!r.ok)throw new Error(r.status===401?'401 — token לא תקין':(r.status===403||r.status===404)?r.status+' — אין הרשאת gist':'שגיאת GitHub '+r.status);
+}
+async function pushTasksGist(){
+  if(SRC==='example'){if(taskStatusKind!=='err')taskStatusKind='demo';updateTaskStatus();return;}
+  const c=getCreds();
+  if(!c||!c.token){taskStatusKind='local';updateTaskStatus();return;}
+  if(taskPushing){taskAgain=true;return;}
+  taskPushing=true;taskAgain=false;
+  flushTasksLocal();
+  const snapshot=cloneTaskDoc(TASKS);
+  try{
+    const g=await fetchGist(c);
+    let doc=snapshot;
+    if(g.tasksState==='bad')throw new Error('tasks.json לא תקין — לא דרסתי');
+    if(g.tasksState==='ok'&&g.tasks)doc=normalizeTaskDoc(mergeTaskDocs(TASKS_BASE,snapshot,g.tasks));
+    doc.updatedAt=new Date().toISOString();doc.v=1;
+    await patchGistFile(c,TASKS_FILE,JSON.stringify(doc,null,2));
+    TASKS_BASE=cloneTaskDoc(doc);
+    if(!taskAgain){TASKS=cloneTaskDoc(doc);saveTasksLocal();}
+    taskStatusKind='gist';taskStatusErr='';
+  }catch(e){
+    taskStatusKind='err';taskStatusErr=e&&e.message?e.message:String(e);
+    console.warn('tasks gist',e);
+  }finally{
+    taskPushing=false;updateTaskStatus();
+    if(taskAgain){taskAgain=false;pushTasksGist();}
+  }
+}
+function updateTaskStatus(){
+  const el=$('#ovTaskNote');if(!el)return;
+  const n=TASKS.items.length;
+  const count=n?` · ${n} משימות`:'';
+  if(taskStatusKind==='demo')el.textContent='נשמר בדפדפן הזה'+count+' (נתוני דוגמה — לא נכתב ל-Gist).';
+  else if(taskStatusKind==='saving')el.textContent='שומר…';
+  else if(taskStatusKind==='gist')el.textContent='נשמר במכשיר ומסונכרן ל-Gist'+count+'.';
+  else if(taskStatusKind==='err')el.textContent='שמירה לא הושלמה'+(taskStatusErr?': '+taskStatusErr:'')+'.';
+  else el.textContent='נשמר במכשיר הזה'+count+'. סנכרון בין מכשירים דורש token עם הרשאת gist.';
+}
+function renderTaskList(){
+  const box=$('#ovTasks');if(!box)return;
+  const hide=!!(P&&P.hideDoneTasks);
+  const hideBtn=$('#ovTaskHide');if(hideBtn)hideBtn.textContent=hide?'הצג שבוצעו':'הסתר שבוצעו';
+  const clearBtn=$('#ovTaskClear');
+  const doneN=TASKS.items.filter(t=>t.done).length;
+  if(clearBtn)clearBtn.disabled=!doneN;
+  const items=TASKS.items.slice().sort((a,b)=>{
+    if(a.done!==b.done)return a.done?1:-1;
+    return String(b.createdAt).localeCompare(String(a.createdAt));
+  }).filter(t=>hide?!t.done:true);
+  if(!TASKS.items.length)box.innerHTML='<div class="task-empty">אין משימות. למשל: לעדכן יתרת פנסיה, או לבדוק דמי ניהול בהשתלמות.</div>';
+  else if(!items.length)box.innerHTML='<div class="task-empty">כל המשימות סומנו כבוצעו. אפשר להציג אותן או לנקות.</div>';
+  else{
+    box.innerHTML=items.map(t=>`<div class="task-row${t.done?' done':''}">
+      <input type="checkbox" data-task-done="${esc(t.id)}" ${t.done?'checked':''} aria-label="סמן כבוצע">
+      <input class="task-text" data-task-text="${esc(t.id)}" value="${esc(t.text)}" maxlength="200" aria-label="טקסט המשימה">
+      <button type="button" class="task-x" data-task-del="${esc(t.id)}" aria-label="מחק משימה">✕</button>
+    </div>`).join('');
+    box.querySelectorAll('[data-task-done]').forEach(el=>{el.onchange=()=>{
+      const t=TASKS.items.find(x=>x.id===el.dataset.taskDone);if(!t)return;
+      t.done=!!el.checked;t.updatedAt=new Date().toISOString();touchTasks();renderTaskList();
+    };});
+    box.querySelectorAll('[data-task-text]').forEach(el=>{
+      el.oninput=()=>{
+        const t=TASKS.items.find(x=>x.id===el.dataset.taskText);if(!t)return;
+        const text=el.value.replace(/[\u0000-\u001f]/g,'').trim().slice(0,200);
+        if(!text)return;
+        t.text=text;t.updatedAt=new Date().toISOString();touchTasks();
+      };
+      el.onkeydown=ev=>{if(ev.key==='Enter'){ev.preventDefault();el.blur();}};
+      el.onblur=()=>{
+        const t=TASKS.items.find(x=>x.id===el.dataset.taskText);if(!t)return;
+        const text=el.value.replace(/[\u0000-\u001f]/g,'').trim().slice(0,200);
+        if(!text){el.value=t.text;return;}
+        el.value=text;
+        if(text!==t.text){t.text=text;t.updatedAt=new Date().toISOString();touchTasks();}
+      };
+    });
+    box.querySelectorAll('[data-task-del]').forEach(el=>{el.onclick=()=>{
+      TASKS.items=TASKS.items.filter(t=>t.id!==el.dataset.taskDel);touchTasks();renderTaskList();
+    };});
+  }
+  updateTaskStatus();
+}
+function bindOverviewTasks(){
+  const form=$('#ovTaskForm');
+  if(form)form.onsubmit=ev=>{
+    ev.preventDefault();
+    const inp=$('#ovTaskIn');
+    const text=(inp&&inp.value||'').replace(/[\u0000-\u001f]/g,'').trim().slice(0,200);
+    if(!text){if(inp)inp.focus();return;}
+    const now=new Date().toISOString();
+    TASKS.items.unshift({id:uid(),text,done:false,createdAt:now,updatedAt:now});
+    if(inp)inp.value='';
+    touchTasks();renderTaskList();if(inp)inp.focus();
+  };
+  const hb=$('#ovTaskHide');if(hb)hb.onclick=()=>{P.hideDoneTasks=!P.hideDoneTasks;savePrefs();renderTaskList();};
+  const cb=$('#ovTaskClear');if(cb)cb.onclick=()=>{
+    if(!TASKS.items.some(t=>t.done))return;
+    if(!confirm('למחוק את כל המשימות שבוצעו?'))return;
+    TASKS.items=TASKS.items.filter(t=>!t.done);touchTasks();renderTaskList();
+  };
+  renderTaskList();
+}
 
 /* ---------------- CORE ANALYTICS ---------------- */
 const isFin=i=>i.cat!=='realestate';
@@ -1108,10 +1367,12 @@ function renderOverview(){
   /* Quick forecast — SAME inputs/math as Forecast page FV mode (fcInputs + fcCompute). */
   const f=fcInputs();const res=fcCompute(f);
   const stressed=Math.round((f.depStress??100)*10)/10!==100;
-  const scopeLbl=f.scope==='liq'?'נזיל בלבד':'כל ההון הפיננסי';
-  $('#ovFc').innerHTML=`<div class="dim" style="font-size:12px">אותה תחזית כמו בעמוד <a href="#forecast">תחזית</a> (מצב שווי צפוי): ב־<b>${heDate(f.date)}</b> · בעוד ${(res.n/12).toFixed(1)} שנים · הון התחלתי ${ils(res.P0)} (${scopeLbl}) · הפקדה <b>${ils(res.monthly)}</b>/חודש${stressed?` <span class="warn">(${Math.round(f.depStress)}% מ־${ilsT(f.monthly)})</span>`:''} · תשואה ${f.ret}% − דמי ניהול ${f.fee}%:</div>
-    <div class="big-result" style="font-size:30px;margin-top:6px">${ils(res.exp)}</div>
-    <div class="dim" style="font-size:12px">טווח שמרני–אופטימי: ${ils(res.cons)} – ${ils(res.opt)} · בכסף של היום: ${ils(res.real)}</div>`;
+  const scopeLbl=f.scope==='liq'?'נזיל בלבד':'כל ההון';
+  $('#ovFc').innerHTML=`<div class="ov-fc-when dim">ב־<b>${heDate(f.date)}</b> · עוד ${(res.n/12).toFixed(1)} שנים · הון ${ils(res.P0)} (${scopeLbl})</div>
+    <div class="ov-fc-val" title="אותו חישוב כמו בעמוד התחזית, מצב שווי צפוי">${ils(res.exp)}</div>
+    <div class="ov-fc-range"><span>שמרני ${ils(res.cons)}</span><span>אופטימי ${ils(res.opt)}</span></div>
+    <div class="ov-fc-meta dim">ריאלי ${ils(res.real)} · הפקדה ${ils(res.monthly)}/חודש${stressed?` <span class="warn">(${Math.round(f.depStress)}% מ־${ilsT(f.monthly)})</span>`:''} · תשואה ${f.ret}% − דמי ניהול ${f.fee}%</div>`;
+  bindOverviewTasks();
 }
 
 /* ALLOCATION */
@@ -2206,6 +2467,9 @@ async function boot(){
   $('#privBtn').onclick=()=>{P.privacy=!P.privacy;savePrefs();applyTheme();};
   window.addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(h.startsWith('access='))return;show(resolvePage(ingestTzHash(h)||'overview'));});
   initEditing();
+  const flushTasks=()=>{flushTasksLocal();if(taskSaveTimer){clearTimeout(taskSaveTimer);taskSaveTimer=null;pushTasksGist();}};
+  window.addEventListener('pagehide',flushTasks);
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushTasks();});
   show(resolvePage(ingestTzHash(location.hash.slice(1))||'overview'));
 }
 document.addEventListener('DOMContentLoaded',boot);
