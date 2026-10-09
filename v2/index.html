@@ -97,6 +97,7 @@ td.n,th.n{text-align:left}
 .tag.pos{color:var(--pos);border-color:color-mix(in srgb,var(--pos) 40%,transparent)}
 .tag.neg{color:var(--neg);border-color:color-mix(in srgb,var(--neg) 40%,transparent)}
 .tag.warn{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 40%,transparent)}
+.tag.pub{color:var(--pos);border-color:color-mix(in srgb,var(--pos) 40%,transparent);background:color-mix(in srgb,var(--pos) 8%,transparent)}
 /* forms */
 .form{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px}
 .field label{display:block;font-size:12px;color:var(--dim);margin-bottom:4px}
@@ -433,7 +434,7 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
       <div class="card mb">
         <div class="card-head"><h3>היקף הניתוח</h3>
           <div class="tools"><div class="seg" id="alScope"><button data-s="fin" class="on">כל ההון הפיננסי</button><button data-s="liq">נזיל בלבד</button></div></div></div>
-        <div class="dim" style="font-size:12px">נדל"ן אינו מוצג ואינו נכלל בחישובים ב-v2 (נשמר בנתונים לשימוש האתר המקורי). מסלולים מעורבים מפורקים לרכיביהם לפי טבלת ההנחות בהגדרות — לחץ/רחף על פלח כדי לראות אילו אחזקות מרכיבות אותו.</div>
+        <div class="dim" style="font-size:12px">נדל"ן אינו מוצג ואינו נכלל בחישובים ב-v2 (נשמר בנתונים לשימוש האתר המקורי). מסלול עם נתון ציבורי מפורק לפי גמל-נט / פנסיה-נט / ביטוח-נט; בלי התאמה — לפי טבלת ההנחות בהגדרות. לחץ/רחף על פלח כדי לראות אילו אחזקות מרכיבות אותו ומה מקור המשקל.</div>
       </div>
       <div class="grid g3 alloc-charts">
         <div class="card" id="cardCls"><h3>סוג נכס</h3><div class="chart sm"><canvas id="cCls"></canvas></div></div>
@@ -584,7 +585,7 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
       <div class="card mt"><h3>הקצאת יעד והנחות לפי סוג נכס</h3>
         <div class="tbl-wrap"><table id="tblTargets"></table></div>
         <div class="dim mt" style="font-size:12px" id="tgtSum"></div></div>
-      <div class="card mt"><h3>מיפוי מסלולים (look-through)</h3><div class="dim" style="font-size:12px;margin-bottom:8px">כך כל מסלול מפורק לסוג נכס/מטבע/גאוגרפיה. אלו הנחות — ניתן לעדכן בקוד (LOOK).</div><div class="tbl-wrap"><table id="tblLook"></table></div></div>
+      <div class="card mt"><h3>מיפוי מסלולים (look-through)</h3><div class="dim" style="font-size:12px;margin-bottom:8px" id="lookNote">כך כל מסלול מפורק לסוג נכס/מטבע/גאוגרפיה.</div><div class="tbl-wrap"><table id="tblLook"></table></div></div>
       <div class="card mt"><div class="card-head"><h3>🗂 גיבויים (לפני שמירות של v2)</h3><div class="tools"><button class="btn ghost sm" id="bkNow">צור גיבוי עכשיו</button></div></div>
         <div class="dim" style="font-size:12px;margin-bottom:8px">לפני השמירה הראשונה בכל סשן (ולפני כל שחזור) נשמר עותק של הנתונים הקודמים ב-<span class="num">fin26_v2.backups</span> (10 אחרונים, בדפדפן הזה בלבד). שחזור שומר את הגיבוי כנתונים הנוכחיים (בדפדפן וב-Gist).</div>
         <div class="tbl-wrap"><table id="tblBk"></table></div></div>
@@ -595,6 +596,7 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
 <nav class="bottom-nav" id="bottomNav"></nav>
 <div class="modal-bg" id="modal"><div class="modal-box" role="dialog" aria-modal="true"><div class="modal-head"><b id="mdTitle"></b><button id="mdX" aria-label="סגור">✕</button></div><div class="modal-body" id="mdBody"></div><div class="modal-foot" id="mdFoot"></div></div></div>
 <div class="toast" id="toast"></div>
+<script src="lookthrough.js"></script>
 <script>
 'use strict';
 /* =====================================================================
@@ -1035,12 +1037,42 @@ function totals(){
   const debt=sum(S.loans.filter(l=>!l.closed),l=>+l.bal||0);
   return {fin,liq,locked,re,debt,net:fin-debt}; // RE excluded from net worth in v2
 }
-function look(inv){
+let PUB={funds:[],sources:[],generatedAt:null,live:false};
+function assumptionLook(inv){
   let L=LOOK[inv.track]||LOOK[CAT_FALLBACK[inv.cat]]||LOOK['אחר'];
   if(inv.cat==='cash'&&!LOOK[inv.track]) L=LOOK['כספית'];
   if(inv.cat==='cash'&&inv.track==='אחר') L={cls:{cash:1},geo:{IL:1},ccy:{ILS:1}};
-  if(inv.currency&&inv.currency!=='ILS'&&inv.cat==='forex'){L={...L,ccy:{[inv.currency]:1}};}
   return L;
+}
+function look(inv){
+  const base=assumptionLook(inv);
+  let why='no-track';
+  if(window.FinLook&&PUB.funds&&PUB.funds.length){
+    const hit=FinLook.matchFund(inv, PUB.funds);
+    why=hit.why||why;
+    if(hit.fund){
+      const mixed=FinLook.composePublic(base, hit.fund);
+      let L={cls:mixed.cls, geo:mixed.geo, ccy:mixed.ccy, pub:{source:hit.fund.source, period:hit.fund.period, fundId:hit.fund.fundId, name:hit.fund.name}, assumeWhy:null};
+      if(inv.currency&&inv.currency!=='ILS'&&inv.cat==='forex') L={...L, ccy:{[inv.currency]:1}};
+      return L;
+    }
+  }
+  let L={cls:base.cls, geo:base.geo, ccy:base.ccy, pub:null, assumeWhy:why};
+  if(inv.currency&&inv.currency!=='ILS'&&inv.cat==='forex') L={...L, ccy:{[inv.currency]:1}};
+  return L;
+}
+function srcTag(L){
+  const FL=window.FinLook;
+  const meta=(FL?FL.sourceLabel(L&&L.pub):null)||{kind:L&&L.pub?'public':'assume', text:L&&L.pub?'מקור: נתונים ציבוריים':'מקור: הנחה במערכת'};
+  const why=L&&L.pub&&FL?`${(FL.SRC_HE[L.pub.source]||'')} · ${L.pub.name}`:(L&&L.assumeWhy&&FL&&FL.WHY_HE[L.assumeWhy])||'';
+  const tip=L&&L.pub?'משקל המניות, החשיפה לחו״ל והחשיפה למט״ח מהדיווח החודשי. פיצול אג״ח/מזומן וארה״ב/שאר העולם נשאר לפי יחס ההנחה, כי המאגר לא מפרסם אותו.':'';
+  return `<span class="tag ${meta.kind==='public'?'pub':''}" title="${esc(tip||why)}">${esc(meta.text)}</span>${why?`<div class="faint" style="font-size:11px;margin-top:2px">${esc(why)}</div>`:''}`;
+}
+function lookStatusNote(){
+  const srcs=(PUB.sources||[]).filter(s=>s.period);
+  const when=srcs.length&&window.FinLook?[...new Set(srcs.map(s=>FinLook.periodLabel(s.period)))].join(', '):'';
+  const via=PUB.live?'עודכן עכשיו מ-data.gov.il':(PUB.generatedAt?'עותק שמור באתר (מתרענן גם ישירות מ-data.gov.il)':'');
+  return `כשיש התאמה למסלול מפורסם, משקל המניות, החשיפה לחו״ל והחשיפה למט״ח מגיעים מגמל-נט / פנסיה-נט / ביטוח-נט${when?` (נכון ל-${when})`:''}${via?` · ${via}`:''}. פיצול אג״ח מול מזומן, וארה״ב מול שאר העולם, נשאר לפי יחס ההנחה — המאגרים לא מפרסמים אותו. בלי התאמה נשארת ההנחה שבקוד (LOOK).`;
 }
 function exposures(scope){
   const hs=S.investments.filter(scope==='liq'?isLiq:isFin);const tot=sum(hs,i=>i.bal)||1;
@@ -1384,10 +1416,10 @@ function renderAllocDrill(dim,key,label,color,scope){
   const dimN={cls:'סוג נכס',ccy:'מטבע',geo:'גאוגרפיה'}[dim];
   el.className='drill';
   el.innerHTML=`<h4><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${color}"></i>${esc(label)} <span class="pill">${dimN}</span> <span class="pill m">${ilsT(sp.tot)}</span></h4>
-    <div class="dim" style="font-size:11px;margin-bottom:8px">פירוק לפי מיפוי המסלולים (look-through) בהגדרות. במסלול מעורב מוצג החלק היחסי שמיוחס לפלח.</div>
+    <div class="dim" style="font-size:11px;margin-bottom:8px">פירוק לפי מיפוי המסלולים. במסלול מעורב מוצג החלק היחסי שמיוחס לפלח. לכל אחזקה מצוין אם המשקל מנתונים ציבוריים או מהנחה.</div>
     <div class="tbl-wrap"><table><tr><th>אחזקה</th><th class="hide-m">מסלול</th><th class="n">משקל במסלול</th><th class="n">סכום בפלח</th><th class="n">% מהפלח</th><th class="bar-cell hide-m"></th></tr>`+
     sp.rows.map(r=>{const pctS=r.amt/sp.tot*100;const lookTxt=Object.entries((r.L[dim])||{}).filter(([k])=>dim!=='ccy'||(key==='OTHER'?!(k in CCY_COL):k===key)||k===key).map(([k,v])=>`${Math.round(v*100)}%`).join('')||`${Math.round(r.w*100)}%`;
-      return `<tr><td><b>${esc(r.i.name)}</b><div class="faint" style="font-size:11px">${esc(CATS[r.i.cat]||r.i.cat)} · ${esc(r.i.inst||'')}</div></td>
+      return `<tr><td><b>${esc(r.i.name)}</b><div class="faint" style="font-size:11px">${esc(CATS[r.i.cat]||r.i.cat)} · ${esc(r.i.inst||'')}</div>${srcTag(r.L)}</td>
         <td class="hide-m"><span class="tag">${esc(r.track)}</span></td><td class="n m">${(r.w*100).toFixed(0)}%</td><td class="n">${ils(r.amt)}</td><td class="n m">${pctS.toFixed(1)}%</td>
         <td class="bar-cell hide-m"><div class="mini-bar"><div style="width:${clamp(pctS,0,100)}%;background:${color}"></div></div></td></tr>`;}).join('')+`</table></div>`;
 }
@@ -1399,7 +1431,7 @@ function renderAlloc(){
   const geoE=Object.entries(e.geo).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]).map(([k,v])=>({n:GEO[k]?.n||k,v,c:GEO[k]?.c||'#94a3b8',key:k,dim:'geo',_sp:sliceParts('geo',k,sc)}));
   const focus=ent=>renderAllocDrill(ent.dim,ent.key,ent.n,ent.c,sc);
   donut('cCls',clsE,{onFocus:focus});donut('cCcy',ccyE,{onFocus:focus});donut('cGeo',geoE,{onFocus:focus});
-  $('#alDrill').className='drill empty-state';$('#alDrill').textContent='בחר פלח בגרף (רחף במחשב / הקש במובייל) כדי לראות אילו אחזקות מרכיבות אותו, עם סכומים ו-% מתוך הפלח — לפי מיפוי המסלולים בהגדרות.';
+  $('#alDrill').className='drill empty-state';$('#alDrill').textContent='בחר פלח בגרף (רחף במחשב / הקש במובייל) כדי לראות אילו אחזקות מרכיבות אותו, עם סכומים, % מתוך הפלח, ומקור המשקל (נתונים ציבוריים או הנחה).';
   // drift + rebalance
   const nm=P.rbNewMoney;$('#rbNewMoney').checked=nm;$('#rbNewMoney').onchange=ev=>{P.rbNewMoney=ev.target.checked;savePrefs();renderAlloc();};
   const rows=Object.keys(CLASSES).map(k=>{const cur=e.cls[k]||0,tgt=(+P.targets[k]||0)/100*e.tot;return {k,cur,tgt,diff:tgt-cur};}).filter(r=>r.cur>0||r.tgt>0);
@@ -2027,9 +2059,18 @@ function renderSettings(){
     $$('[data-t]').forEach(i=>i.oninput=()=>{P.targets[i.dataset.t]=+i.value||0;savePrefs();const s2=sum(Object.values(P.targets),Number);$('#tgtSum b').textContent=s2+'%';$('#tgtSum b').className=Math.abs(s2-100)<.01?'pos':'warn';});
     $$('[data-ar]').forEach(i=>i.oninput=()=>{P.assume[i.dataset.ar].ret=+i.value||0;savePrefs();});
     $$('[data-av]').forEach(i=>i.oninput=()=>{P.assume[i.dataset.av].vol=+i.value||0;savePrefs();});};drawT();
-  const used=new Set(S.investments.filter(isFin).map(i=>i.track));
-  $('#tblLook').innerHTML=`<tr><th>מסלול</th><th>סוג נכס</th><th>מטבע</th><th class="hide-m">גאוגרפיה</th><th class="n">תשואה ב-v1</th></tr>`+Object.entries(LOOK).map(([t,L])=>{const tr=S.tracks.find(x=>x.name===t);const f=o=>Object.entries(o).map(([k,v])=>`${CLASSES[k]?.n||GEO[k]?.n||k} ${Math.round(v*100)}%`).join(' · ');
-    return `<tr style="${used.has(t)?'':'opacity:.55'}"><td><b>${esc(t)}</b>${used.has(t)?'':' <span class="faint">(לא בשימוש)</span>'}</td><td>${f(L.cls)}</td><td>${f(L.ccy)}</td><td class="hide-m">${f(L.geo)}</td><td class="n m ${tr&&tr.rate>15?'warn':''}">${tr?tr.rate+'%':'—'}</td></tr>`;}).join('');
+  if($('#lookNote')) $('#lookNote').textContent=lookStatusNote();
+  const fmtMix=o=>Object.entries(o||{}).map(([k,v])=>`${CLASSES[k]?.n||GEO[k]?.n||k} ${Math.round(v*100)}%`).join(' · ');
+  const prodHe={'gemel-invest':'גמל להשקעה',hishtalmut:'קרן השתלמות','gemel-savings':'קופת גמל',pensia:'פנסיה',policy:'פוליסה'};
+  const rowWho=hs=>[...new Set(hs.map(i=>{const p=window.FinLook?FinLook.holdingProduct(i):null;return [i.inst, prodHe[p]||''].filter(Boolean).join(' · ');}))].join(' / ');
+  const lookRows=()=>{const fin=S.investments.filter(isFin);const order=[...Object.keys(LOOK)];fin.forEach(i=>{if(!order.includes(i.track))order.push(i.track);});const rows=[];
+    order.forEach(t=>{const hs=fin.filter(i=>i.track===t);
+      if(!hs.length){const base=LOOK[t]||LOOK['אחר'];rows.push({t,L:{cls:base.cls,geo:base.geo,ccy:base.ccy,pub:null,assumeWhy:'unused'},hs,unused:true});return;}
+      const groups=new Map();hs.forEach(i=>{const L=look(i);const key=L.pub?`${L.pub.source}:${L.pub.fundId}`:`assume:${L.assumeWhy||''}`;if(!groups.has(key))groups.set(key,{L,hs:[]});groups.get(key).hs.push(i);});
+      [...groups.values()].sort((a,b)=>(a.L.pub?0:1)-(b.L.pub?0:1)).forEach(g=>rows.push({t,L:g.L,hs:g.hs,unused:false}));});
+    return rows;};
+  $('#tblLook').innerHTML=`<tr><th>מסלול</th><th>סוג נכס</th><th>מטבע</th><th class="hide-m">גאוגרפיה</th><th>מקור</th><th class="n">תשואה ב-v1</th></tr>`+lookRows().map(r=>{const tr=S.tracks.find(x=>x.name===r.t);const who=rowWho(r.hs);
+    return `<tr style="${r.unused?'opacity:.55':''}"><td><b>${esc(r.t)}</b>${r.unused?' <span class="faint">(לא בשימוש)</span>':''}${who?`<div class="faint" style="font-size:11px">${esc(who)}${r.hs.length>1?` · ${r.hs.length} אחזקות`:''}</div>`:''}</td><td>${fmtMix(r.L.cls)}</td><td>${fmtMix(r.L.ccy)}</td><td class="hide-m">${fmtMix(r.L.geo)}</td><td>${srcTag(r.L)}</td><td class="n m ${tr&&tr.rate>15?'warn':''}">${tr?tr.rate+'%':'—'}</td></tr>`;}).join('');
   $('#resetPrefs').onclick=()=>{if(confirm('לאפס את הגדרות FinBoard 2.0? (פרטי ה-Gist של v2 נשמרים)')){const v=v2raw();const keep={};V2_META.forEach(k=>{if(v[k]!==undefined)keep[k]=v[k];});writeV2(keep);loadPrefs();applyTheme();show(CUR);}};
 }
 const RENDER={update:renderUpdate,overview:renderOverview,alloc:renderAlloc,perf:renderPerf,forecast:()=>renderForecast(true),recs:renderRecs,loans:renderLoans,savings:renderSavings,tzofik:renderTzofik,settings:renderSettings};
@@ -2457,9 +2498,76 @@ async function reloadData(){
   Object.keys(charts).forEach(k=>{charts[k].destroy();delete charts[k];});
   await loadData();loadPrefs();applySource();show(CUR);
 }
+async function loadPublicFile(){
+  try{
+    const r=await fetch('public-allocation.json',{cache:'no-cache'});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const d=await r.json();
+    if(d&&Array.isArray(d.funds)&&d.funds.length) PUB=Object.assign({live:false}, d);
+  }catch(e){console.warn('public allocation file', e);}
+}
+async function ckanGet(action, params){
+  const u=new URL('https://data.gov.il/api/3/action/'+action);
+  Object.entries(params).forEach(([k,v])=>u.searchParams.set(k, typeof v==='string'?v:JSON.stringify(v)));
+  const ctl=new AbortController(), to=setTimeout(()=>ctl.abort(), 20000);
+  try{
+    const r=await fetch(u.toString(),{cache:'no-store', signal:ctl.signal});
+    if(!r.ok) throw new Error('CKAN '+r.status);
+    const d=await r.json();
+    if(!d.success) throw new Error('CKAN');
+    return d.result;
+  }finally{clearTimeout(to);}
+}
+const LIVE_FIELDS={
+  gemelnet:'FUND_ID,FUND_NAME,MANAGING_CORPORATION,FUND_CLASSIFICATION,SPECIALIZATION,SUB_SPECIALIZATION,REPORT_PERIOD,TOTAL_ASSETS,STOCK_MARKET_EXPOSURE,FOREIGN_EXPOSURE,FOREIGN_CURRENCY_EXPOSURE,LIQUID_ASSETS_PERCENT',
+  pensia:'FUND_ID,FUND_NAME,MANAGING_CORPORATION,FUND_CLASSIFICATION,REPORT_PERIOD,TOTAL_ASSETS,STOCK_MARKET_EXPOSURE,FOREIGN_EXPOSURE,FOREIGN_CURRENCY_EXPOSURE,LIQUID_ASSETS_PERCENT',
+  bituach:'FUND_ID,FUND_NAME,PARENT_COMPANY_NAME,FUND_CLASSIFICATION,REPORT_PERIOD,TOTAL_ASSETS,STOCK_MARKET_EXPOSURE,FOREIGN_EXPOSURE,FOREIGN_CURRENCY_EXPOSURE,LIQUID_ASSETS_PERCENT'
+};
+const LIVE_PKG={gemelnet:'gemelnet', pensia:'pensia-net', bituach:'insurance'};
+const PUB_CHECK_KEY='finboard_pub_check_v1';
+async function refreshPublicLive(){
+  if(!window.FinLook) return;
+  try{const prev=JSON.parse(sessionStorage.getItem(PUB_CHECK_KEY)||'null'); if(prev&&prev.at&&Date.now()-prev.at<12*3600*1000) return;}catch(e){}
+  try{
+    const sources=[], funds=[];
+    let newer=false;
+    for(const id of ['gemelnet','pensia','bituach']){
+      const pkg=await ckanGet('package_show',{id:LIVE_PKG[id]});
+      const csv=(pkg.resources||[]).filter(r=>r.datastore_active&&String(r.format||'').toUpperCase()==='CSV');
+      const today=csv.filter(r=>(r.name||'').includes('היום'));
+      const res=(today.length?today:csv).slice(-1)[0];
+      if(!res) continue;
+      const head=await ckanGet('datastore_search',{resource_id:res.id, limit:'1', sort:'REPORT_PERIOD desc', fields:'REPORT_PERIOD'});
+      const period=head.records&&head.records[0]&&+head.records[0].REPORT_PERIOD;
+      if(!period) continue;
+      const known=(PUB.sources||[]).find(s=>s.id===id);
+      const meta={id, title:FinLook.SRC_HE[id], package:LIVE_PKG[id], dataset:'https://data.gov.il/dataset/'+LIVE_PKG[id], resource_id:res.id, resource_name:res.name||'', period, funds:0};
+      if(known&&+known.period===period&&(PUB.funds||[]).some(f=>f.source===id)){
+        const kept=PUB.funds.filter(f=>f.source===id);
+        funds.push(...kept); meta.funds=kept.length; sources.push(meta); continue;
+      }
+      newer=true;
+      let offset=0, n=0;
+      for(;;){
+        const page=await ckanGet('datastore_search',{resource_id:res.id, filters:{REPORT_PERIOD:period}, fields:LIVE_FIELDS[id], limit:'1000', offset:String(offset)});
+        const rows=page.records||[];
+        rows.forEach(row=>{const f=FinLook.fromCkan(id, row); if(f){funds.push(f); n++;}});
+        if(rows.length<1000) break;
+        offset+=1000;
+      }
+      meta.funds=n; sources.push(meta);
+    }
+    try{sessionStorage.setItem(PUB_CHECK_KEY, JSON.stringify({at:Date.now()}));}catch(e){}
+    if(newer&&funds.length>100){
+      PUB={schema:1, generatedAt:new Date().toISOString(), sources, funds, live:true, note:PUB.note||''};
+      if(CUR&&CUR!=='tzofik'&&!TZ_SNAP) show(CUR);
+    }
+  }catch(e){console.warn('public allocation live', e);}
+}
 async function boot(){
   checkUrlAccess();
   $('#srcChip').textContent='טוען נתונים…';$('#pageSub').textContent='טוען…';
+  await loadPublicFile();
   await loadData();loadPrefs();
   const th=new URLSearchParams(location.search).get('theme');if(th)P.theme=th;
   applyTheme();buildNav();applySource();
@@ -2471,6 +2579,7 @@ async function boot(){
   window.addEventListener('pagehide',flushTasks);
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushTasks();});
   show(resolvePage(ingestTzHash(location.hash.slice(1))||'overview'));
+  refreshPublicLive();
 }
 document.addEventListener('DOMContentLoaded',boot);
 </script>

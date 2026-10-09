@@ -1,0 +1,36 @@
+# Refresh the committed Gemel-Net / Pensia-Net / Bituach-Net snapshot.
+# The site also fetches data.gov.il directly (CORS allows it). This file is the
+# fallback when that request fails, and it is what a first paint uses.
+name: Refresh public allocation
+
+on:
+  schedule:
+    # 20th of each month, 05:00 UTC — after the Capital Market Authority usually
+    # publishes the previous month on data.gov.il.
+    - cron: "0 5 20 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fetch latest public compositions
+        run: python3 scripts/fetch_public_allocation.py
+      - name: Commit snapshot when it changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add v2/public-allocation.json
+          if git diff --cached --quiet; then
+            echo "no changes"
+          else
+            git commit -m "v2: refresh public allocation snapshot"
+            git push
+          fi
