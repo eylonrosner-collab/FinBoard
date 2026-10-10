@@ -297,11 +297,13 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
 .tz-card.tz-debt .tz-val{font-size:24px;color:#b91c1c}
 .tz-card.tz-liq{border-color:#2563eb;box-shadow:2px 2px 0 #2563eb;background:#eff6ff;margin:0}
 .tz-card.tz-liq .tz-val{font-size:22px;color:#2563eb}
+.tz-card .tz-sub.tz-liqnet{margin-top:3px;font-size:11px;line-height:1.25;font-weight:700;color:#1e3a5f}
+.tz-card .tz-sub.tz-liqnet .tz-est{font-weight:500;font-size:10px;color:#64748b}
 .tz-card.tz-lock{border-color:#475569;box-shadow:2px 2px 0 #475569;background:#f8fafc;margin:0}
 .tz-card.tz-lock .tz-val{font-size:22px;color:#334155}
 .tz-card.warn-tz{border-color:#b45309;box-shadow:4px 4px 0 #b45309;background:#fffbeb}
 .tz-card.warn-tz .tz-lbl{color:#b45309}
-.tz-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.tz-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;align-items:start}
 .tz-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
 .tz-actions .btn{border-radius:12px;border:2px solid #1e3a5f;box-shadow:2px 2px 0 #1e3a5f;background:#1d4ed8;color:#fff;font-weight:700;padding:8px 12px;font-size:13px;flex:1;min-width:140px}
 .tz-actions .btn.ghost{background:#fff;color:#1e3a5f}
@@ -315,38 +317,39 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
   body.share-view{overflow:hidden;height:100dvh;max-height:100dvh}
   body.share-view .app{min-height:100dvh;height:100dvh;display:flex;flex-direction:column}
   body.share-view .main{padding:0 14px 10px;max-width:100%;flex:1;display:flex;flex-direction:column;min-height:0;box-sizing:border-box}
-  body.share-view .topbar{padding:14px 0 8px;margin-bottom:0;min-height:0;flex-shrink:0}
-  body.share-view .page-title{font-size:22px;letter-spacing:-.02em}
+  body.share-view .topbar{padding:6px 0 2px;margin-bottom:0;min-height:0;flex-shrink:0}
+  body.share-view .page-title{font-size:20px;letter-spacing:-.02em}
   body.share-view #srcChip{font-size:12px;padding:4px 10px}
   body.share-view .toast,.toast{display:none!important}
   body.share-view #p-tzofik.active{flex:1;display:flex!important;flex-direction:column;min-height:0}
-  .tz-wrap{flex:1;display:flex;flex-direction:column;justify-content:space-between;padding:4px 0 2px;min-height:0;gap:0}
-  .tz-card{border-width:3px;border-radius:16px;padding:14px 16px;margin-bottom:0;box-shadow:4px 4px 0 #1e3a5f;flex-shrink:0}
-  .tz-assets{flex-shrink:0;padding:8px 8px 10px;margin-bottom:0;border-width:3px;border-radius:16px;box-shadow:3px 3px 0 #0f766e}
-  .tz-assets .tz-assets-hd{font-size:12px;margin-bottom:6px}
-  .tz-assets .tz-card{margin-bottom:6px;padding:10px 12px;border-width:2px;box-shadow:2px 2px 0 #0f766e}
-  .tz-card.tz-total{box-shadow:2px 2px 0 #0f766e;padding:12px 12px}
-  .tz-card.tz-save{box-shadow:4px 4px 0 #1d4ed8;padding:14px 14px}
-  .tz-card.tz-fc{box-shadow:4px 4px 0 #0e7490;padding:12px 14px}
-  .tz-card.tz-debt{box-shadow:4px 4px 0 #dc2626}
+  .tz-wrap{flex:1;display:flex;flex-direction:column;justify-content:space-between;padding:0;min-height:0;gap:0}
+  .tz-card{border-width:3px;border-radius:16px;padding:10px 12px;margin-bottom:0;box-shadow:4px 4px 0 #1e3a5f;flex-shrink:0}
+  .tz-assets{flex-shrink:0;padding:6px 6px 8px;margin-bottom:0;border-width:3px;border-radius:16px;box-shadow:3px 3px 0 #0f766e}
+  .tz-assets .tz-assets-hd{font-size:12px;margin-bottom:4px}
+  .tz-assets .tz-card{margin-bottom:4px;padding:8px 10px;border-width:2px;box-shadow:2px 2px 0 #0f766e}
+  .tz-card.tz-total{box-shadow:2px 2px 0 #0f766e;padding:8px 10px}
+  .tz-card.tz-save{box-shadow:4px 4px 0 #1d4ed8;padding:8px 12px}
+  .tz-card.tz-fc{box-shadow:4px 4px 0 #0e7490;padding:8px 12px}
+  .tz-card.tz-debt{box-shadow:4px 4px 0 #dc2626;padding:8px 12px}
   .tz-card .tz-lbl{font-size:12px;margin-bottom:2px}
   .tz-card .tz-val{font-size:26px}
   .tz-card.tz-total .tz-val{font-size:34px}
-  .tz-card.tz-save .tz-val{font-size:36px}
-  .tz-card.tz-fc .tz-val{font-size:28px}
-  .tz-card.tz-debt .tz-val{font-size:26px;color:#b91c1c}
+  .tz-card.tz-save .tz-val{font-size:32px}
+  .tz-card.tz-fc .tz-val{font-size:26px}
+  .tz-card.tz-debt .tz-val{font-size:24px;color:#b91c1c}
   .tz-card.tz-liq .tz-val,.tz-card.tz-lock .tz-val{font-size:22px}
-  .tz-card.tz-liq,.tz-card.tz-lock{box-shadow:2px 2px 0 #2563eb;padding:10px 10px}
+  .tz-card.tz-liq,.tz-card.tz-lock{box-shadow:2px 2px 0 #2563eb;padding:8px 8px}
   .tz-card.tz-lock{box-shadow:2px 2px 0 #475569}
-  .tz-card .tz-sub{font-size:11.5px;margin-top:4px;line-height:1.35}
+  .tz-card .tz-sub.tz-liqnet{font-size:10.5px;margin-top:2px;line-height:1.2}
+  .tz-card .tz-sub{font-size:11.5px;margin-top:3px;line-height:1.3}
   .tz-card .tz-sub .tz-fc-detail{display:none}
   .tz-pair{gap:8px;margin-bottom:0;flex-shrink:0}
   .tz-actions{gap:6px;margin-top:0;flex-shrink:0;flex-wrap:nowrap}
-  .tz-actions .btn{padding:12px 8px;font-size:13px;border-radius:12px;box-shadow:3px 3px 0 #1e3a5f;border-width:2px;min-width:0}
+  .tz-actions .btn{padding:8px 8px;font-size:13px;border-radius:12px;box-shadow:3px 3px 0 #1e3a5f;border-width:2px;min-width:0}
   .tz-actions .btn.tz-shot{box-shadow:3px 3px 0 #0f766e}
   .tz-actions .btn.ghost{display:none}
   .tz-snap-badge{display:none!important} /* chip shows snapshot source; save vertical space */
-  .tz-note{font-size:11px;margin-top:0;line-height:1.35;flex-shrink:0;padding:4px 2px}
+  .tz-note{font-size:11px;margin-top:0;line-height:1.3;flex-shrink:0;padding:2px 2px 0}
   .tz-prin{font-size:11px;margin-top:1px;line-height:1.25}
   .tz-note .tz-note-long{display:none}
 }
@@ -1754,6 +1757,8 @@ function liquidByTarget(i,kind,target){
   return true;
 }
 function hashkaaExit(f){
+  /* Cashing the balance out today is a lump sum, not a recognized annuity. */
+  if(f&&f.redeemNow)return 'lump';
   const pref=(P.taxExit&&P.taxExit.gemelHashkaa)||'auto';
   if(ageAt(f.date)<60)return 'lump';
   return pref==='lump'?'lump':'annuity';
@@ -1821,6 +1826,18 @@ function buildTaxBook(f,annR){
   }
   const gross=P0>0?project(P0,monthly,annR,fee,g,n)[n].v:0;
   return {n,P0,at,gross};
+}
+/* Net if every liquid holding (same set as מתוכם נזילים) were redeemed today.
+   Month 0 of the forecast engine: no new deposits, so real and nominal gains
+   are both balance − basis, and each rule (rate, exemption, withheld interest)
+   stays in assessHoldingTax. Missing principal → the figure is an estimate. */
+function liquidRedeemNet(){
+  const f=Object.assign({},fcInputs(),{scope:'liq',date:iso(TODAY),monthly:0,growth:0,depStress:100,redeemNow:true});
+  const book=buildTaxBook(f,0);
+  const at=book.at(0);
+  const hs=S.investments.filter(isLiq);
+  const missing=hs.some(i=>readPrincipal(i)==null);
+  return {gross:book.P0,tax:at.tax,net:book.P0-at.tax,estimated:missing||!!at.estimated};
 }
 function taxGroups(items){
   const map=new Map();
@@ -2153,6 +2170,7 @@ function tzBuildSnap(){
   const fc=tzofikForecast();
   const prior=tzPriorFin();
   const priorSav=prior?Math.round(contribBetween(prior.d,iso(TODAY))):null;
+  const lx=liquidRedeemNet();
   return {v:1,
     u:S.lastUpdated?String(S.lastUpdated).slice(0,10):iso(TODAY),
     fin:Math.round(+T.fin||0),liq:Math.round(+T.liq||0),locked:Math.round(+T.locked||0),debt:Math.round(+T.debt||0),
@@ -2161,6 +2179,7 @@ function tzBuildSnap(){
     pctS:+(+y.pctSharon||0).toFixed(1),pctE:+(+y.pctEylon||0).toFixed(1),pctO:+(+y.pctOther||0).toFixed(1),
     fcD:fc.date,fcExp:Math.round(+fc.exp||0),fcM:Math.round(+fc.monthly||0),fcR:+(+fc.ret||0).toFixed(2),fcN:+fc.n||0,
     fcP0:Math.round(+fc.P0||0),fcScope:fc.scope||'liq',
+    liqNet:Math.round(+lx.net||0),...(lx.estimated?{liqEst:1}:{}),
     ...(function(){const pg=principalTotals('fin');return pg.nKnown?{prin:Math.round(pg.principal),pgain:Math.round(pg.gain),pcov:Math.round(pg.coveredBal),ptot:Math.round(pg.totalBal)}:{};})()};
 }
 function tzEncodeSnap(obj){
@@ -2384,7 +2403,12 @@ function renderTzofik(){
           return `<div class="tz-sub tz-prin">קרן ${ils(prin)} · רווח ${ilsSigned(gain)}${partial?` · ${Math.round(cov/tot*100)}% מהיתרה`:''}</div>`;
         })()}</div>
       <div class="tz-pair">
-        <div class="tz-card tz-liq"><div class="tz-lbl">מתוכם נזילים</div><div class="tz-val">${ils(T.liq)}</div></div>
+        <div class="tz-card tz-liq"><div class="tz-lbl">מתוכם נזילים</div><div class="tz-val">${ils(T.liq)}</div>${(function(){
+          let net,est;
+          if(snap){if(snap.liqNet==null||!isFinite(+snap.liqNet))return '';net=+snap.liqNet;est=!!snap.liqEst;}
+          else{const x=liquidRedeemNet();net=x.net;est=x.estimated;}
+          return `<div class="tz-sub tz-liqnet" title="משיכה של כל הנזילים היום, לפי כללי מס רווח הון שבתחזית">נטו אחרי מס רווח הון: ${ils(net)}${est?' <span class="tz-est">הערכה</span>':''}</div>`;
+        })()}</div>
         <div class="tz-card tz-lock"><div class="tz-lbl">מתוכם לא נזילים</div><div class="tz-val">${ils(T.locked)}</div></div>
       </div>
     </div>
