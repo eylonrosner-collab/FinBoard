@@ -10,7 +10,7 @@
 <title>ניהול פיננסי — לוח בקרה</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="assets/finboard-crypto.js"></script>
 <style>
 
 :root{--bg:#eef4fb;--surface:#ffffff;--surface2:#daeaf7;--border:#b3d4ef;--accent:#0d6efd;--accent2:#6610f2;--green:#0a8a4a;--red:#c0392b;--orange:#b86c00;--text:#0d2a45;--text-dim:#3a6080;--text-faint:#7aaac8;--gold:#b8860b}
@@ -239,36 +239,31 @@ tr.dr:hover td{background:var(--surface2)}
 </head>
 <body>
 
-<!-- ── PIN LOCK SCREEN ── -->
-<div id="pinOverlay">
-  <div class="pin-box">
+<!-- ── PASSPHRASE LOCK (replaces the old PIN screen) ── -->
+<div id="pinOverlay" class="hidden">
+  <div class="pin-box" style="width:min(440px,92vw);text-align:right;padding:28px 22px">
     <div class="pin-logo">🔐</div>
-    <div class="pin-title">לוח בקרה פיננסי</div>
-    <div class="pin-sub">הכנס קוד PIN להמשך</div>
-    <div class="pin-dots">
-      <div class="pin-dot" id="pd0"></div>
-      <div class="pin-dot" id="pd1"></div>
-      <div class="pin-dot" id="pd2"></div>
-      <div class="pin-dot" id="pd3"></div>
+    <div class="pin-title" id="lockTitle">FinBoard נעול</div>
+    <div class="pin-sub" id="lockSub" style="line-height:1.55"></div>
+    <div id="lockUnlock">
+      <input class="setup-input" id="lockSecret" type="password" autocomplete="current-password" placeholder="סיסמה או מפתח שחזור" style="direction:ltr;text-align:left">
+      <button class="setup-btn" id="lockOpenBtn" type="button">פתיחה</button>
     </div>
-    <div class="pin-pad" id="pinPad">
-      <button class="pin-key" data-key="3">3</button>
-      <button class="pin-key" data-key="2">2</button>
-      <button class="pin-key" data-key="1">1</button>
-      <button class="pin-key" data-key="6">6</button>
-      <button class="pin-key" data-key="5">5</button>
-      <button class="pin-key" data-key="4">4</button>
-      <button class="pin-key" data-key="9">9</button>
-      <button class="pin-key" data-key="8">8</button>
-      <button class="pin-key" data-key="7">7</button>
-      <button class="pin-key" style="visibility:hidden"></button>
-      <button class="pin-key" data-key="0">0</button>
-      <button class="pin-key" data-key="back" style="color:var(--text-dim)">⌫</button>
+    <div id="lockSetup" style="display:none">
+      <input class="setup-input" id="lockPass" type="password" autocomplete="new-password" placeholder="סיסמה חדשה (לפחות 8 תווים)">
+      <input class="setup-input" id="lockPass2" type="password" autocomplete="new-password" placeholder="אימות סיסמה">
+      <button class="setup-btn" id="lockSetupBtn" type="button">המשך</button>
     </div>
-    <div class="pin-err" id="pinErr"></div>
-    <button class="pin-biometric" id="biometricBtn" onclick="biometricAuth()">
-      <span id="biometricIcon">🔒</span> <span id="biometricLabel">כניסה עם Face ID / טביעת אצבע</span>
-    </button>
+    <div id="lockRecovery" style="display:none">
+      <div id="lockRecKey" style="direction:ltr;text-align:left;font-family:Arial,sans-serif;font-size:13px;line-height:1.7;background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px;word-break:break-all;user-select:all"></div>
+      <button class="setup-btn" id="lockCopyBtn" type="button" style="margin-top:10px;background:var(--surface2);color:var(--text);border:1px solid var(--border)">העתק מפתח</button>
+      <label style="display:flex;gap:8px;align-items:flex-start;margin:12px 0;font-size:14px"><input type="checkbox" id="lockSaved" style="margin-top:3px"> שמרתי את מפתח השחזור במקום בטוח</label>
+      <button class="setup-btn" id="lockGoBtn" type="button">הורד גיבוי והצפן</button>
+    </div>
+    <div id="lockMigrate" style="display:none">
+      <button class="setup-btn" id="lockMigrateBtn" type="button">הורד גיבוי והצפן</button>
+    </div>
+    <div class="pin-err" id="lockErr"></div>
   </div>
 </div>
 
@@ -514,7 +509,7 @@ tr.dr:hover td{background:var(--surface2)}
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
       <button class="btn btn-primary" onclick="manualSync()">🔄 סנכרן עכשיו</button>
       <button class="btn btn-ghost" onclick="testConnection()">🔍 בדוק חיבור</button>
-      <button class="btn btn-ghost" onclick="showQR()" style="border-color:var(--accent2);color:var(--accent2)">📲 צור QR / קישור גישה</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('passNew').focus()" style="border-color:var(--accent2);color:var(--accent2)">🔐 סיסמת הצפנה</button>
     </div>
   </div>
 
@@ -573,21 +568,18 @@ tr.dr:hover td{background:var(--surface2)}
     </div>
   </div>
 
-  <!-- ── CHANGE PIN ── -->
-  <div class="section-title" style="margin-top:28px">🔐 שינוי קוד PIN</div>
+  <!-- ── CHANGE PASSPHRASE ── -->
+  <div class="section-title" style="margin-top:28px">🔐 החלפת סיסמת הצפנה</div>
   <div class="fp">
+    <div class="hint" style="margin-bottom:10px">אחרי פתיחת האתר, אפשר להחליף סיסמה. מפתח הנתונים נעטף מחדש — הקובץ עצמו לא מוצפן מחדש. מפתח השחזור נשאר בתוקף. אין שחזור באימייל.</div>
     <div class="modal-grid">
-      <div class="mg"><label>PIN נוכחי</label><input type="password" id="pinCurrent" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="••••"></div>
-      <div class="mg"><label>PIN חדש</label><input type="password" id="pinNew" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="••••"></div>
-      <div class="mg"><label>אימות PIN חדש</label><input type="password" id="pinConfirm" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="••••"></div>
+      <div class="mg"><label>סיסמה חדשה</label><input type="password" id="passNew" autocomplete="new-password" placeholder="לפחות 8 תווים"></div>
+      <div class="mg"><label>אימות סיסמה</label><input type="password" id="passConfirm" autocomplete="new-password" placeholder="שוב"></div>
     </div>
     <div style="margin-top:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-      <button class="btn btn-primary" onclick="changePin()">שנה PIN</button>
-      <button class="btn btn-ghost" id="biometricSetupBtn" onclick="setupBiometric()" style="border-color:var(--accent2);color:var(--accent2)">🔒 הפעל Face ID / ביומטרי</button>
-      <button class="btn btn-ghost" onclick="disableBiometric()" style="font-size:11px;color:var(--text-dim)">בטל ביומטרי</button>
+      <button class="btn btn-primary" onclick="changePassphraseUI()">החלפת סיסמה</button>
       <span id="pinChangeStatus" style="font-size:12px"></span>
     </div>
-    <div id="biometricSettingStatus" style="font-size:12px;margin-top:6px;color:var(--text-dim)"></div>
   </div>
 
   <!-- ── VERSION ── -->
@@ -637,25 +629,6 @@ tr.dr:hover td{background:var(--surface2)}
   </div>
 </div>
 
-<!-- QR ACCESS MODAL -->
-<div class="modal-overlay" id="qrOverlay" onclick="if(event.target===this)closeQR()" style="display:none">
-  <div class="modal" style="max-width:380px;text-align:center">
-    <div class="modal-title"><span>🔗 קישור גישה מהיר</span><button class="modal-close" onclick="closeQR()">✕</button></div>
-    <p style="font-size:12px;color:var(--text-dim);margin-bottom:16px;line-height:1.6">
-      סרוק את ה-QR עם הטלפון, או העתק את הקישור.<br>
-      פתיחתו בכל מכשיר תכניס Token + Gist ID אוטומטית.
-    </p>
-    <div id="qrCanvas" style="display:flex;justify-content:center;margin-bottom:16px;background:#fff;padding:12px;border-radius:10px;display:inline-block"></div>
-    <div style="margin:12px 0">
-      <input id="qrLink" type="text" readonly style="width:100%;padding:8px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-size:10px;font-family:Arial,sans-serif;text-align:left;direction:ltr">
-    </div>
-    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
-      <button class="btn btn-primary" onclick="copyQrLink()">📋 העתק קישור</button>
-      <button class="btn btn-ghost" onclick="closeQR()">סגור</button>
-    </div>
-    <p style="font-size:10px;color:var(--red);margin-top:14px">⚠️ הקישור מכיל את ה-Token שלך — שמור אותו בטוח. אל תשלח לאחרים.</p>
-  </div>
-</div>
 
 
 <div class="page" id="page-ai">
@@ -722,15 +695,15 @@ const DEF_TRACKS = [
   {id:'other',name:'אחר',rate:5.0,note:''},
 ];
 const DEF_INV = [
-  {id:'i1',cat:'gamel',name:'גמל להשקעה — שרון',inst:'מור בית השקעות',track:'S&P 500',owner:'שרון',accNum:'38652681',bal:299369,notes:'הפקדות 6.5K/חודש'},
-  {id:'i2',cat:'gamel',name:'גמל להשקעה — עומרי',inst:'מור בית השקעות',track:'S&P 500',owner:'עומרי',accNum:'334672482',bal:262547,notes:''},
-  {id:'i3',cat:'gamel',name:'גמל להשקעה — בר',inst:'מור בית השקעות',track:'כללי',owner:'בר',accNum:'338150568',bal:233986,notes:''},
+  {id:'i1',cat:'gamel',name:'גמל להשקעה — שרון',inst:'מור בית השקעות',track:'S&P 500',owner:'שרון',accNum:'',bal:299369,notes:'הפקדות 6.5K/חודש'},
+  {id:'i2',cat:'gamel',name:'גמל להשקעה — עומרי',inst:'מור בית השקעות',track:'S&P 500',owner:'עומרי',accNum:'',bal:262547,notes:''},
+  {id:'i3',cat:'gamel',name:'גמל להשקעה — בר',inst:'מור בית השקעות',track:'כללי',owner:'בר',accNum:'',bal:233986,notes:''},
   {id:'i4',cat:'kupa',name:'קה"ש ישנה — אילון',inst:'ילין לפידות',track:'50% מניות + S&P 50%',owner:'אילון',accNum:'',bal:500443,notes:'הפסקת הפקדות'},
   {id:'i5',cat:'kupa',name:'קה"ש חדשה — אילון',inst:'מור בית השקעות',track:'כללי',owner:'אילון',accNum:'',bal:229023,notes:''},
   {id:'i6',cat:'kupa',name:'קה"ש שרון',inst:'ילין לפידות',track:'50% מניות + S&P 50%',owner:'שרון',accNum:'',bal:91590,notes:''},
   {id:'i7',cat:'kupa',name:'קופת גמל — אילון',inst:'ילין לפידות',track:'50% מניות + S&P 50%',owner:'אילון',accNum:'',bal:194289,notes:'סגור לפנסיה'},
   {id:'i8',cat:'kupa',name:'קופת גמל — שרון',inst:'ילין לפידות',track:'מניות',owner:'שרון',accNum:'',bal:134827,notes:'סגור לפנסיה'},
-  {id:'i9',cat:'forex',name:'Charles Schwab',inst:'Schwab',track:'SP500,NASDAQ,AI',owner:'אילון+שרון',accNum:'8579-4421',bal:268700,notes:'חשבון משותף',currency:'USD',foreignAmt:74144},
+  {id:'i9',cat:'forex',name:'Charles Schwab',inst:'Schwab',track:'SP500,NASDAQ,AI',owner:'אילון+שרון',accNum:'',bal:268700,notes:'חשבון משותף',currency:'USD',foreignAmt:74144},
   {id:'i10',cat:'forex',name:'עו"ש מט"ח — אילון',inst:'מזרחי טפחות',track:'USD',owner:'אילון',accNum:'',bal:4362,notes:'',currency:'USD',foreignAmt:1204},
   {id:'i11',cat:'cash',name:'עו"ש שרון (כספיות)',inst:'מזרחי טפחות',track:'כספית',owner:'שרון',accNum:'',bal:330471,notes:''},
   {id:'i12',cat:'cash',name:'כספת',inst:'',track:'אחר',owner:'',accNum:'',bal:15500,notes:''},
@@ -840,59 +813,89 @@ function setSyncStatus(state,msg){
   el.textContent=msg;
 }
 
+function defaultState(){return {tracks:clone(DEF_TRACKS),investments:clone(DEF_INV),loans:clone(DEF_LOANS),slog:clone(DEF_SLOG),set:clone(DEF_SET)};}
+
 async function gistLoad(){
   const token=getToken(),gistId=getGistId();
   if(!token||!gistId)return false;
   try{
     setSyncStatus('syncing','☁ טוען...');
     const r=await fetch(`https://api.github.com/gists/${gistId}`,{
-      headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json'}});
+      headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json'},cache:'no-store'});
     if(!r.ok)throw new Error(r.status);
     const d=await r.json();
     const content=d.files[GIST_FILENAME]?.content;
-    if(content){
-      const p=JSON.parse(content);
-      if(p&&p.investments){S=p;setSyncStatus('ok','☁ מסונכרן');}
-      return true;
+    if(!content)return false;
+    const p=JSON.parse(content);
+    if(window.FinCrypto&&FinCrypto.isEnvelope(p)){
+      if(!FinCrypto.unlocked()){setSyncStatus('err','☁ נעול');return false;}
+      const opened=await FinCrypto.open(p);
+      if(opened&&opened.investments){S=opened;setSyncStatus('ok','☁ מסונכרן');return true;}
+      return false;
     }
+    if(p&&p.investments){S=p;setSyncStatus('ok','☁ מסונכרן');return true;}
   }catch(e){setSyncStatus('err','☁ שגיאת טעינה');console.warn('Gist load:',e);}
   return false;
 }
 
+async function sealState(obj){
+  if(window.FinCrypto&&FinCrypto.unlocked())return FinCrypto.seal(obj);
+  return obj;
+}
 async function gistSave(){
   const token=getToken(),gistId=getGistId();
-  // Always save to localStorage as backup
-  try{localStorage.setItem('fin26',JSON.stringify(S));}catch(e){}
+  if(window.FinCrypto&&!FinCrypto.unlocked()&&FinCrypto.isPersonalFinance(S)){
+    setSyncStatus('err','☁ נדרשת סיסמת הצפנה');
+    if(!document.getElementById('pinOverlay')||document.getElementById('pinOverlay').classList.contains('hidden')){
+      ROOT_PROBE={finance:S,local:null,tasks:null,vault:FinCrypto.readVault(),createNew:!gistId};
+      showLock('setup','הצפנת הנתונים','לפני השמירה יש לבחור סיסמה. יורד גיבוי למחשב, ואז הנתונים נשמרים מוצפנים.');
+    }
+    return;
+  }
+  const payload=await sealState(S);
+  try{localStorage.setItem('fin26',JSON.stringify(payload));}catch(e){}
   const el=document.getElementById('saveInd');
-  el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1500);
+  if(el){el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1500);}
   if(!token||!gistId)return;
   setSyncStatus('syncing','☁ שומר...');
   try{
     const r=await fetch(`https://api.github.com/gists/${gistId}`,{
       method:'PATCH',
       headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json','Content-Type':'application/json'},
-      body:JSON.stringify({files:{[GIST_FILENAME]:{content:JSON.stringify(S,null,2)}}})
+      body:JSON.stringify({files:{[GIST_FILENAME]:{content:JSON.stringify(payload,null,2)}}})
     });
     if(!r.ok)throw new Error(r.status);
     setSyncStatus('ok','☁ נשמר '+new Date().toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}));
   }catch(e){setSyncStatus('err','☁ שגיאת שמירה');console.warn('Gist save:',e);}
 }
 
-async function gistCreate(token){
+async function gistCreate(token,payload){
+  const body=payload||S;
   const r=await fetch('https://api.github.com/gists',{
     method:'POST',
     headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json','Content-Type':'application/json'},
     body:JSON.stringify({description:'Finance Dashboard Data',public:false,
-      files:{[GIST_FILENAME]:{content:JSON.stringify(S,null,2)}}})
+      files:{[GIST_FILENAME]:{content:JSON.stringify(body,null,2)}}})
   });
   if(!r.ok)throw new Error(r.status);
   const d=await r.json();
   return d.id;
 }
 
-function loadState(){
-  try{const r=localStorage.getItem('fin26');if(r){const p=JSON.parse(r);if(p&&p.investments)S=p;return}}catch(e){}
-  S={tracks:clone(DEF_TRACKS),investments:clone(DEF_INV),loans:clone(DEF_LOANS),slog:clone(DEF_SLOG),set:clone(DEF_SET)};
+async function loadState(){
+  try{
+    const r=localStorage.getItem('fin26');
+    if(r){
+      const p=JSON.parse(r);
+      if(window.FinCrypto&&FinCrypto.isEnvelope(p)){
+        if(FinCrypto.unlocked()){S=await FinCrypto.open(p);return true;}
+        return false;
+      }
+      if(p&&p.investments){S=p;return true;}
+    }
+  }catch(e){}
+  S=defaultState();
+  return true;
 }
 function saveState(){
   // Stamp the time of last manual save
@@ -933,23 +936,18 @@ async function setupFinish(){
   const errEl=document.getElementById('setupErr2');
   errEl.textContent='...';
   try{
-    let gistId=existingId;
-    if(gistId){
-      // Verify gist exists and load it
-      const r=await fetch(`https://api.github.com/gists/${gistId}`,{
-        headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json'}});
+    if(existingId){
+      const r=await fetch(`https://api.github.com/gists/${existingId}`,{
+        headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json'},cache:'no-store'});
       if(!r.ok)throw new Error('Gist לא נמצא — בדוק את ה-ID');
-      const d=await r.json();
-      const content=d.files[GIST_FILENAME]?.content;
-      if(content){const p=JSON.parse(content);if(p&&p.investments)S=p;}
+      localStorage.setItem('fin26_gist',existingId);
     } else {
-      // Create new gist with current data
-      gistId=await gistCreate(token);
+      localStorage.removeItem('fin26_gist');
+      ROOT_CREATE_NEW=true;
     }
-    localStorage.setItem('fin26_gist',gistId);
     document.getElementById('setupOverlay').classList.add('hidden');
-    recalcSlog();renderAll();
-    await gistSave();
+    errEl.textContent='';
+    await startRoot();
   }catch(e){errEl.textContent='❌ '+e.message;}
 }
 
@@ -1032,7 +1030,7 @@ function renderCharts(){
   const trendTotal=[...HIST_TOTAL];
   // Inject real snapshots from localStorage
   try{
-    const snaps=JSON.parse(localStorage.getItem('fin26_snaps')||'[]');
+    const snaps=snapsNow();
     snaps.forEach(s=>{
       const d=new Date(s.d).toISOString().slice(0,10);
       if(!trendDates.includes(d)){trendDates.push(d);trendLiq.push(0);trendTotal.push(s.v);}
@@ -1531,7 +1529,6 @@ function renderSettings(){
   const gistEl=document.getElementById('setGistId');
   if(tokenEl){const t=getToken();tokenEl.value=t?'••••••••••••••••••••':'';document.getElementById('tokenStatus').textContent=t?'✓ Token מוגדר':'לא מוגדר';}
   if(gistEl){const g=getGistId();gistEl.value=g||'';document.getElementById('gistStatus').textContent=g?`✓ Gist: ${g.slice(0,8)}...`:'לא מוגדר';}
-  updateBiometricButton();
   // Finnhub key status
   const finnhubEl1=document.getElementById('finnhubKeyStatus');
   if(finnhubEl1){const k=getFinnhubKey();finnhubEl1.textContent=k?'✅ Key מוגדר — מדדי S&P/Nasdaq/זהב/נפט/דולר פעילים':'לא מוגדר — רק מדדי ת"א זמינים';finnhubEl1.style.color=k?'var(--green)':'var(--text-dim)';}
@@ -2520,312 +2517,6 @@ ${portfolio}
 }
 
 // ══════════════════════════════════════════════════════════════════
-// PIN LOCK
-// ══════════════════════════════════════════════════════════════════
-const CORRECT_PIN='2375'; // default, overridden by localStorage
-let pinEntry='';
-let pinUnlocked=false;
-
-function pinKey(d){
-  if(pinUnlocked)return;
-  if(pinEntry.length>=4)return;
-  pinEntry+=d;
-  updatePinDots();
-  if(pinEntry.length===4){
-    const activePin=localStorage.getItem('fin26_pin')||CORRECT_PIN;
-    if(pinEntry===activePin){
-      pinUnlocked=true;
-      // Flash green then hide
-      for(let i=0;i<4;i++){
-        const dot=document.getElementById('pd'+i);
-        if(dot){dot.classList.remove('filled');dot.style.background='var(--green)';dot.style.borderColor='var(--green)';}
-      }
-      setTimeout(()=>{
-        document.getElementById('pinOverlay').classList.add('hidden');
-        bootApp();
-      },400);
-    } else {
-      // Wrong PIN — shake effect
-      for(let i=0;i<4;i++){
-        const dot=document.getElementById('pd'+i);
-        if(dot){dot.classList.add('error');dot.classList.remove('filled');}
-      }
-      document.getElementById('pinErr').textContent='קוד שגוי — נסה שוב';
-      setTimeout(()=>{
-        pinEntry='';
-        updatePinDots();
-        for(let i=0;i<4;i++){
-          const dot=document.getElementById('pd'+i);
-          if(dot)dot.classList.remove('error','filled');
-        }
-        document.getElementById('pinErr').textContent='';
-      },800);
-    }
-  }
-}
-
-function pinBack(){
-  if(!pinEntry.length)return;
-  pinEntry=pinEntry.slice(0,-1);
-  updatePinDots();
-}
-
-function updatePinDots(){
-  for(let i=0;i<4;i++){
-    const dot=document.getElementById('pd'+i);
-    if(dot){
-      dot.classList.toggle('filled',i<pinEntry.length);
-      dot.style.background='';dot.style.borderColor='';
-    }
-  }
-}
-
-// PIN pad — event delegation (works on mobile/desktop, no 300ms delay)
-document.addEventListener('DOMContentLoaded', ()=>{
-  const pad = document.getElementById('pinPad');
-  if(pad){
-    const handlePin = (e)=>{
-      const btn = e.target.closest('[data-key]');
-      if(!btn) return;
-      e.preventDefault();
-      const k = btn.dataset.key;
-      if(k === 'back') pinBack();
-      else pinKey(k);
-    };
-    pad.addEventListener('touchstart', handlePin, {passive:false});
-    pad.addEventListener('click', handlePin);
-  }
-});
-
-// Keyboard support
-document.addEventListener('keydown',e=>{
-  if(!pinUnlocked){
-    if(e.key>='0'&&e.key<='9')pinKey(e.key);
-    if(e.key==='Backspace')pinBack();
-  }
-});
-
-
-// ══════════════════════════════════════════════════════════════════
-// WEBAUTHN — Face ID / Fingerprint
-// ══════════════════════════════════════════════════════════════════
-const WA_RP_ID = window.location.hostname||'localhost';
-const WA_RP_NAME = 'לוח בקרה פיננסי';
-const WA_USER_ID = new Uint8Array([1,2,3,4,5,6,7,8]); // fixed user
-
-function waSupported(){
-  return window.PublicKeyCredential &&
-         typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function';
-}
-
-async function waPlatformAvailable(){
-  if(!waSupported())return false;
-  try{return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();}
-  catch(e){return false;}
-}
-
-// Register biometric credential
-async function setupBiometric(){
-  const statusEl=document.getElementById('biometricSettingStatus');
-  if(!await waPlatformAvailable()){
-    statusEl.textContent='❌ מכשיר זה אינו תומך ב-Face ID / ביומטרי';
-    statusEl.style.color='var(--red)';
-    return;
-  }
-  statusEl.textContent='ממתין לאימות ביומטרי...';
-  statusEl.style.color='var(--orange)';
-  try{
-    const challenge=crypto.getRandomValues(new Uint8Array(32));
-    const cred=await navigator.credentials.create({publicKey:{
-      challenge,
-      rp:{id:WA_RP_ID,name:WA_RP_NAME},
-      user:{id:WA_USER_ID,name:'user',displayName:'משתמש'},
-      pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
-      authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required'},
-      timeout:60000,
-      attestation:'none'
-    }});
-    // Store credential ID in localStorage
-    const credId=Array.from(new Uint8Array(cred.rawId));
-    localStorage.setItem('fin26_wa_cred',JSON.stringify(credId));
-    statusEl.textContent='✅ Face ID / ביומטרי הופעל בהצלחה!';
-    statusEl.style.color='var(--green)';
-    updateBiometricButton();
-  // Finnhub key status
-  const finnhubEl3=document.getElementById('finnhubKeyStatus');
-  if(finnhubEl3){const k=getFinnhubKey();finnhubEl3.textContent=k?'✅ Key מוגדר — מדדי S&P/Nasdaq/זהב/נפט/דולר פעילים':'לא מוגדר — רק מדדי ת"א זמינים';finnhubEl3.style.color=k?'var(--green)':'var(--text-dim)';}
-  // Gemini key status
-  const geminiEl=document.getElementById('geminiKeyStatus');
-  if(geminiEl){const k=getGeminiKey();geminiEl.textContent=k?'✅ Key מוגדר':'לא מוגדר — נדרש לשימוש ביועץ AI';geminiEl.style.color=k?'var(--green)':'var(--text-dim)';}
-  const finnhubEl4=document.getElementById('finnhubKeyStatus');
-  if(finnhubEl4){const k=getFinnhubKey();finnhubEl4.textContent=k?'✅ Key מוגדר — נתוני שוק חיים':'לא מוגדר — משתמש ב-Stooq (ללא key)';finnhubEl4.style.color=k?'var(--green)':'var(--text-dim)';}
-  }catch(e){
-    if(e.name==='NotAllowedError'){statusEl.textContent='בוטל על ידי המשתמש';}
-    else{statusEl.textContent='❌ שגיאה: '+e.message;}
-    statusEl.style.color='var(--red)';
-  }
-}
-
-function disableBiometric(){
-  localStorage.removeItem('fin26_wa_cred');
-  const s=document.getElementById('biometricSettingStatus');
-  if(s){s.textContent='ביומטרי בוטל';s.style.color='var(--text-dim)';}
-  updateBiometricButton();
-  // Finnhub key status
-  const finnhubEl5=document.getElementById('finnhubKeyStatus');
-  if(finnhubEl5){const k=getFinnhubKey();finnhubEl5.textContent=k?'✅ Key מוגדר — מדדי S&P/Nasdaq/זהב/נפט/דולר פעילים':'לא מוגדר — רק מדדי ת"א זמינים';finnhubEl5.style.color=k?'var(--green)':'var(--text-dim)';}
-  // Gemini key status
-  const geminiEl=document.getElementById('geminiKeyStatus');
-  if(geminiEl){const k=getGeminiKey();geminiEl.textContent=k?'✅ Key מוגדר':'לא מוגדר — נדרש לשימוש ביועץ AI';geminiEl.style.color=k?'var(--green)':'var(--text-dim)';}
-  const finnhubEl6=document.getElementById('finnhubKeyStatus');
-  if(finnhubEl6){const k=getFinnhubKey();finnhubEl6.textContent=k?'✅ Key מוגדר — נתוני שוק חיים':'לא מוגדר — משתמש ב-Stooq (ללא key)';finnhubEl6.style.color=k?'var(--green)':'var(--text-dim)';}
-}
-
-// Authenticate with biometric
-async function biometricAuth(){
-  const credIdArr=JSON.parse(localStorage.getItem('fin26_wa_cred')||'null');
-  if(!credIdArr){alert('יש להפעיל Face ID תחילה בהגדרות');return;}
-  const btn=document.getElementById('biometricBtn');
-  const origLabel=document.getElementById('biometricLabel').textContent;
-  document.getElementById('biometricLabel').textContent='ממתין לאימות...';
-  try{
-    const challenge=crypto.getRandomValues(new Uint8Array(32));
-    const credId=new Uint8Array(credIdArr);
-    await navigator.credentials.get({publicKey:{
-      challenge,
-      allowCredentials:[{type:'public-key',id:credId.buffer}],
-      userVerification:'required',
-      timeout:60000
-    }});
-    // Success — unlock app
-    pinUnlocked=true;
-    document.getElementById('pinOverlay').classList.add('hidden');
-    bootApp();
-  }catch(e){
-    document.getElementById('biometricLabel').textContent=origLabel;
-    if(e.name!=='NotAllowedError'){
-      document.getElementById('pinErr').textContent='שגיאת אימות ביומטרי';
-      setTimeout(()=>document.getElementById('pinErr').textContent='',2000);
-    }
-  }
-}
-
-// Show/hide biometric button based on availability
-async function updateBiometricButton(){
-  const btn=document.getElementById('biometricBtn');
-  if(!btn)return;
-  const hasCred=!!localStorage.getItem('fin26_wa_cred');
-  const available=await waPlatformAvailable();
-  if(hasCred&&available){
-    btn.classList.add('visible');
-    // Detect platform for icon
-    const ua=navigator.userAgent;
-    const isIOS=/iPhone|iPad|Mac/.test(ua);
-    const isAndroid=/Android/.test(ua);
-    document.getElementById('biometricIcon').textContent=isIOS?'🪪':isAndroid?'👆':'🔑';
-    document.getElementById('biometricLabel').textContent=
-      isIOS?'כניסה עם Face ID':isAndroid?'כניסה עם טביעת אצבע':'כניסה ביומטרית';
-  } else {
-    btn.classList.remove('visible');
-  }
-  // Update settings button
-  const setupBtn=document.getElementById('biometricSetupBtn');
-  if(setupBtn){
-    setupBtn.textContent=hasCred?'✅ ביומטרי פעיל — עדכן':'🔒 הפעל Face ID / ביומטרי';
-  }
-}
-
-// ══════════════════════════════════════════════════════════════════
-// BOOT: after PIN is entered
-// ══════════════════════════════════════════════════════════════════
-function animateCountUp(duration=3000){
-  // Find all elements containing ₪ values and animate them
-  const selectors=['.si-val','.kpi-value','.kpi-sub','#invGrandTotal','.td-num','.td-pos','.td-neg'];
-  const els=document.querySelectorAll(selectors.join(','));
-  const shekelRe=/₪[\d,]+(\.\d+)?/g;
-
-  els.forEach(el=>{
-    const original=el.innerHTML;
-    // Extract all ₪ numbers from this element
-    const matches=[...original.matchAll(/₪([\d,]+(\.\d+)?)/g)];
-    if(!matches.length)return;
-
-    // Parse target values
-    const targets=matches.map(m=>parseFloat(m[1].replace(/,/g,''))||0);
-    if(targets.every(t=>t===0))return;
-
-    const start=performance.now();
-    // Easing: ease-out cubic
-    function easeOut(t){return 1-Math.pow(1-t,3);}
-
-    function tick(now){
-      const elapsed=now-start;
-      const progress=Math.min(elapsed/duration,1);
-      const eased=easeOut(progress);
-
-      let html=original;
-      matches.forEach((m,i)=>{
-        const val=Math.round(targets[i]*eased);
-        const formatted='₪'+val.toLocaleString('he-IL');
-        // Replace first occurrence of this exact match
-        html=html.replace(m[0],formatted);
-      });
-      el.innerHTML=html;
-
-      if(progress<1)requestAnimationFrame(tick);
-      else el.innerHTML=original; // restore exact original at end
-    }
-    requestAnimationFrame(tick);
-  });
-}
-
-async function bootApp(){
-  const token=getToken();
-  const gistId=getGistId();
-
-  if(!token){
-    // First time: show setup wizard
-    document.getElementById('setupOverlay').classList.remove('hidden');
-    return;
-  }
-
-  // Load from Gist (falls back to localStorage if Gist fails)
-  loadState();
-  const loaded=await gistLoad();
-  if(!loaded){
-    // Gist failed but we have localStorage — use it
-    loadState();
-  }
-
-  // Remove blur
-  document.querySelectorAll('.page,.header,.nav').forEach(el=>el.style.filter='');
-  // Start auto-lock timer
-  resetAutoLock();
-  recalcSlog();
-  // Auto-snapshot
-  try{
-    const key='fin26_snaps';
-    const snaps=JSON.parse(localStorage.getItem(key)||'[]');
-    const today=new Date().toISOString().slice(0,10);
-    const last=snaps[snaps.length-1];
-    if(!last||last.d!==today){
-      const val=liquidTotal()+illiqTotal();
-      snaps.push({d:today,v:val});
-      if(snaps.length>200)snaps.splice(0,snaps.length-200);
-      localStorage.setItem(key,JSON.stringify(snaps));
-    }
-  }catch(e){}
-
-  renderAll();
-  initMarketTicker();
-  // Animate all monetary values counting up from 0 over 3 seconds
-  animateCountUp(3000);
-}
-
-
-// ══════════════════════════════════════════════════════════════════
-// SETTINGS: TOKEN / GIST / PIN CHANGE
-// ══════════════════════════════════════════════════════════════════
 async function saveTokenSetting(){
   const val=document.getElementById('setToken').value.trim();
   if(!val||val.startsWith('•')){document.getElementById('tokenStatus').textContent='הכנס token חדש';return;}
@@ -2867,123 +2558,343 @@ async function testConnection(){
   }
 }
 
+// ══════════════════════════════════════════════════════════════════
+// PASSPHRASE GATE — replaces the old PIN. Key stays in memory only.
+// ══════════════════════════════════════════════════════════════════
+let ROOT_PROBE=null;
+let ROOT_RECOVERY='';
+let ROOT_AFTER='boot';
+let ROOT_CREATE_NEW=false;
+let SNAPS_MEM=null;
+let appUnlocked=false;
+
+function snapsNow(){return Array.isArray(SNAPS_MEM)?SNAPS_MEM:[];}
+async function readSnaps(){
+  try{
+    const raw=JSON.parse(localStorage.getItem('fin26_snaps')||'null');
+    if(window.FinCrypto&&FinCrypto.isEnvelope(raw)){
+      if(!FinCrypto.unlocked())return [];
+      const a=await FinCrypto.open(raw);
+      return Array.isArray(a)?a.filter(x=>x&&x.d&&isFinite(+x.v)):[];
+    }
+    return Array.isArray(raw)?raw.filter(x=>x&&x.d&&isFinite(+x.v)):[];
+  }catch(e){return [];}
+}
+async function writeSnaps(snaps){
+  SNAPS_MEM=snaps;
+  try{
+    const payload=(window.FinCrypto&&FinCrypto.unlocked())?await FinCrypto.seal(snaps):snaps;
+    if(window.FinCrypto&&!FinCrypto.unlocked()&&FinCrypto.readVault())return;
+    localStorage.setItem('fin26_snaps',JSON.stringify(payload));
+  }catch(e){console.warn('snaps',e);}
+}
+function stripAccessHash(){
+  if(String(location.hash||'').startsWith('#access=')){
+    history.replaceState(null,'',location.pathname+location.search);
+  }
+}
+function showLock(which,title,sub){
+  const ov=document.getElementById('pinOverlay');
+  ov.classList.remove('hidden');
+  document.getElementById('lockTitle').textContent=title||'FinBoard נעול';
+  document.getElementById('lockSub').textContent=sub||'';
+  document.getElementById('lockUnlock').style.display=which==='unlock'?'':'none';
+  document.getElementById('lockSetup').style.display=which==='setup'?'':'none';
+  document.getElementById('lockRecovery').style.display=which==='recovery'?'':'none';
+  document.getElementById('lockMigrate').style.display=which==='migrate'?'':'none';
+  document.getElementById('lockErr').textContent='';
+  const focus=which==='unlock'?'lockSecret':which==='setup'?'lockPass':null;
+  if(focus){const el=document.getElementById(focus);if(el)setTimeout(()=>el.focus(),50);}
+}
+function hideLock(){document.getElementById('pinOverlay').classList.add('hidden');}
+function lockErr(t){const el=document.getElementById('lockErr');if(el)el.textContent=t||'';}
+
+function parseMaybe(text){try{return JSON.parse(text);}catch(e){return null;}}
+async function fileText(file){
+  if(!file)return '';
+  let content=file.content||'';
+  if(file.truncated&&file.raw_url){
+    const rr=await fetch(file.raw_url,{cache:'no-store'});
+    if(rr.ok)content=await rr.text();
+  }
+  return content;
+}
+async function probeRoot(){
+  let local=null;
+  try{local=JSON.parse(localStorage.getItem('fin26')||'null');}catch(e){}
+  const vault=window.FinCrypto?FinCrypto.readVault():null;
+  let finance=null,tasks=null;
+  const token=getToken(),gistId=getGistId();
+  if(token&&gistId){
+    const r=await fetch('https://api.github.com/gists/'+encodeURIComponent(gistId),{
+      headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json'},cache:'no-store'});
+    if(!r.ok)throw new Error('Gist '+r.status);
+    const d=await r.json();
+    const files=d.files||{};
+    if(files.finance_data||files['finance_data.json']){
+      const raw=await fileText(files['finance_data.json']);
+      finance=parseMaybe(raw);
+    }
+    if(files['tasks.json'])tasks=parseMaybe(await fileText(files['tasks.json']));
+  }
+  const mode=FinCrypto.planGate({vault,local,finance,tasks});
+  return {mode,vault,local,finance,tasks};
+}
+function plainFinanceFromProbe(p){
+  const a=p&&FinCrypto.isPersonalFinance(p.local)?p.local:null;
+  const b=p&&FinCrypto.isPersonalFinance(p.finance)?p.finance:null;
+  if(a&&b){const ta=Date.parse(a.lastUpdated||0)||0,tb=Date.parse(b.lastUpdated||0)||0;return ta>tb?a:b;}
+  return b||a;
+}
+function buildPlainBackup(){
+  const fin=plainFinanceFromProbe(ROOT_PROBE)||(FinCrypto.isPersonalFinance(S)?S:defaultState());
+  let tasks=null;
+  if(ROOT_PROBE&&ROOT_PROBE.tasks&&Array.isArray(ROOT_PROBE.tasks.items)&&!ROOT_PROBE.tasks.finboard)tasks=ROOT_PROBE.tasks;
+  let snaps=[];
+  try{const raw=JSON.parse(localStorage.getItem('fin26_snaps')||'[]');if(Array.isArray(raw))snaps=raw;}catch(e){}
+  return {finboardBackup:1,exportedAt:new Date().toISOString(),plaintext:true,files:{'finance_data.json':fin,'tasks.json':tasks},fin26_snaps:snaps};
+}
+
+async function startRoot(){
+  stripAccessHash();
+  if(!window.FinCrypto){await bootApp();return;}
+  if(!getToken()){
+    document.getElementById('setupOverlay').classList.remove('hidden');
+    return;
+  }
+  lockErr('');
+  showLock('unlock','בודק…','');
+  document.getElementById('lockUnlock').style.display='none';
+  try{
+    ROOT_PROBE=await probeRoot();
+  }catch(e){
+    ROOT_PROBE={mode:'open',vault:FinCrypto.readVault(),local:null,finance:null,tasks:null,err:e.message};
+    const local=parseMaybe(localStorage.getItem('fin26')||'null');
+    ROOT_PROBE.local=local;
+    ROOT_PROBE.mode=FinCrypto.planGate(ROOT_PROBE);
+  }
+  if(ROOT_CREATE_NEW&&ROOT_PROBE.mode==='open'){
+    ROOT_PROBE.finance=defaultState();
+    ROOT_PROBE.mode='setup';
+    ROOT_PROBE.createNew=true;
+  }
+  if(ROOT_PROBE.mode==='unlock'||ROOT_PROBE.mode==='unlock-then-migrate'){
+    ROOT_AFTER=ROOT_PROBE.mode==='unlock-then-migrate'?'migrate':'boot';
+    showLock('unlock','FinBoard נעול','הזינו את סיסמת ההצפנה, או הדביקו את מפתח השחזור. המפתח נשמר רק בזיכרון של הלשונית הזו.');
+  }else if(ROOT_PROBE.mode==='setup'){
+    showLock('setup','הצפנת הנתונים','הנתונים שמורים כרגע בגלוי. בחרו סיסמה. לפני ההצפנה יורד אוטומטית גיבוי למחשב. אין שחזור באימייל — יוצג מפתח שחזור פעם אחת.');
+  }else{
+    hideLock();
+    await bootApp();
+  }
+}
+
+function wrapsForProbe(){
+  const p=ROOT_PROBE||{};
+  return p.vault||FinCrypto.readVault()||FinCrypto.wrapsOf(p.finance)||FinCrypto.wrapsOf(p.local)||FinCrypto.wrapsOf(p.tasks);
+}
+async function submitUnlock(){
+  const secret=document.getElementById('lockSecret').value;
+  const wraps=wrapsForProbe();
+  if(!secret||!wraps){lockErr('אין מעטפת הצפנה לפתיחה');return;}
+  lockErr('בודק…');
+  document.getElementById('lockOpenBtn').disabled=true;
+  try{
+    await FinCrypto.unlock(secret,wraps);
+    document.getElementById('lockSecret').value='';
+    if(ROOT_AFTER==='migrate'){
+      showLock('migrate','נמצאו נתונים גלויים','לפני שהם יוצפנו ב-Gist יורד גיבוי למחשב. אל תמשיכו אם ההורדה נחסמה.');
+    }else{
+      hideLock();
+      S=null;
+      await bootApp();
+    }
+  }catch(e){
+    FinCrypto.clearSession();
+    lockErr('הסיסמה או מפתח השחזור שגויים');
+  }finally{document.getElementById('lockOpenBtn').disabled=false;}
+}
+async function submitSetup(){
+  const a=document.getElementById('lockPass').value;
+  const b=document.getElementById('lockPass2').value;
+  if(a.length<8){lockErr('הסיסמה חייבת להכיל לפחות 8 תווים');return;}
+  if(a!==b){lockErr('האימות אינו תואם');return;}
+  lockErr('יוצר מפתח…');
+  document.getElementById('lockSetupBtn').disabled=true;
+  try{
+    const created=await FinCrypto.createVault(a);
+    ROOT_RECOVERY=created.recoveryText;
+    document.getElementById('lockPass').value='';
+    document.getElementById('lockPass2').value='';
+    document.getElementById('lockRecKey').textContent=ROOT_RECOVERY;
+    document.getElementById('lockSaved').checked=false;
+    showLock('recovery','מפתח שחזור — פעם אחת','זה הגיבוי היחיד אם תשכחו את הסיסמה. אין שחזור באימייל ואין שרת. שמרו אותו במנהל סיסמאות או על נייר. מי שיש לו את המפתח יכול לפתוח את כל הנתונים.');
+  }catch(e){lockErr('לא הצלחתי ליצור הצפנה');}
+  finally{document.getElementById('lockSetupBtn').disabled=false;}
+}
+async function copyRecovery(){
+  const t=ROOT_RECOVERY||document.getElementById('lockRecKey').textContent;
+  try{await navigator.clipboard.writeText(t);lockErr('המפתח הועתק');}
+  catch(e){lockErr('העתיקו את המפתח ידנית');}
+}
+async function finishMigrate(){
+  if(ROOT_RECOVERY&&!document.getElementById('lockSaved').checked){lockErr('אשרו ששמרתם את מפתח השחזור');return;}
+  const backup=buildPlainBackup();
+  FinCrypto.downloadJson(FinCrypto.datedName('finboard-plaintext-backup'),backup);
+  lockErr('מצפין ושומר…');
+  const btn=document.getElementById('lockGoBtn');
+  const btn2=document.getElementById('lockMigrateBtn');
+  if(btn)btn.disabled=true;if(btn2)btn2.disabled=true;
+  try{
+    await applyEncryptedBackup(backup);
+    ROOT_RECOVERY='';
+    ROOT_CREATE_NEW=false;
+    hideLock();
+    await bootApp();
+  }catch(e){
+    lockErr('ההצפנה נכשלה: '+(e.message||e)+' — הגיבוי כבר ירד. הנתונים הגלויים לא נדרסו אם השמירה ל-Gist נכשלה.');
+  }finally{if(btn)btn.disabled=false;if(btn2)btn2.disabled=false;}
+}
+async function applyEncryptedBackup(backup){
+  const fin=backup.files['finance_data.json'];
+  if(!fin||!fin.investments)throw new Error('אין נתונים');
+  S=fin;
+  const sealed=await FinCrypto.seal(S);
+  localStorage.setItem('fin26',JSON.stringify(sealed));
+  if(Array.isArray(backup.fin26_snaps)&&backup.fin26_snaps.length){
+    SNAPS_MEM=backup.fin26_snaps;
+    localStorage.setItem('fin26_snaps',JSON.stringify(await FinCrypto.seal(backup.fin26_snaps)));
+  }
+  const token=getToken();
+  let gistId=getGistId();
+  const files={'finance_data.json':{content:JSON.stringify(sealed,null,2)}};
+  if(backup.files['tasks.json']&&Array.isArray(backup.files['tasks.json'].items)){
+    files['tasks.json']={content:JSON.stringify(await FinCrypto.seal(backup.files['tasks.json']),null,2)};
+  }
+  if(!token)return;
+  if(!gistId){
+    gistId=await gistCreate(token,sealed);
+    localStorage.setItem('fin26_gist',gistId);
+    if(files['tasks.json']){
+      await fetch('https://api.github.com/gists/'+gistId,{method:'PATCH',headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json','Content-Type':'application/json'},body:JSON.stringify({files:{'tasks.json':files['tasks.json']}})});
+    }
+    return;
+  }
+  const r=await fetch('https://api.github.com/gists/'+gistId,{method:'PATCH',headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json','Content-Type':'application/json'},body:JSON.stringify({files})});
+  if(!r.ok)throw new Error('שמירה ל-Gist נכשלה ('+r.status+')');
+}
+
+async function propagateWrapsRoot(){
+  const w=FinCrypto.wraps();
+  if(!w)return;
+  try{
+    const raw=JSON.parse(localStorage.getItem('fin26')||'null');
+    if(FinCrypto.isEnvelope(raw))localStorage.setItem('fin26',JSON.stringify(FinCrypto.applyWraps(raw,w)));
+  }catch(e){}
+  try{
+    const raw=JSON.parse(localStorage.getItem('fin26_snaps')||'null');
+    if(FinCrypto.isEnvelope(raw))localStorage.setItem('fin26_snaps',JSON.stringify(FinCrypto.applyWraps(raw,w)));
+  }catch(e){}
+  const token=getToken(),gistId=getGistId();
+  if(!token||!gistId)return;
+  const r=await fetch('https://api.github.com/gists/'+gistId,{headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json'},cache:'no-store'});
+  if(!r.ok)return;
+  const d=await r.json();
+  const files={};
+  for(const name of ['finance_data.json','tasks.json']){
+    const text=d.files&&d.files[name]&&d.files[name].content;
+    const parsed=parseMaybe(text||'');
+    if(FinCrypto.isEnvelope(parsed))files[name]={content:JSON.stringify(FinCrypto.applyWraps(parsed,w),null,2)};
+  }
+  if(!Object.keys(files).length)return;
+  await fetch('https://api.github.com/gists/'+gistId,{method:'PATCH',headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json','Content-Type':'application/json'},body:JSON.stringify({files})});
+}
+async function changePassphraseUI(){
+  const status=document.getElementById('pinChangeStatus');
+  if(!window.FinCrypto||!FinCrypto.unlocked()){status.textContent='יש לפתוח את הנתונים קודם';status.style.color='var(--red)';return;}
+  const a=document.getElementById('passNew').value,b=document.getElementById('passConfirm').value;
+  if(a.length<8){status.textContent='לפחות 8 תווים';status.style.color='var(--red)';return;}
+  if(a!==b){status.textContent='האימות אינו תואם';status.style.color='var(--red)';return;}
+  status.textContent='מעדכן…';
+  try{
+    await FinCrypto.changePassphrase(a);
+    await propagateWrapsRoot();
+    document.getElementById('passNew').value='';
+    document.getElementById('passConfirm').value='';
+    status.textContent='הסיסמה הוחלפה. מפתח השחזור ללא שינוי.';
+    status.style.color='var(--green)';
+  }catch(e){status.textContent='ההחלפה נכשלה';status.style.color='var(--red)';}
+}
+
+document.getElementById('lockOpenBtn').onclick=()=>submitUnlock();
+document.getElementById('lockSetupBtn').onclick=()=>submitSetup();
+document.getElementById('lockCopyBtn').onclick=()=>copyRecovery();
+document.getElementById('lockGoBtn').onclick=()=>finishMigrate();
+document.getElementById('lockMigrateBtn').onclick=()=>finishMigrate();
+document.getElementById('lockSecret').addEventListener('keydown',e=>{if(e.key==='Enter')submitUnlock();});
+document.getElementById('lockSaved').addEventListener('change',()=>{document.getElementById('lockGoBtn').disabled=!document.getElementById('lockSaved').checked;});
+document.getElementById('lockGoBtn').disabled=true;
+
+async function bootApp(){
+  if(!getToken()){
+    document.getElementById('setupOverlay').classList.remove('hidden');
+    return;
+  }
+  if(!S||!Array.isArray(S.investments)||!S.investments.length){
+    const had=await loadState();
+    const loaded=await gistLoad();
+    if(!loaded&&!had)await loadState();
+    if(window.FinCrypto&&FinCrypto.isPersonalFinance(S)&&!FinCrypto.unlocked()&&(FinCrypto.readVault()||ROOT_PROBE&&ROOT_PROBE.mode!=='open')){
+      return;
+    }
+  }
+  appUnlocked=true;
+  document.querySelectorAll('.page,.header,.nav').forEach(el=>el.style.filter='');
+  resetAutoLock();
+  recalcSlog();
+  SNAPS_MEM=await readSnaps();
+  try{
+    const snaps=SNAPS_MEM.slice();
+    const today=new Date().toISOString().slice(0,10);
+    const last=snaps[snaps.length-1];
+    if(!last||last.d!==today){
+      snaps.push({d:today,v:liquidTotal()+illiqTotal()});
+      if(snaps.length>200)snaps.splice(0,snaps.length-200);
+      await writeSnaps(snaps);
+    }
+  }catch(e){}
+  renderAll();
+  initMarketTicker();
+  animateCountUp(3000);
+}
+
 async function manualSync(){
   await gistSave();
-  alert('✅ הנתונים סונכרנו לענן');
+  if(window.FinCrypto&&FinCrypto.unlocked())alert('הנתונים סונכרנו (מוצפנים) לענן');
 }
 
-function changePin(){
-  const cur=document.getElementById('pinCurrent').value;
-  const newPin=document.getElementById('pinNew').value;
-  const conf=document.getElementById('pinConfirm').value;
-  const status=document.getElementById('pinChangeStatus');
-  const storedPin=localStorage.getItem('fin26_pin')||CORRECT_PIN;
-  if(cur!==storedPin){status.textContent='❌ PIN נוכחי שגוי';status.style.color='var(--red)';return;}
-  if(newPin.length!==4||!/^\d{4}$/.test(newPin)){status.textContent='❌ PIN חייב להיות 4 ספרות';status.style.color='var(--red)';return;}
-  if(newPin!==conf){status.textContent='❌ האימות אינו תואם';status.style.color='var(--red)';return;}
-  localStorage.setItem('fin26_pin',newPin);
-  document.getElementById('pinCurrent').value='';
-  document.getElementById('pinNew').value='';
-  document.getElementById('pinConfirm').value='';
-  status.textContent='✅ PIN שונה בהצלחה';
-  status.style.color='var(--green)';
-  setTimeout(()=>status.textContent='',3000);
-}
-
-// ══════════════════════════════════════════════════════════════════
-// AUTO-LOCK: lock after 3 minutes of inactivity
-// ══════════════════════════════════════════════════════════════════
-const AUTO_LOCK_MS = 3 * 60 * 1000; // 3 minutes
+const AUTO_LOCK_MS=3*60*1000;
 let autoLockTimer=null;
-
 function resetAutoLock(){
-  if(!pinUnlocked)return;
+  if(!appUnlocked)return;
   clearTimeout(autoLockTimer);
   autoLockTimer=setTimeout(()=>{lockApp();},AUTO_LOCK_MS);
 }
-
 function lockApp(){
-  pinUnlocked=false;
-  pinEntry='';
-  updatePinDots();
-  document.getElementById('pinErr').textContent='';
-  document.getElementById('pinOverlay').classList.remove('hidden');
-  // Blur/hide sensitive content
+  appUnlocked=false;
+  if(window.FinCrypto)FinCrypto.clearSession();
+  S={tracks:[],investments:[],loans:[],slog:[],set:{}};
+  showLock('unlock','FinBoard נעול','עברו כמה דקות בלי פעילות. הזינו שוב את הסיסמה או את מפתח השחזור.');
+  ROOT_AFTER='boot';
+  if(ROOT_PROBE)ROOT_PROBE.vault=FinCrypto.readVault();
   document.querySelectorAll('.page,.header,.nav').forEach(el=>el.style.filter='blur(8px)');
 }
-
-// Re-show content when unlocked
-
 ['click','keydown','touchstart','mousemove','scroll'].forEach(ev=>{
-  document.addEventListener(ev, resetAutoLock, {passive:true});
+  document.addEventListener(ev,resetAutoLock,{passive:true});
 });
 
-
-// ══════════════════════════════════════════════════════════════════
-// QR CODE + SHAREABLE LINK
-// ══════════════════════════════════════════════════════════════════
-function buildAccessLink(){
-  const token=getToken(), gistId=getGistId();
-  if(!token||!gistId)return null;
-  // Encode as base64 to avoid exposing plaintext in URL bar
-  const payload=btoa(JSON.stringify({t:token,g:gistId}));
-  const base=window.location.href.split('#')[0].split('?')[0];
-  return base+'#access='+payload;
-}
-
-function showQR(){
-  const token=getToken(), gistId=getGistId();
-  if(!token||!gistId){
-    alert('יש להגדיר Token ו-Gist ID תחילה (בסנכרון ענן למעלה)');
-    return;
-  }
-  const link=buildAccessLink();
-  // Show modal
-  document.getElementById('qrOverlay').style.display='flex';
-  document.getElementById('qrLink').value=link;
-  // Generate QR
-  const container=document.getElementById('qrCanvas');
-  container.innerHTML='';
-  try{
-    new QRCode(container,{text:link,width:200,height:200,colorDark:'#000000',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
-  }catch(e){container.textContent='לא ניתן ליצור QR';}
-}
-
-function copyQrLink(){
-  const link=document.getElementById('qrLink').value;
-  navigator.clipboard.writeText(link).then(()=>{
-    const btn=event.target;btn.textContent='✅ הועתק!';
-    setTimeout(()=>btn.textContent='📋 העתק קישור',2000);
-  }).catch(()=>{
-    document.getElementById('qrLink').select();
-    document.execCommand('copy');
-  });
-}
-
-function closeQR(){
-  document.getElementById('qrOverlay').style.display='none';
-}
-
-// Auto-load token+gist from URL hash on page load
-function checkUrlAccess(){
-  const hash=window.location.hash;
-  if(!hash.startsWith('#access='))return;
-  try{
-    const payload=JSON.parse(atob(hash.slice(8)));
-    if(payload.t&&payload.g){
-      localStorage.setItem('fin26_token',payload.t);
-      localStorage.setItem('fin26_gist',payload.g);
-      // Clean URL (remove hash so it's not visible)
-      history.replaceState(null,'',window.location.pathname+window.location.search);
-    }
-  }catch(e){console.warn('Invalid access hash');}
-}
-// Run immediately before PIN screen
-checkUrlAccess();
-// Defer biometric check to avoid blocking PIN rendering
-setTimeout(()=>{ try{updateBiometricButton();}catch(e){} }, 100);
-
-// App starts after PIN is entered — see bootApp()
+stripAccessHash();
+startRoot();
 </script>
 </body>
 </html>
