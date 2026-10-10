@@ -385,6 +385,37 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
 .pg-split{height:12px;border-radius:99px;overflow:hidden;display:flex;background:var(--line);margin:10px 0 6px}
 .pg-split>div{height:100%}
 .pg-cov{font-size:12px;color:var(--dim);margin-top:6px;line-height:1.45}
+/* overview: annual management-fee cost (read-only; real estate excluded) */
+.ov-fee-main{display:flex;align-items:flex-end;justify-content:space-between;gap:8px 28px;flex-wrap:wrap}
+.ov-fee-kpi{min-width:min(100%,200px)}
+.ov-fee-kpi .lbl{font-size:12px;color:var(--dim)}
+.ov-fee-kpi .val{font-size:26px;font-weight:800;letter-spacing:-.4px;line-height:1.15;margin-top:2px}
+.ov-fee-unit{font-size:13px;font-weight:600;color:var(--dim);margin-inline-start:6px}
+.ov-fee-foot{flex:1 1 260px;font-size:12px;color:var(--dim);line-height:1.45;padding-bottom:3px;min-width:min(100%,220px)}
+.ov-fee-details{margin-top:10px;border-top:1px solid var(--line);padding-top:8px}
+.ov-fee-details summary{cursor:pointer;font-size:12px;font-weight:600;color:var(--dim);width:fit-content}
+.ov-fee-details summary:hover{color:var(--text)}
+.ov-fee-list{margin-top:8px}
+.ov-fee-h,.ov-fee-item{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(88px,.8fr) minmax(72px,.6fr) minmax(108px,.85fr);gap:4px 12px;align-items:center;padding:7px 2px;border-bottom:1px solid var(--line)}
+.ov-fee-h{font-size:11px;color:var(--dim);font-weight:500}
+.ov-fee-item:last-child{border-bottom:0}
+.ov-fee-item .nm{font-weight:600;min-width:0;overflow-wrap:anywhere}
+.ov-fee-h .n,.ov-fee-item .n{text-align:left}
+.ov-fee-item .cost{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.ov-fee-item .cost .mini-bar{width:72px}
+.ov-fee-k{display:none}
+.ov-fee-miss{font-size:12px;color:var(--dim);margin-top:8px;line-height:1.45}
+.ov-fee-empty{font-size:12px;padding:6px 0}
+@media (max-width:760px){
+  .ov-fee-kpi .val{font-size:24px}
+  .ov-fee-h{display:none}
+  .ov-fee-item{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"nm cost" "bal fee";row-gap:2px;padding:8px 0}
+  .ov-fee-item .nm{grid-area:nm}
+  .ov-fee-item .cost{grid-area:cost;font-weight:700}
+  .ov-fee-item .bal{grid-area:bal}
+  .ov-fee-item .fee{grid-area:fee;font-size:12px}
+  .ov-fee-k{display:inline;color:var(--faint);font-weight:400}
+}
 .pg-detail{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:baseline;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--card2);margin-bottom:12px;font-size:13px}
 .pg-sub{font-size:11px;color:var(--faint);margin-top:2px}
 @media(max-width:760px){
@@ -424,6 +455,20 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
           <div class="split" id="ovFinSplit"></div><div class="legend" id="ovFinLeg"></div></div>
         <div class="card kpi"><div class="lbl">רווח מצטבר מתחילת המעקב</div><div class="val" id="ovGain"></div><div class="foot" id="ovGainFoot"></div></div>
         <div class="card kpi"><div class="lbl">התחייבויות</div><div class="val neg" id="ovDebt"></div><div class="foot" id="ovDebtFoot"></div></div>
+      </div>
+      <div class="card mt ov-fee" id="ovFeeCard">
+        <div class="ov-fee-main">
+          <div class="ov-fee-kpi">
+            <div class="lbl" title="יתרה × דמי ניהול שנתיים. אחזקה בלי feePct לא נספרת. נדל״ן לא נכלל.">עלות דמי ניהול שנתית</div>
+            <div class="val" id="ovFeeVal"></div>
+          </div>
+          <div class="ov-fee-foot" id="ovFeeFoot"></div>
+        </div>
+        <details class="ov-fee-details" id="ovFeeDetails">
+          <summary id="ovFeeSum">פירוט לפי אחזקה</summary>
+          <div class="ov-fee-list" id="ovFeeList" role="table" aria-label="עלות דמי ניהול לפי אחזקה"></div>
+          <div class="ov-fee-miss" id="ovFeeMiss"></div>
+        </details>
       </div>
       <div class="card mt" id="ovPgCard">
         <div class="card-head"><h3>קרן מול רווח <span class="sub">יתרה − קרן · בלי נדל״ן</span></h3>
@@ -1156,6 +1201,49 @@ function portVol(scope){
 }
 function weightedFee(scope){const hs=S.investments.filter(scope==='liq'?isLiq:isFin);const withFee=hs.filter(i=>isFinite(i.feePct));
   if(!withFee.length)return null;return sum(withFee,i=>i.bal*i.feePct)/(sum(withFee,i=>i.bal)||1);}
+/* Annual management-fee cost on the same financial holdings as the overview (real estate excluded).
+   cost = bal * feePct/100. Missing feePct contributes nothing and is counted separately.
+   Weighted average is over fee-bearing balance only (feePct > 0), not over 0% or unrecorded holdings. */
+function annualFeeBreakdown(){
+  const rows=[],missing=[];
+  S.investments.filter(isFin).forEach(i=>{
+    if(!isFinite(i.feePct)){missing.push(i);return;}
+    const fee=+i.feePct;
+    rows.push({i,fee,cost:(+i.bal||0)*fee/100});
+  });
+  rows.sort((a,b)=>b.cost-a.cost||b.i.bal-a.i.bal);
+  missing.sort((a,b)=>b.bal-a.bal);
+  const annual=sum(rows,r=>r.cost);
+  const bearing=rows.filter(r=>r.fee>0);
+  const bearBal=sum(bearing,r=>r.i.bal);
+  const wavg=bearBal>0?sum(bearing,r=>r.i.bal*r.fee)/bearBal:null;
+  return {rows,missing,annual,bearBal,wavg};
+}
+function feeMissingLabel(n){
+  if(n===0)return 'אין אחזקות ללא דמי ניהול רשומים';
+  if(n===1)return 'אחזקה אחת ללא דמי ניהול רשומים';
+  return n+' אחזקות ללא דמי ניהול רשומים';
+}
+function renderAnnualFees(){
+  const elV=$('#ovFeeVal'),elF=$('#ovFeeFoot'),elL=$('#ovFeeList'),elM=$('#ovFeeMiss'),elS=$('#ovFeeSum');
+  if(!elV)return;
+  const t=annualFeeBreakdown();
+  const missTxt=feeMissingLabel(t.missing.length);
+  if(!t.rows.length){elV.innerHTML='—';elF.textContent=missTxt;}
+  else{
+    elV.innerHTML=`${ils(t.annual)}<span class="ov-fee-unit">לשנה</span>`;
+    const avg=t.wavg!=null?`ממוצע משוקלל <span class="m">${t.wavg.toFixed(2)}%</span> על יתרה נושאת דמי ניהול ${ils(t.bearBal)}`:'אין יתרה שגובה דמי ניהול (הרשומים הם 0%)';
+    elF.innerHTML=`${avg} · ${missTxt}`;
+  }
+  elS.textContent=t.rows.length?`פירוט לפי אחזקה (${t.rows.length})`:'פירוט לפי אחזקה';
+  const maxC=t.rows.reduce((m,r)=>Math.max(m,r.cost),0);
+  const hiRaw=+P.feeHigh;const hiAt=P.feeHigh==null||!Number.isFinite(hiRaw)?0.6:hiRaw;
+  elL.innerHTML=t.rows.length?`<div class="ov-fee-h" role="row" aria-hidden="true"><span role="columnheader">אחזקה</span><span class="n" role="columnheader">יתרה</span><span class="n" role="columnheader">דמי ניהול</span><span class="n" role="columnheader">עלות שנתית</span></div>`+
+    t.rows.map(r=>{const bar=maxC>0?Math.max(0,r.cost)/maxC*100:0;
+      return `<div class="ov-fee-item" role="row"><div class="nm" role="cell">${esc(r.i.name)}</div><div class="n bal" role="cell"><span class="ov-fee-k">יתרה </span>${ils(r.i.bal)}</div><div class="n fee" role="cell"><span class="ov-fee-k">דמי ניהול </span><span class="m ${r.fee>=hiAt?'warn':''}">${r.fee.toFixed(2)}%</span></div><div class="n cost" role="cell">${ils(r.cost)}<div class="mini-bar hide-m" title="חלק מהעלות השנתית"><div style="width:${bar.toFixed(1)}%"></div></div></div></div>`;}).join('')
+    :'<div class="ov-fee-empty dim">אין אחזקות עם דמי ניהול רשומים.</div>';
+  elM.innerHTML=t.missing.length?`ללא דמי ניהול רשומים (${t.missing.length}): ${t.missing.map(i=>esc(i.name)).join(' · ')}`:(t.rows.length?'לכל האחזקות הפיננסיות יש דמי ניהול רשומים. נדל״ן לא נכלל.':'נדל״ן לא נכלל בחישוב.');
+}
 
 function persistSnaps(snaps){
   const clean=(snaps||[]).filter(x=>x&&x.d&&isFinite(x.v)).map(x=>({d:iso(x.d),v:Math.round(+x.v)}))
@@ -1521,6 +1609,7 @@ function renderOverview(){
   else{$('#ovGain').textContent='—';$('#ovGainFoot').textContent='אין מספיק היסטוריה';}
   const pay=sum(S.loans.filter(l=>!l.closed),loanPay);
   $('#ovDebt').innerHTML=ils(T.debt);$('#ovDebtFoot').innerHTML=`החזר חודשי ${ils(pay)} · ${(T.debt/(T.fin||1)*100).toFixed(0)}% מההון הפיננסי`;
+  renderAnnualFees();
   const yr=TODAY.getFullYear();
   const per=[['חודש',addMonths(TODAY,-1)],['3 חודשים',addMonths(TODAY,-3)],['מתחילת השנה',new Date(yr-1,11,31)],['שנה',addMonths(TODAY,-12)],['מההתחלה',new Date(1900,0,1)]];
   $('#ovPeriods').innerHTML=per.map(([n,d])=>{const r=periodReturn(d);if(!r)return `<div class="period"><div class="p-l">${n}</div><div class="p-v faint">—</div><div class="p-s">אין נתונים</div></div>`;
