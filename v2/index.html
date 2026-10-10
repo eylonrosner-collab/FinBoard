@@ -268,7 +268,20 @@ body.share-view::before{content:"";position:fixed;inset:0;pointer-events:none;z-
   radial-gradient(circle at 92% 12%,#99f6e444,transparent 38%),
   radial-gradient(circle at 50% 100%,#cbd5e155,transparent 45%)}
 body.share-view .side, body.share-view .bottom-nav, body.share-view #exBanner, body.share-view #syncBar,
-body.share-view #srcMsg, body.share-view .top-actions #privBtn, body.share-view .top-actions #themeBtn{display:none!important}
+body.share-view #srcMsg, body.share-view .top-actions #privBtn, body.share-view .top-actions #themeBtn,
+body.share-view #backupBtn, body.share-view #lockGate{display:none!important}
+.lock-gate{position:fixed;inset:0;z-index:80;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:18px}
+.lock-gate[hidden]{display:none!important}
+.lock-card{width:min(440px,100%);background:var(--card);border:1px solid var(--line2);border-radius:18px;box-shadow:var(--shadow);padding:22px 18px 18px}
+.lock-card h1{font-size:22px;margin:8px 0 6px}
+.lock-card p{color:var(--dim);font-size:13px;margin-bottom:12px}
+.lock-card input[type=password],.lock-card input[type=text]{width:100%;height:44px;border-radius:10px;border:1px solid var(--line2);background:var(--card2);color:var(--text);padding:0 12px;font:inherit;margin-bottom:8px}
+.lock-card .btn{width:100%;min-height:44px;margin-top:4px}
+.lock-key{direction:ltr;text-align:left;font-family:ui-monospace,monospace;font-size:13px;line-height:1.7;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:12px;word-break:break-all;user-select:all}
+.lock-warn{background:color-mix(in srgb,var(--warn) 12%,transparent);border:1px solid color-mix(in srgb,var(--warn) 45%,transparent);border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:10px}
+.lock-err{min-height:18px;color:var(--neg);font-size:13px;margin-top:8px}
+.lock-card label.chk{margin:10px 0}
+#backupBtn{font-size:13px;font-weight:600}
 body.share-view .app{grid-template-columns:1fr;position:relative;z-index:1;background:transparent;min-height:100dvh}
 body.share-view .main{padding:0 18px 24px;max-width:460px;margin:0 auto;background:transparent}
 body.share-view .topbar{border:0;margin-bottom:6px;justify-content:center;background:transparent;backdrop-filter:none;padding:10px 0 4px;gap:8px}
@@ -428,6 +441,33 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
 </style>
 </head>
 <body>
+<div id="lockGate" class="lock-gate" hidden>
+  <div class="lock-card">
+    <div class="brand-logo" style="width:42px;height:42px">F</div>
+    <h1 id="lockTitle">FinBoard נעול</h1>
+    <p id="lockSub"></p>
+    <div id="lockUnlock">
+      <input id="lockSecret" type="password" autocomplete="current-password" placeholder="סיסמה או מפתח שחזור" style="direction:ltr;text-align:left">
+      <button class="btn" id="lockOpenBtn" type="button">פתיחה</button>
+    </div>
+    <div id="lockSetup" hidden>
+      <input id="lockPass" type="password" autocomplete="new-password" placeholder="סיסמה חדשה (לפחות 8 תווים)">
+      <input id="lockPass2" type="password" autocomplete="new-password" placeholder="אימות סיסמה">
+      <button class="btn" id="lockSetupBtn" type="button">המשך</button>
+    </div>
+    <div id="lockRecovery" hidden>
+      <div class="lock-warn">זה הגיבוי היחיד אם תשכחו את הסיסמה. אין שחזור באימייל ואין שרת. שמרו את המפתח במקום בטוח. הוא יוצג פעם אחת. מי שיש לו אותו יכול לפתוח את כל הנתונים.</div>
+      <div class="lock-key" id="lockRecKey"></div>
+      <button class="btn ghost" id="lockCopyBtn" type="button" style="margin-top:8px">העתק מפתח</button>
+      <label class="chk"><input type="checkbox" id="lockSaved"> שמרתי את מפתח השחזור במקום בטוח</label>
+      <button class="btn" id="lockGoBtn" type="button" disabled>הורד גיבוי והצפן</button>
+    </div>
+    <div id="lockMigrate" hidden>
+      <button class="btn" id="lockMigrateBtn" type="button">הורד גיבוי והצפן</button>
+    </div>
+    <div class="lock-err" id="lockErr"></div>
+  </div>
+</div>
 <div class="app">
   <aside class="side" id="side">
     <div class="brand"><div class="brand-logo">F</div><div><div class="brand-name">FinBoard</div><div class="brand-sub">2.0 · אב-טיפוס</div></div></div>
@@ -439,6 +479,7 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
       <div><div class="page-title" id="pageTitle">סקירה</div><div class="page-sub" id="pageSub"></div></div>
       <div class="top-actions">
         <span class="chip" id="srcChip">—</span>
+        <button class="icon-btn" id="backupBtn" type="button" title="הורדת עותק מפוענח למחשב">גיבוי למחשב</button>
         <button class="icon-btn" id="privBtn" title="מצב פרטיות — טשטוש סכומים">👁</button>
         <button class="icon-btn" id="themeBtn" title="מצב בהיר/כהה">🌓</button>
       </div>
@@ -675,12 +716,26 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
         </div>
         <div class="chips-row" style="margin-top:10px"><button class="btn ghost" id="gReload">טען מחדש מה-Gist</button><button class="btn ghost" id="gForget">שכח פרטי Gist של v2</button></div>
         <div id="gMsg" class="mt" style="font-size:13px"></div>
-        <div class="faint mt" style="font-size:11px">טעינה: <span class="num">GET api.github.com/gists/{id}</span>. שמירה (רק כשאתה לוחץ "שמור"): <span class="num">PATCH</span> של <span class="num">finance_data.json</span>, אותה בקשה כמו באתר המקורי, אחרי בדיקה שה-Gist לא עודכן בינתיים ממקום אחר. אם האתר המקורי כבר מחובר בדפדפן הזה, נעשה שימוש ב-<span class="num">fin26_token</span>/<span class="num">fin26_gist</span> שלו. פרטים שהוזנו כאן נשמרים רק ב-<span class="num">fin26_v2</span>. קישור גישה מהאתר המקורי (<span class="num">#access=…</span>) נתמך גם בכתובת v2. משימות הסקירה נשמרות בנפרד — ב-<span class="num">fin26_v2</span> ובקובץ <span class="num">tasks.json</span> באותו Gist (לא בתוך <span class="num">finance_data.json</span>), כדי שהאתר המקורי לא יושפע.</div>
+        <div class="faint mt" style="font-size:11px">טעינה: <span class="num">GET api.github.com/gists/{id}</span>. שמירה (רק כשאתה לוחץ "שמור"): <span class="num">PATCH</span> של <span class="num">finance_data.json</span>, אותה בקשה כמו באתר המקורי, אחרי בדיקה שה-Gist לא עודכן בינתיים ממקום אחר. אם האתר המקורי כבר מחובר בדפדפן הזה, נעשה שימוש ב-<span class="num">fin26_token</span>/<span class="num">fin26_gist</span> שלו. פרטים שהוזנו כאן נשמרים רק ב-<span class="num">fin26_v2</span>. ה-token מוזן כאן או באתר המקורי ונשמר רק ב-localStorage — לא בקישור ולא ב-QR. משימות הסקירה נשמרות בנפרד — ב-<span class="num">fin26_v2</span> ובקובץ <span class="num">tasks.json</span> באותו Gist (לא בתוך <span class="num">finance_data.json</span>), כדי שהאתר המקורי לא יושפע.</div>
       </div>
       <div class="card mt"><h3>הקצאת יעד והנחות לפי סוג נכס</h3>
         <div class="tbl-wrap"><table id="tblTargets"></table></div>
         <div class="dim mt" style="font-size:12px" id="tgtSum"></div></div>
       <div class="card mt"><h3>מיפוי מסלולים (look-through)</h3><div class="dim" style="font-size:12px;margin-bottom:8px" id="lookNote">כך כל מסלול מפורק לסוג נכס/מטבע/גאוגרפיה.</div><div class="tbl-wrap"><table id="tblLook"></table></div></div>
+      <div class="card mt" id="vaultCard"><h3>🔐 הצפנה וגיבוי למחשב</h3>
+        <div class="dim" style="font-size:12px;margin-bottom:8px">הנתונים ב-Gist ובדפדפן מוצפנים בסיסמה (AES-GCM). מפתח השחזור נשמר אצלך — אין שחזור באימייל. קישורי צופיק נשארים בלי סיסמה.</div>
+        <div class="chips-row">
+          <button class="btn" id="backupBtn2" type="button">גיבוי למחשב</button>
+          <button class="btn ghost" id="restoreBtn" type="button">שחזור מקובץ גיבוי</button>
+          <input type="file" id="restoreFile" accept="application/json,.json" hidden>
+        </div>
+        <div class="form mt">
+          <div class="field"><label>סיסמה חדשה</label><input id="np1" type="password" autocomplete="new-password" placeholder="לפחות 8 תווים"></div>
+          <div class="field"><label>אימות</label><input id="np2" type="password" autocomplete="new-password"></div>
+          <div class="field"><label>&nbsp;</label><button class="btn ghost" id="npBtn" type="button">החלפת סיסמה</button></div>
+        </div>
+        <div class="hint" id="npMsg">החלפה עוטפת מחדש את מפתח הנתונים. הקבצים לא מוצפנים מחדש. מפתח השחזור נשאר בתוקף.</div>
+      </div>
       <div class="card mt"><div class="card-head"><h3>🗂 גיבויים (לפני שמירות של v2)</h3><div class="tools"><button class="btn ghost sm" id="bkNow">צור גיבוי עכשיו</button></div></div>
         <div class="dim" style="font-size:12px;margin-bottom:8px">לפני השמירה הראשונה בכל סשן (ולפני כל שחזור) נשמר עותק של הנתונים הקודמים ב-<span class="num">fin26_v2.backups</span> (10 אחרונים, בדפדפן הזה בלבד). שחזור שומר את הגיבוי כנתונים הנוכחיים (בדפדפן וב-Gist).</div>
         <div class="tbl-wrap"><table id="tblBk"></table></div></div>
@@ -692,6 +747,7 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
 <div class="modal-bg" id="modal"><div class="modal-box" role="dialog" aria-modal="true"><div class="modal-head"><b id="mdTitle"></b><button id="mdX" aria-label="סגור">✕</button></div><div class="modal-body" id="mdBody"></div><div class="modal-foot" id="mdFoot"></div></div></div>
 <div class="toast" id="toast"></div>
 <script src="lookthrough.js"></script>
+<script src="../assets/finboard-crypto.js"></script>
 <script>
 'use strict';
 /* =====================================================================
@@ -850,47 +906,87 @@ function getCreds(){
   const a=v2raw().auth||{};if(a.gist)return {gist:String(a.gist).trim(),token:String(a.token||'').trim(),from:'v2'};
   return null;
 }
-/* Same access-link format as the original (#access=base64(JSON{t,g})). Stored ONLY in fin26_v2. */
+/* Access links that embed a token are no longer accepted. The token is typed by the user. */
 function checkUrlAccess(){
   const h=location.hash;if(!h.startsWith('#access='))return;
-  try{const p=JSON.parse(atob(decodeURIComponent(h.slice(8))));
-    if(p&&p.g){v2patch(v=>{v.auth={gist:String(p.g),token:String(p.t||''),savedAt:new Date().toISOString(),via:'link'};});ACCESS_MSG='✓ פרטי גישה נקלטו מהקישור ונשמרו ב-fin26_v2 בלבד.';}
-    else ACCESS_MSG='קישור גישה ללא Gist ID — התעלמתי ממנו.';
-  }catch(e){ACCESS_MSG='קישור גישה לא תקין — התעלמתי ממנו.';}
-  history.replaceState(null,'',location.pathname+location.search); // remove token from the address bar
+  ACCESS_MSG='קישור עם token בוטל. הזינו את ה-token בהגדרות — הוא לא נשמר מהכתובת.';
+  history.replaceState(null,'',location.pathname+location.search);
 }
-/* READ-ONLY Gist fetch — GET only, mirrors the original gistLoad() parsing */
-async function fetchGist(c){
+async function gistFileText(file,signal){
+  if(!file)return '';
+  let content=file.content||'';
+  if(file.truncated&&file.raw_url){
+    const rr=await fetch(file.raw_url,{method:'GET',signal,cache:'no-store'});
+    if(!rr.ok)throw new Error('טעינת הקובץ המלא נכשלה ('+rr.status+')');
+    content=await rr.text();
+  }
+  return content;
+}
+/* GET the gist and parse every file. Does not decrypt. tzofik_shares.json stays as stored. */
+async function fetchGistRaw(c){
   const ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),12000);
   try{
     const headers={Accept:'application/vnd.github+json'};if(c.token)headers.Authorization='Bearer '+c.token;
     const r=await fetch('https://api.github.com/gists/'+encodeURIComponent(c.gist),{method:'GET',headers,signal:ctl.signal,cache:'no-store'});
     if(!r.ok)throw new Error(r.status===401?'401 — ה-token לא תקין או שפג תוקפו':r.status===404?'404 — ה-Gist לא נמצא (בדוק את ה-ID / הרשאות ה-token)':r.status===403?'403 — אין הרשאה או שחרגת ממכסת ה-API של GitHub':'שגיאת GitHub '+r.status);
-    const d=await r.json();const f=d&&d.files&&d.files[GIST_FILENAME];
-    if(!f)throw new Error(`ב-Gist אין קובץ ${GIST_FILENAME}`);
-    let content=f.content;
-    if(f.truncated&&f.raw_url){const rr=await fetch(f.raw_url,{method:'GET',signal:ctl.signal,cache:'no-store'});if(!rr.ok)throw new Error('טעינת הקובץ המלא נכשלה ('+rr.status+')');content=await rr.text();}
-    let p;try{p=JSON.parse(content);}catch(e){throw new Error(`${GIST_FILENAME} אינו JSON תקין`);}
-    if(!p||!Array.isArray(p.investments))throw new Error(`מבנה לא צפוי ב-${GIST_FILENAME} (אין investments)`);
-    const tasksParsed=await readGistTasks(d.files,ctl);
-    return {S:p,gistUpdated:d.updated_at||null,tasksState:tasksParsed.state,tasks:tasksParsed.doc};
+    const d=await r.json();
+    const parsed={};
+    const files=d.files||{};
+    for(const name of Object.keys(files)){
+      const text=await gistFileText(files[name],ctl.signal);
+      try{parsed[name]=JSON.parse(text);}catch(e){parsed[name]=text;}
+    }
+    LAST_GIST_PARSED=parsed;
+    return {parsed,updated_at:d.updated_at||null,files};
   }catch(e){
     if(e.name==='AbortError')throw new Error('תם הזמן לחיבור ל-GitHub (אין רשת?)');
     if(e instanceof TypeError)throw new Error('אין חיבור לרשת או ש-GitHub לא זמין');
     throw e;
   }finally{clearTimeout(to);}
 }
-function readLocal(){try{const raw=localStorage.getItem(KEY_STATE);if(raw){const p=JSON.parse(raw);if(p&&Array.isArray(p.investments)&&p.investments.length)return p;}}catch(e){console.warn('fin26 parse',e);}return null;}
+let LAST_GIST_PARSED=null;
+let PENDING_PLAIN=null;
+/* READ-ONLY Gist fetch — GET only, mirrors the original gistLoad() parsing */
+async function fetchGist(c){
+  const raw=await fetchGistRaw(c);
+  const f=raw.files&&raw.files[GIST_FILENAME];
+  if(!f)throw new Error(`ב-Gist אין קובץ ${GIST_FILENAME}`);
+  let p=raw.parsed[GIST_FILENAME];
+  let plaintext=false;
+  if(window.FinCrypto&&FinCrypto.isEnvelope(p)){
+    if(!FinCrypto.unlocked()){const err=new Error('הנתונים מוצפנים');err.code='LOCKED';err.wraps=FinCrypto.wrapsOf(p);throw err;}
+    try{p=await FinCrypto.open(p);}catch(e){throw new Error('לא הצלחתי לפענח את finance_data.json');}
+  }else plaintext=true;
+  if(!p||!Array.isArray(p.investments))throw new Error(`מבנה לא צפוי ב-${GIST_FILENAME} (אין investments)`);
+  const tasksParsed=await readGistTasks(raw.files,null);
+  return {S:p,gistUpdated:raw.updated_at,tasksState:tasksParsed.state,tasks:tasksParsed.doc,plaintext};
+}
+async function readLocal(){
+  try{
+    const raw=localStorage.getItem(KEY_STATE);
+    if(!raw)return null;
+    const p=JSON.parse(raw);
+    if(window.FinCrypto&&FinCrypto.isEnvelope(p)){
+      if(!FinCrypto.unlocked())return null;
+      const o=await FinCrypto.open(p);
+      if(o&&Array.isArray(o.investments)&&o.investments.length)return o;
+      return null;
+    }
+    if(p&&Array.isArray(p.investments)&&p.investments.length)return p;
+  }catch(e){console.warn('fin26 parse',e);}
+  return null;
+}
 const tsOf=o=>{const t=Date.parse(o&&o.lastUpdated||'');return isFinite(t)?t:0;};
 async function loadData(){
-  S=null;SNAPS=[];SRC='example';SRC_NOTE='';SRC_MSG='';SRC_MSG_KIND='info';GIST_META=null;
+  S=null;SNAPS=[];SRC='example';SRC_NOTE='';SRC_MSG='';SRC_MSG_KIND='info';GIST_META=null;PENDING_PLAIN=null;
   const forceDemo=/[?&]demo=1/.test(location.search);
   let gistPack=null;
   if(!forceDemo){
-    const local=readLocal(),c=getCreds();let g=null,err='';
+    const local=await readLocal(),c=getCreds();let g=null,err='';
     if(c){try{g=await fetchGist(c);}catch(e){err=e.message;console.warn('Gist load (read-only):',e.message);}}
     gistPack=g;
     if(g){
+      if(g.plaintext&&window.FinCrypto&&!FinCrypto.unlocked())PENDING_PLAIN={finance:g.S,tasks:g.tasks,local};
       if(local&&tsOf(local)>tsOf(g.S)){S=local;SRC='local';SRC_MSG=`הנתונים בדפדפן הזה (${heDate(local.lastUpdated)}) חדשים יותר מה-Gist (${g.S.lastUpdated?heDate(g.S.lastUpdated):'ללא תאריך'}) — מוצגים הנתונים המקומיים.`;}
       else{S=g.S;SRC='gist';GIST_META={from:c.from,gistUpdated:g.gistUpdated,at:new Date().toISOString()};
         v2patch(v=>{v.cache={S:g.S,at:GIST_META.at,gistUpdated:g.gistUpdated};});}
@@ -898,7 +994,7 @@ async function loadData(){
     else if(c){const cache=v2raw().cache;
       if(cache&&cache.S&&Array.isArray(cache.S.investments)){S=cache.S;SRC='gistCache';SRC_MSG=`⚠️ טעינה מה-Gist נכשלה: ${err}. מוצג עותק שמור של ה-Gist מ-${heDate(cache.at)}.`;SRC_MSG_KIND='err';}
       else{SRC_MSG=`⚠️ טעינה מה-Gist נכשלה: ${err}. מוצגים נתוני דוגמה.`;SRC_MSG_KIND='err';}}
-    if(S){try{SNAPS=JSON.parse(localStorage.getItem(KEY_SNAPS)||'[]').filter(x=>x&&x.d&&isFinite(x.v));}catch(e){SNAPS=[];}}
+    if(S){try{SNAPS=await readSnaps();}catch(e){SNAPS=[];}}
   }
   if(!S){const ex=makeExample();S=ex.S;SNAPS=ex.snaps;SRC='example';SRC_NOTE=forceDemo?'(מצב ?demo=1)':'(לא נמצאו נתונים)';}
   else S=JSON.parse(JSON.stringify(S)); // work on a private copy — never mutate stored objects
@@ -993,7 +1089,12 @@ async function readGistTasks(files,ctl){
       content=await rr.text();
     }
     if(!String(content).trim())return {state:'missing',doc:null};
-    return {state:'ok',doc:normalizeTaskDoc(JSON.parse(content))};
+    let parsed=JSON.parse(content);
+    if(window.FinCrypto&&FinCrypto.isEnvelope(parsed)){
+      if(!FinCrypto.unlocked())return {state:'locked',doc:null};
+      parsed=await FinCrypto.open(parsed);
+    }
+    return {state:'ok',doc:normalizeTaskDoc(parsed)};
   }catch(e){return {state:'bad',doc:null};}
 }
 function adoptTasks(g){
@@ -1001,6 +1102,7 @@ function adoptTasks(g){
   taskStatusErr='';
   if(SRC==='example'||!g){TASKS=local;TASKS_BASE=cloneTaskDoc(local);taskStatusKind=SRC==='example'?'demo':'local';return;}
   if(g.tasksState==='bad'){TASKS=local;TASKS_BASE=cloneTaskDoc(local);taskStatusKind='err';taskStatusErr='tasks.json לא תקין';return;}
+  if(g.tasksState==='locked'){TASKS=local;TASKS_BASE=cloneTaskDoc(local);taskStatusKind='local';return;}
   if(g.tasksState==='ok'&&g.tasks){
     if(taskDocTime(g.tasks)>=taskDocTime(local)){TASKS=cloneTaskDoc(g.tasks);saveTasksLocal();}
     else{TASKS=local;if(getCreds()&&getCreds().token)queueTaskPush();}
@@ -1040,7 +1142,9 @@ async function pushTasksGist(){
     if(g.tasksState==='bad')throw new Error('tasks.json לא תקין — לא דרסתי');
     if(g.tasksState==='ok'&&g.tasks)doc=normalizeTaskDoc(mergeTaskDocs(TASKS_BASE,snapshot,g.tasks));
     doc.updatedAt=new Date().toISOString();doc.v=1;
-    await patchGistFile(c,TASKS_FILE,JSON.stringify(doc,null,2));
+    if(window.FinCrypto&&FinCrypto.readVault()&&!FinCrypto.unlocked())throw new Error('הנתונים נעולים');
+    const taskPayload=(window.FinCrypto&&FinCrypto.unlocked())?await FinCrypto.seal(doc):doc;
+    await patchGistFile(c,TASKS_FILE,JSON.stringify(taskPayload,null,2));
     TASKS_BASE=cloneTaskDoc(doc);
     if(!taskAgain){TASKS=cloneTaskDoc(doc);saveTasksLocal();}
     taskStatusKind='gist';taskStatusErr='';
@@ -1249,8 +1353,22 @@ function persistSnaps(snaps){
   const clean=(snaps||[]).filter(x=>x&&x.d&&isFinite(x.v)).map(x=>({d:iso(x.d),v:Math.round(+x.v)}))
     .sort((a,b)=>a.d.localeCompare(b.d));
   const trimmed=clean.length>400?clean.slice(clean.length-400):clean;
-  try{localStorage.setItem(KEY_SNAPS,JSON.stringify(trimmed));}catch(e){console.warn('snaps persist',e);}
-  SNAPS=trimmed;return trimmed;
+  SNAPS=trimmed;
+  const write=payload=>{try{localStorage.setItem(KEY_SNAPS,JSON.stringify(payload));}catch(e){console.warn('snaps persist',e);}};
+  if(window.FinCrypto&&FinCrypto.unlocked())FinCrypto.seal(trimmed).then(write).catch(e=>console.warn('snaps',e));
+  else if(!(window.FinCrypto&&FinCrypto.readVault()))write(trimmed);
+  return trimmed;
+}
+async function readSnaps(){
+  try{
+    const raw=JSON.parse(localStorage.getItem(KEY_SNAPS)||'null');
+    if(window.FinCrypto&&FinCrypto.isEnvelope(raw)){
+      if(!FinCrypto.unlocked())return [];
+      const a=await FinCrypto.open(raw);
+      return Array.isArray(a)?a.filter(x=>x&&x.d&&isFinite(x.v)):[];
+    }
+    return Array.isArray(raw)?raw.filter(x=>x&&x.d&&isFinite(x.v)):[];
+  }catch(e){return [];}
 }
 /* Merge HIST_ASSETS_SEED into fin26_snaps: skip exact dates and points within ±3 days of an existing snap. Never overwrite. */
 function mergeHistAssetsSeed(){
@@ -2466,7 +2584,7 @@ function renderTzofik(){
   const splitTxt=`שרון ${(+y.pctSharon||0).toFixed(0)}% · אילון ${(+y.pctEylon||0).toFixed(0)}%`+(y.pctOther>0.5?` · אחר ${(+y.pctOther||0).toFixed(0)}%`:'');
   const needData=SRC==='example'&&!snap;
   const gistBox=needData?`<div class="tz-card warn-tz"><div class="tz-lbl">אין נתונים אמיתיים בדפדפן הזה</div>
-    <div class="tz-sub">בקשי קישור <b>עם נתונים</b> (תצלום ב־URL), או הזיני Gist ID ציבורי לקריאה בלבד, או פתחי קישור <span class="num">#access=…</span> מהאתר המקורי.</div>
+    <div class="tz-sub">בקשי קישור <b>עם נתונים</b> (תצלום ב־URL), או הזיני Gist ID ציבורי לקריאה בלבד. קישור עם token לא נתמך.</div>
     <div class="tz-gist"><input id="tzGistId" placeholder="Gist ID (hex)" autocomplete="off">
       <button class="btn" id="tzGistLoad">טעני מה-Gist</button></div>
     <div class="tz-sub" id="tzGistMsg"></div></div>`:'';
@@ -2646,18 +2764,20 @@ async function commit(apply,reason,{force=false}={}){
   try{
     const c=getCreds();
     if(!force){ // conflict safety: never overwrite newer data from another tab/device
-      const lc=readLocal();if(lc&&tsOf(lc)>BASE_TS){SAVING=false;conflictDialog('local',lc.lastUpdated,apply,reason);return false;}
+      const lc=await readLocal();if(lc&&tsOf(lc)>BASE_TS){SAVING=false;conflictDialog('local',lc.lastUpdated,apply,reason);return false;}
       if(c){try{const g=await fetchGist(c);if(tsOf(g.S)>BASE_TS){SAVING=false;conflictDialog('gist',g.S.lastUpdated,apply,reason);return false;}}catch(e){console.warn('pre-save Gist check:',e.message);}}
     }
     if(!SESSION_BACKED){pushBackup(S,reason.startsWith('שחזור')?'לפני שחזור':'לפני השמירה הראשונה בסשן');SESSION_BACKED=true;}
     const next=JSON.parse(JSON.stringify(S));const repl=apply(next);const out=repl||next;
     recalcSlogIn(out);out.lastUpdated=new Date().toISOString(); // v1 saveState()
-    localStorage.setItem(KEY_STATE,JSON.stringify(out));        // v1 gistSave(): local backup first
+    if(window.FinCrypto&&!FinCrypto.unlocked()&&SRC!=='example'){toast('הנתונים נעולים — לא נשמרו בגלוי','err');return false;}
+    const stored=(window.FinCrypto&&FinCrypto.unlocked())?await FinCrypto.seal(out):out;
+    localStorage.setItem(KEY_STATE,JSON.stringify(stored));        // sealed when a vault is open
     S=out;S.investments.forEach(i=>{i.bal=+i.bal||0;});BASE_TS=tsOf(S);
     updateSnapshot();
     let msg,kind='ok';
     if(c&&c.token){
-      try{const up=await patchGist(c,S);v2patch(v=>{v.cache={S,at:new Date().toISOString(),gistUpdated:up};delete v.pendingSync;});SRC='gist';SRC_MSG='';msg=`✓ נשמר — בדפדפן וב-Gist (${reason})`;}
+      try{const up=await patchGist(c,stored);v2patch(v=>{v.cache={S,at:new Date().toISOString(),gistUpdated:up};delete v.pendingSync;});SRC='gist';SRC_MSG='';msg=`✓ נשמר — בדפדפן וב-Gist (${reason})`;}
       catch(e){v2patch(v=>{v.pendingSync={at:new Date().toISOString(),err:e.message};});SRC='local';msg=`נשמר בדפדפן בלבד. השמירה ל-Gist נכשלה: ${e.message}`;kind='warn';}
     }else if(c){v2patch(v=>{v.pendingSync={at:new Date().toISOString(),err:'אין token עם הרשאת gist'};});SRC='local';msg='נשמר בדפדפן בלבד — אין token עם הרשאת gist, ולכן לא עודכן ה-Gist. הזן token בהגדרות.';kind='warn';}
     else{SRC='local';msg='✓ נשמר בדפדפן הזה (אין חיבור Gist).';}
@@ -2680,7 +2800,7 @@ function closeModal(){$('#modal').classList.remove('open');if(charts.cHoldHist){
 const fv=id=>{const el=document.getElementById(id);return el?el.value:'';};
 const optList=(arr,sel)=>arr.map(([v,n])=>`<option value="${esc(v)}" ${String(v)===String(sel)?'selected':''}>${esc(n)}</option>`).join('');
 /* Manager / bank subscriber portals — matched by holding.inst (and name fallback). Additive managerUrl overrides. No secrets. */
-const SMS_LOGIN_PHONE='0544938283';
+function smsPhone(){return String((P&&P.smsPhone)||'').replace(/[^\d+]/g,'');}
 const MANAGER_PORTALS=[
   /* Israeli investment houses / insurers (gemel, hishtalmut, pension) */
   {re:/מור(\s|$)|more\s*(invest|בית)?/i, url:'https://my-account.more.co.il/', label:'מור בית השקעות'},
@@ -2760,7 +2880,7 @@ function editHolding(id,cat){
       <div class="mgr-box">
         <div class="mgr-row">
           <button type="button" class="btn" id="eMgrOpen">פתח אתר הגוף המנהל</button>
-          <button type="button" class="btn ghost" id="ePhoneCopy" title="להדבקה במסך הכניסה של הגוף (SMS)">העתק טלפון <span class="mgr-phone">054-4938283</span></button>
+          <button type="button" class="btn ghost" id="ePhoneCopy" title="להדבקה במסך הכניסה של הגוף (SMS)">העתק טלפון</button>
         </div>
         <div id="eMgrStatus" class="hint" style="margin:0"></div>
         <label style="font-size:12px;color:var(--dim)">URL מותאם (אופציונלי — נשמר ב־<span class="num">managerUrl</span>)</label>
@@ -2816,8 +2936,16 @@ function editHolding(id,cat){
     window.open(portal.url,'_blank','noopener,noreferrer');
   };
   $('#ePhoneCopy').onclick=async()=>{
-    try{await navigator.clipboard.writeText(SMS_LOGIN_PHONE);toast('✓ הטלפון הועתק — '+SMS_LOGIN_PHONE,'ok');}
-    catch(e){prompt('העתיקי את מספר הטלפון:',SMS_LOGIN_PHONE);}
+    let phone=smsPhone();
+    if(!phone){
+      const entered=prompt('מספר טלפון להדבקה במסך הכניסה (נשמר רק במכשיר הזה):','');
+      if(!entered)return;
+      phone=String(entered).replace(/[^\d+]/g,'');
+      if(!phone)return;
+      P.smsPhone=phone;savePrefs();
+    }
+    try{await navigator.clipboard.writeText(phone);toast('✓ הטלפון הועתק','ok');}
+    catch(e){prompt('העתיקי את מספר הטלפון:',phone);}
   };
   if(histAll.length>=1){requestAnimationFrame(()=>mk('cHoldHist',{type:'line',data:{datasets:[{label:'יתרה ₪',data:histAll.map(h=>({x:h.date,y:+h.bal})),borderColor:cv('--pri'),backgroundColor:cv('--pri')+'22',fill:true,tension:.25,pointRadius:histAll.length<20?3:0,borderWidth:2}]},
     options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${ilsT(c.raw.y)}`}}},scales:{x:xTime(histAll.length>24?'month':'day'),y:yMoney}}}));}
@@ -3246,7 +3374,393 @@ async function boot(){
   show(resolvePage(ingestTzHash(location.hash.slice(1))||'overview'));
   refreshPublicLive();
 }
-document.addEventListener('DOMContentLoaded',boot);
+(function () {
+  'use strict';
+  if (!window.FinCrypto) return;
+  const FC = FinCrypto;
+  let V2_MEM = null;
+  let v2Gen = 0;
+  let V2_PROBE = null;
+  let V2_AFTER = 'boot';
+  let V2_RECOVERY = '';
+
+  const _v2raw = v2raw;
+  const _writeV2 = writeV2;
+  const _boot = boot;
+  const _reload = reloadData;
+
+  v2raw = function () {
+    if (V2_MEM) return V2_MEM;
+    return _v2raw();
+  };
+  writeV2 = function (v) {
+    V2_MEM = v;
+    if (FC.unlocked()) {
+      const gen = ++v2Gen;
+      let snap;
+      try { snap = JSON.parse(JSON.stringify(v)); } catch (e) { return false; }
+      persistSealed(snap, gen);
+      return true;
+    }
+    return _writeV2(v);
+  };
+
+  async function persistSealed(v, gen) {
+    try {
+      if (v.cache && v.cache.S) {
+        const enc = await FC.seal(v.cache.S);
+        v.cache = { enc: enc, at: v.cache.at, gistUpdated: v.cache.gistUpdated };
+      }
+      if (Array.isArray(v.backups)) {
+        const next = [];
+        for (const b of v.backups) {
+          if (!b) continue;
+          if (b.data) {
+            const enc = await FC.seal(b.data);
+            next.push({ at: b.at, reason: b.reason, src: b.src, lastUpdated: b.lastUpdated, enc: enc });
+          } else if (b.enc) next.push(b);
+        }
+        v.backups = next;
+      }
+      if (v.tasks) {
+        v.tasksEnc = await FC.seal(v.tasks);
+        delete v.tasks;
+      }
+      if (gen !== v2Gen) return;
+      localStorage.setItem(KEY_V2, JSON.stringify(v));
+    } catch (e) { console.warn('v2 seal', e); }
+  }
+
+  async function hydrateV2() {
+    let raw;
+    try { raw = JSON.parse(localStorage.getItem(KEY_V2) || '{}') || {}; } catch (e) { raw = {}; }
+    if (!FC.unlocked()) { V2_MEM = raw; return; }
+    if (raw.cache && FC.isEnvelope(raw.cache.enc)) {
+      try { raw.cache.S = await FC.open(raw.cache.enc); delete raw.cache.enc; } catch (e) { delete raw.cache; }
+    }
+    if (Array.isArray(raw.backups)) {
+      const keep = [];
+      for (const b of raw.backups) {
+        if (b && FC.isEnvelope(b.enc)) {
+          try { b.data = await FC.open(b.enc); delete b.enc; keep.push(b); } catch (e) {}
+        } else if (b && b.data) keep.push(b);
+      }
+      raw.backups = keep;
+    }
+    if (FC.isEnvelope(raw.tasksEnc)) {
+      try { raw.tasks = await FC.open(raw.tasksEnc); } catch (e) {}
+      delete raw.tasksEnc;
+    }
+    V2_MEM = raw;
+  }
+
+  function byId(id) { return document.getElementById(id); }
+  function lockErr(t) { const el = byId('lockErr'); if (el) el.textContent = t || ''; }
+  function showPanel(which, title, sub) {
+    const gate = byId('lockGate');
+    gate.hidden = false;
+    byId('lockTitle').textContent = title || '';
+    byId('lockSub').textContent = sub || '';
+    byId('lockUnlock').hidden = which !== 'unlock';
+    byId('lockSetup').hidden = which !== 'setup';
+    byId('lockRecovery').hidden = which !== 'recovery';
+    byId('lockMigrate').hidden = which !== 'migrate';
+    lockErr('');
+    const focus = which === 'unlock' ? 'lockSecret' : which === 'setup' ? 'lockPass' : null;
+    if (focus) setTimeout(() => { const el = byId(focus); if (el) el.focus(); }, 40);
+  }
+  function hideGate() { byId('lockGate').hidden = true; }
+
+  async function probeV2() {
+    let local = null;
+    try { local = JSON.parse(localStorage.getItem(KEY_STATE) || 'null'); } catch (e) {}
+    const vault = FC.readVault();
+    let finance = null, tasks = null;
+    const c = getCreds();
+    if (c && !/[?&]demo=1/.test(location.search)) {
+      const raw = await fetchGistRaw(c);
+      finance = raw.parsed[GIST_FILENAME] || null;
+      tasks = raw.parsed[TASKS_FILE] || null;
+    }
+    return { vault: vault, local: local, finance: finance, tasks: tasks, mode: FC.planGate({ vault: vault, local: local, finance: finance, tasks: tasks }) };
+  }
+  function wrapsFor(p) {
+    p = p || {};
+    return p.vault || FC.readVault() || FC.wrapsOf(p.finance) || FC.wrapsOf(p.local) || FC.wrapsOf(p.tasks);
+  }
+  function newerFinance(p) {
+    const a = p && FC.isPersonalFinance(p.local) ? p.local : null;
+    const b = p && FC.isPersonalFinance(p.finance) ? p.finance : null;
+    if (a && b) return (Date.parse(a.lastUpdated || 0) || 0) > (Date.parse(b.lastUpdated || 0) || 0) ? a : b;
+    return b || a;
+  }
+  function backupFromProbe() {
+    const p = V2_PROBE || {};
+    const fin = newerFinance(p);
+    const files = {};
+    if (fin) files['finance_data.json'] = fin;
+    if (p.tasks && Array.isArray(p.tasks.items) && !p.tasks.finboard) files['tasks.json'] = p.tasks;
+    const parsed = (typeof LAST_GIST_PARSED === 'object' && LAST_GIST_PARSED) || {};
+    Object.keys(parsed).forEach(name => {
+      if (name === 'finance_data.json' || name === 'tasks.json') return;
+      if (FC.isEnvelope(parsed[name])) return;
+      files[name] = parsed[name];
+    });
+    try {
+      const snaps = JSON.parse(localStorage.getItem(KEY_SNAPS) || '[]');
+      if (Array.isArray(snaps) && snaps.length) files.fin26_snaps = snaps;
+    } catch (e) {}
+    return { finboardBackup: 1, exportedAt: new Date().toISOString(), plaintext: true, files: files };
+  }
+
+  async function patchFiles(c, map) {
+    const files = {};
+    Object.keys(map).forEach(name => { files[name] = { content: map[name] }; });
+    const r = await fetch('https://api.github.com/gists/' + encodeURIComponent(c.gist), {
+      method: 'PATCH',
+      headers: { Authorization: 'Bearer ' + c.token, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ files: files })
+    });
+    if (!r.ok) throw new Error('שמירה ל-Gist נכשלה (' + r.status + ')');
+  }
+
+  async function encryptKnown(backup) {
+    const fin = backup.files['finance_data.json'];
+    if (!fin || !Array.isArray(fin.investments)) throw new Error('אין נתונים להצפין');
+    const sealed = await FC.seal(fin);
+    localStorage.setItem(KEY_STATE, JSON.stringify(sealed));
+    if (Array.isArray(backup.files.fin26_snaps)) {
+      localStorage.setItem(KEY_SNAPS, JSON.stringify(await FC.seal(backup.files.fin26_snaps)));
+    }
+    const c = getCreds();
+    if (!c || !c.token) return { gist: false };
+    const map = {};
+    map['finance_data.json'] = JSON.stringify(sealed, null, 2);
+    if (backup.files['tasks.json']) map['tasks.json'] = JSON.stringify(await FC.seal(backup.files['tasks.json']), null, 2);
+    await patchFiles(c, map);
+    return { gist: true };
+  }
+
+  async function sealPlainLocal() {
+    if (!FC.unlocked()) return;
+    try {
+      const raw = JSON.parse(localStorage.getItem(KEY_STATE) || 'null');
+      if (FC.isPersonalFinance(raw)) localStorage.setItem(KEY_STATE, JSON.stringify(await FC.seal(raw)));
+    } catch (e) {}
+    try {
+      const snaps = JSON.parse(localStorage.getItem(KEY_SNAPS) || 'null');
+      if (Array.isArray(snaps)) localStorage.setItem(KEY_SNAPS, JSON.stringify(await FC.seal(snaps)));
+    } catch (e) {}
+  }
+
+  async function bootMain() {
+    if (FC.unlocked()) {
+      await sealPlainLocal();
+      await hydrateV2();
+    }
+    hideGate();
+    await _boot();
+  }
+
+  boot = async function () {
+    const parsed = parseTzHash(location.hash.slice(1));
+    if (parsed.page === 'tzofik' && (parsed.snapEnc || parsed.retired)) {
+      hideGate();
+      await _boot();
+      return;
+    }
+    showPanel('unlock', 'בודק…', '');
+    byId('lockUnlock').hidden = true;
+    try { V2_PROBE = await probeV2(); }
+    catch (e) {
+      let local = null;
+      try { local = JSON.parse(localStorage.getItem(KEY_STATE) || 'null'); } catch (err) {}
+      V2_PROBE = { vault: FC.readVault(), local: local, finance: null, tasks: null, mode: 'open', err: e.message };
+      V2_PROBE.mode = FC.planGate(V2_PROBE);
+    }
+    if (V2_PROBE.mode === 'unlock' || V2_PROBE.mode === 'unlock-then-migrate') {
+      V2_AFTER = V2_PROBE.mode === 'unlock-then-migrate' ? 'migrate' : 'boot';
+      showPanel('unlock', 'FinBoard נעול', 'הזינו את סיסמת ההצפנה, או הדביקו את מפתח השחזור. המפתח נשמר רק בזיכרון של הלשונית הזו, ולא נשמר במכשיר.');
+    } else if (V2_PROBE.mode === 'setup') {
+      showPanel('setup', 'הצפנת הנתונים', 'הנתונים שמורים כרגע בגלוי. בחרו סיסמה. לפני ההצפנה יורד אוטומטית גיבוי למחשב. אין שחזור באימייל — מפתח השחזור יוצג פעם אחת.');
+    } else {
+      await bootMain();
+    }
+  };
+
+  async function submitUnlock() {
+    const secret = byId('lockSecret').value;
+    const wraps = wrapsFor(V2_PROBE);
+    if (!secret || !wraps) { lockErr('אין מעטפת הצפנה לפתיחה'); return; }
+    lockErr('בודק…');
+    byId('lockOpenBtn').disabled = true;
+    try {
+      await FC.unlock(secret, wraps);
+      byId('lockSecret').value = '';
+      if (V2_AFTER === 'migrate') {
+        showPanel('migrate', 'נמצאו נתונים גלויים', 'לפני שהם יוצפנו ב-Gist יורד גיבוי למחשב. קישורי צופיק לא מוצפנים.');
+      } else await bootMain();
+    } catch (e) {
+      FC.clearSession();
+      lockErr('הסיסמה או מפתח השחזור שגויים');
+    } finally { byId('lockOpenBtn').disabled = false; }
+  }
+  async function submitSetup() {
+    const a = byId('lockPass').value, b = byId('lockPass2').value;
+    if (String(a).length < 8) { lockErr('הסיסמה חייבת להכיל לפחות 8 תווים'); return; }
+    if (a !== b) { lockErr('האימות אינו תואם'); return; }
+    lockErr('יוצר מפתח…');
+    byId('lockSetupBtn').disabled = true;
+    try {
+      const created = await FC.createVault(a);
+      V2_RECOVERY = created.recoveryText;
+      byId('lockPass').value = '';
+      byId('lockPass2').value = '';
+      byId('lockRecKey').textContent = V2_RECOVERY;
+      byId('lockSaved').checked = false;
+      byId('lockGoBtn').disabled = true;
+      showPanel('recovery', 'מפתח שחזור — פעם אחת', 'שמרו את המפתח עכשיו. הוא לא יוצג שוב. אפשר לפתוח איתו את הנתונים גם בלי הסיסמה.');
+    } catch (e) { lockErr('לא הצלחתי ליצור הצפנה'); }
+    finally { byId('lockSetupBtn').disabled = false; }
+  }
+  async function copyRecovery() {
+    const t = V2_RECOVERY || byId('lockRecKey').textContent;
+    try { await navigator.clipboard.writeText(t); lockErr('המפתח הועתק'); }
+    catch (e) { lockErr('העתיקו את המפתח ידנית מהתיבה'); }
+  }
+  async function finishMigrate() {
+    if (V2_RECOVERY && !byId('lockSaved').checked) { lockErr('אשרו ששמרתם את מפתח השחזור'); return; }
+    const backup = backupFromProbe();
+    FC.downloadJson(FC.datedName('finboard-plaintext-backup'), backup);
+    lockErr('מצפין ושומר…');
+    byId('lockGoBtn').disabled = true;
+    byId('lockMigrateBtn').disabled = true;
+    try {
+      const res = await encryptKnown(backup);
+      V2_RECOVERY = '';
+      await bootMain();
+      if (!res.gist) toast('הוצפן במכשיר הזה. אין token, אז ה-Gist עדיין גלוי עד שתזינו token ותשמרו.', 'warn', 8000);
+    } catch (e) {
+      lockErr('ההצפנה נכשלה: ' + (e.message || e) + ' — הגיבוי כבר ירד.');
+    } finally {
+      byId('lockMigrateBtn').disabled = false;
+    }
+  }
+
+  async function downloadFullBackup() {
+    if (typeof S === 'undefined' || !S || !Array.isArray(S.investments)) { toast('אין נתונים לגיבוי', 'warn'); return; }
+    const files = {};
+    files['finance_data.json'] = JSON.parse(JSON.stringify(S));
+    try { files['tasks.json'] = cloneTaskDoc(TASKS); } catch (e) { files['tasks.json'] = TASKS; }
+    const c = getCreds();
+    if (c) {
+      try {
+        const raw = await fetchGistRaw(c);
+        for (const name of Object.keys(raw.parsed)) {
+          if (name === 'finance_data.json' || name === 'tasks.json') continue;
+          const body = raw.parsed[name];
+          if (FC.isEnvelope(body)) {
+            if (FC.unlocked()) {
+              try { files[name] = await FC.open(body); } catch (e) { files[name] = { error: 'decrypt failed' }; }
+            }
+          } else files[name] = body;
+        }
+      } catch (e) { toast('הגיבוי מהמכשיר. קבצי Gist נוספים לא נטענו: ' + e.message, 'warn', 7000); }
+    }
+    if (Array.isArray(SNAPS) && SNAPS.length) files.fin26_snaps = SNAPS;
+    FC.downloadJson(FC.datedName('finboard-backup'), { finboardBackup: 1, exportedAt: new Date().toISOString(), files: files });
+    toast('הגיבוי ירד למחשב', 'ok');
+  }
+
+  async function restoreFile(file) {
+    let obj;
+    try { obj = JSON.parse(await file.text()); }
+    catch (e) { toast('הקובץ אינו JSON תקין', 'err'); return; }
+    const fin = (obj.files && obj.files['finance_data.json']) || obj.finance_data;
+    if (!fin || !Array.isArray(fin.investments)) { toast('הקובץ אינו גיבוי של FinBoard', 'err'); return; }
+    const when = obj.exportedAt ? new Date(obj.exportedAt).toLocaleString('he-IL') : '';
+    if (!confirm('לשחזר את הגיבוי' + (when ? ' מ-' + when : '') + '? ' + fin.investments.length + ' אחזקות. הנתונים הנוכחיים יוחלפו (נשמר גיבוי מקומי לפני כן).')) return;
+    if (!FC.unlocked()) { toast('פתחו את ההצפנה לפני שחזור, כדי שהנתונים לא יישמרו בגלוי', 'err', 7000); return; }
+    if (obj.files && obj.files['tasks.json']) {
+      TASKS = normalizeTaskDoc(obj.files['tasks.json']);
+      saveTasksLocal();
+      queueTaskPush();
+    }
+    const snaps = (obj.files && obj.files.fin26_snaps) || obj.fin26_snaps;
+    if (Array.isArray(snaps)) persistSnaps(snaps);
+    SESSION_BACKED = false;
+    await commit(() => JSON.parse(JSON.stringify(fin)), 'שחזור מקובץ');
+  }
+
+  async function propagateWrapsV2() {
+    const w = FC.wraps();
+    if (!w) return;
+    ['fin26', KEY_SNAPS].forEach(key => {
+      try {
+        const raw = JSON.parse(localStorage.getItem(key) || 'null');
+        if (FC.isEnvelope(raw)) localStorage.setItem(key, JSON.stringify(FC.applyWraps(raw, w)));
+      } catch (e) {}
+    });
+    if (V2_MEM) writeV2(V2_MEM);
+    const c = getCreds();
+    if (!c || !c.token) return;
+    const raw = await fetchGistRaw(c);
+    const map = {};
+    ['finance_data.json', 'tasks.json'].forEach(name => {
+      const cur = raw.parsed[name];
+      if (FC.isEnvelope(cur)) map[name] = JSON.stringify(FC.applyWraps(cur, w), null, 2);
+    });
+    if (Object.keys(map).length) await patchFiles(c, map);
+  }
+
+  byId('lockOpenBtn').onclick = () => submitUnlock();
+  byId('lockSetupBtn').onclick = () => submitSetup();
+  byId('lockCopyBtn').onclick = () => copyRecovery();
+  byId('lockGoBtn').onclick = () => finishMigrate();
+  byId('lockMigrateBtn').onclick = () => finishMigrate();
+  byId('lockSecret').addEventListener('keydown', e => { if (e.key === 'Enter') submitUnlock(); });
+  byId('lockSaved').addEventListener('change', () => { byId('lockGoBtn').disabled = !byId('lockSaved').checked; });
+  const goBackup = () => downloadFullBackup();
+  const b1 = byId('backupBtn'); if (b1) b1.onclick = goBackup;
+  const b2 = byId('backupBtn2'); if (b2) b2.onclick = goBackup;
+  const rb = byId('restoreBtn');
+  if (rb) rb.onclick = () => byId('restoreFile').click();
+  const rf = byId('restoreFile');
+  if (rf) rf.onchange = () => { const f = rf.files && rf.files[0]; rf.value = ''; if (f) restoreFile(f); };
+  const np = byId('npBtn');
+  if (np) np.onclick = async () => {
+    const msg = byId('npMsg');
+    if (!FC.unlocked()) { msg.textContent = 'פתחו את הנתונים קודם.'; return; }
+    const a = byId('np1').value, b = byId('np2').value;
+    if (String(a).length < 8) { msg.textContent = 'לפחות 8 תווים.'; return; }
+    if (a !== b) { msg.textContent = 'האימות אינו תואם.'; return; }
+    msg.textContent = 'מעדכן…';
+    try {
+      await FC.changePassphrase(a);
+      await propagateWrapsV2();
+      byId('np1').value = ''; byId('np2').value = '';
+      msg.textContent = 'הסיסמה הוחלפה. מפתח השחזור ללא שינוי.';
+    } catch (e) { msg.textContent = 'ההחלפה נכשלה.'; }
+  };
+
+  reloadData = async function () {
+    await _reload();
+    if (PENDING_PLAIN && FC.isPersonalFinance(PENDING_PLAIN.finance || PENDING_PLAIN.local)) {
+      V2_PROBE = {
+        finance: PENDING_PLAIN.finance || null,
+        tasks: PENDING_PLAIN.tasks || null,
+        local: PENDING_PLAIN.local || null,
+        vault: FC.readVault()
+      };
+      if (!FC.unlocked() && !FC.readVault()) {
+        showPanel('setup', 'הצפנת הנתונים', 'נטענו נתונים גלויים. בחרו סיסמה. יורד גיבוי לפני ההצפנה.');
+      } else if (FC.unlocked()) {
+        showPanel('migrate', 'נמצאו נתונים גלויים', 'לפני שהם יוצפנו ב-Gist יורד גיבוי למחשב.');
+      }
+    }
+  };
+})();
+document.addEventListener('DOMContentLoaded',()=>boot());
 </script>
 </body>
 </html>
