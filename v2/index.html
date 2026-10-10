@@ -688,7 +688,7 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
             <div class="field" style="grid-column:1/-1"><label>הלוואה או משכנתא</label><select id="ppLoan"></select></div>
             <div class="field" style="grid-column:1/-1"><label>מה עושים עם הפירעון</label>
               <div class="seg" id="ppMode"><button type="button" data-m="term" class="on">קיצור תקופה</button><button type="button" data-m="pay">הקטנת החזר</button></div>
-              <div class="hint">קיצור תקופה שומר על ההחזר ומקדים את הסיום. הקטנת החזר שומרת על תאריך הסיום ומורידה את התשלום החודשי.</div>
+              <div class="hint">קיצור תקופה שומר על ההחזר ומקדים את הסיום, והתוספת החודשית יורדת מהקרן. הקטנת החזר שומרת על תאריך הסיום ומורידה את התשלום; התוספת החודשית מושקעת ולא נשלחת להלוואה.</div>
             </div>
             <div class="field"><label>תוספת חודשית (₪)</label><input type="number" id="ppExtra" value="1000" step="250"></div>
             <div class="field"><label>פירעון חד-פעמי (₪)</label><input type="number" id="ppLump" value="0" step="5000"><div class="chips-row"><button type="button" class="qchip" id="ppAll">כל היתרה</button></div></div>
@@ -1835,7 +1835,8 @@ function prepayCompare(loans, opt){
     bal:a.bal0,
     pay:a.rows.length?a.rows[0].pay:loanPay(l),
     n:Math.max(a.rows.length,1),
-    left:Math.max(a.rows.length,1)
+    left:Math.max(a.rows.length,1),
+    sched:new Map(a.rows.map(r=>[r.date.slice(0,7), r.pay]))
   }));
   let leftL=lump;
   const byRate=()=>tracks.filter(t=>t.bal>0.5).sort((a,b)=>b.rate-a.rate||b.bal-a.bal);
@@ -1863,8 +1864,9 @@ function prepayCompare(loans, opt){
       continue;
     }
     tracks.forEach(t=>{
+      t._open=t.bal>0.5;
       t._i=0; t._p=0;
-      if(t.bal<=0.5) return;
+      if(!t._open) return;
       if(mode==='pay' && t.left<=0) return;
       const r=t.rate/100/12, i=t.bal*r, due=t.bal+i;
       t._i=i; t._p=Math.min(t.pay, due);
@@ -1892,7 +1894,15 @@ function prepayCompare(loans, opt){
       freed[m]=0;
     }else if(mode==='pay'){
       freed[m]=Math.max(0, base.rows[m].pay-actual)+extra;
-    }else freed[m]=0;
+    }else{
+      let freedPay=0;
+      tracks.forEach(t=>{
+        if(t._open) return;
+        const p=t.sched.get(base.rows[m].ym);
+        if(p) freedPay+=p;
+      });
+      freed[m]=freedPay;
+    }
   }
   if(months1==null) months1=H;
   const R=assumedReturn('fin');
@@ -3543,6 +3553,18 @@ function saveHolding(id){
     if(mgr)inv.managerUrl=mgr;else delete inv.managerUrl; // additive; original site ignores
   },id?`עריכת ${name}`:`הוספת ${name}`);
 }
+function applyLoanFields(row, d, opt, isNew){
+  const prevBal=+row.bal||0, prevAsOf=loanIso(row.balAsOf);
+  const balChanged=!isNew&&Math.abs(prevBal-d.bal)>0.49;
+  let asOf=opt.balAsOf||'';
+  if(balChanged&&(!asOf||asOf===prevAsOf)) asOf=iso(TODAY);
+  if(isNew&&!asOf&&d.bal>0) asOf=iso(TODAY);
+  Object.assign(row,d);
+  const set=(k,v)=>{if(v)row[k]=v;else delete row[k];};
+  set('group',opt.group);set('loanNo',opt.loanNo);set('startDate',opt.startDate);set('endDate',opt.endDate);set('linkage',opt.linkage);set('balAsOf',asOf);
+  if(balChanged) row.pulledAt=iso(TODAY);
+  return row;
+}
 function editLoan(id){
   if(!canEdit()){toast('עריכה זמינה רק כשנטענו הנתונים שלך.','err');return;}
   const l=id?S.loans.find(x=>x.id===id):null;
@@ -3565,18 +3587,8 @@ function editLoan(id){
     {label:'שמור',cls:'btn',id:'lSave',fn:()=>{const n=k=>{const v=parseNum(fv(k));return isFinite(v)?v:0;};const name=fv('lName').trim();if(!name){toast('חובה להזין שם','err');return;}
       const d={name,inst:fv('lInst'),bal:n('lBal'),origBal:n('lOrig'),monthlyPay:n('lPay'),annualPay:Math.round(n('lPay')*12),rate:n('lRate'),closed:fv('lClosed')==='true',notes:fv('lNotes')}; // same keys as v1, plus optional track fields below
       const opt={group:fv('lGroup').trim(),loanNo:fv('lNo').trim(),startDate:loanIso(fv('lStart')),endDate:loanIso(fv('lEnd')),linkage:fv('lLink').trim(),balAsOf:loanIso(fv('lAsOf'))};
-      closeModal();commit(x=>{const t=id?x.loans.find(q=>q.id===id):null;
-        const prevBal=t?+t.bal||0:null, prevAsOf=t?loanIso(t.balAsOf):'';
-        const balChanged=!!t&&Math.abs(prevBal-d.bal)>0.49;
-        let asOf=opt.balAsOf;
-        if(balChanged&&(!asOf||asOf===prevAsOf)) asOf=iso(TODAY);
-        if(!t&&!asOf&&d.bal>0) asOf=iso(TODAY);
-        const row=t||{id:uid()};
-        Object.assign(row,d);
-        const set=(k,v)=>{if(v)row[k]=v;else delete row[k];};
-        set('group',opt.group);set('loanNo',opt.loanNo);set('startDate',opt.startDate);set('endDate',opt.endDate);set('linkage',opt.linkage);set('balAsOf',asOf);
-        if(balChanged) row.pulledAt=iso(TODAY);
-        if(!t) x.loans.push(row);
+      closeModal();commit(x=>{const t=id?x.loans.find(q=>q.id===id):null;const row=t||{id:uid()};
+        applyLoanFields(row,d,opt,!t);if(!t)x.loans.push(row);
       },id?`עריכת ${name}`:`הוספת ${name}`);}},
     {label:'ביטול',cls:'btn ghost',fn:closeModal},
     ...(l?[{label:'מחק הלוואה',cls:'btn danger sp',fn:()=>{if(confirm(`למחוק את "${l.name}"?`)){closeModal();commit(x=>{x.loans=x.loans.filter(q=>q.id!==id);},`מחיקת ${l.name}`);}}}]:[])]);
