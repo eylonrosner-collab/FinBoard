@@ -1723,16 +1723,32 @@ function ageAt(dateStr){return D(dateStr).getFullYear()-(+S.set.birthYear||1980)
 function retireIso(){const by=+S.set.birthYear||1980,ra=+S.set.retAge||67;return `${by+ra}-01-01`;}
 function openedOf(i){const s=i&&typeof i.openedAt==='string'?i.openedAt.trim().slice(0,10):'';return /^\d{4}-\d{2}-\d{2}$/.test(s)?s:'';}
 function liquidAtOf(i){const s=i&&typeof i.liquidAt==='string'?i.liquidAt.trim().slice(0,10):'';return /^\d{4}-\d{2}-\d{2}$/.test(s)?s:'';}
+/* Study fund: 6 years from opening, or 3 years once retirement age is reached — whichever is earlier.
+   A study-purpose withdrawal after 3 years is not assumed; set liquidAt for that. */
+function hishtalmutWhen(i){
+  const explicit=liquidAtOf(i);
+  if(explicit)return {date:explicit,how:'date'};
+  const opened=openedOf(i);
+  if(opened){
+    const six=iso(addMonths(opened,72)), three=iso(addMonths(opened,36)), ret=retireIso();
+    const atRetirement=three>ret?three:ret;
+    if(atRetirement<six)return {date:atRetirement,how:'retire'};
+    return {date:six,how:'six'};
+  }
+  if(i&&i.liquid===true)return {date:iso(TODAY),how:'flag'};
+  if(i&&i.liquid===false)return {how:'locked'};
+  return {how:'unknown'};
+}
 /* null = unknown. true/false = liquid by the target date. */
 function liquidByTarget(i,kind,target){
   const explicit=liquidAtOf(i);
   if(explicit)return target>=explicit;
   if(kind==='hishtalmut'){
-    const opened=openedOf(i);
-    if(opened)return target>=iso(addMonths(opened,72));
-    if(i&&i.liquid===true)return true;
-    if(i&&i.liquid===false)return false;
-    return null;
+    const w=hishtalmutWhen(i);
+    if(w.how==='unknown')return null;
+    if(w.how==='locked')return false;
+    if(w.how==='flag')return true;
+    return target>=w.date;
   }
   if(kind==='gemel')return target>=retireIso();
   return true;
@@ -1769,7 +1785,8 @@ function assessHoldingTax(p,m,f,target,g,infl){
     if(liq===true){
       const above=clamp(isFinite(+p.i.taxableShare)?+p.i.taxableShare:0,0,1);
       frac=above;exempt=above<=0;
-      reason=above>0?`נזילה לתאריך היעד · ${Math.round(above*100)}% מהרווח חייב (הפקדות מעל התקרה)`:'פטור — נזילה לתאריך היעד, וההפקדות בתוך התקרה (הנחה)';
+      const via=hishtalmutWhen(p.i).how==='retire'?' · ותק 3 שנים בגיל פרישה':'';
+      reason=above>0?`נזילה לתאריך היעד${via} · ${Math.round(above*100)}% מהרווח חייב (הפקדות מעל התקרה)`:`פטור — נזילה לתאריך היעד${via}, וההפקדות בתוך התקרה (הנחה)`;
     }else if(liq===false){reason='עדיין לא נזילה בתאריך היעד — משיכה מחויבת במס';}
     else{unknown=true;reason='אין תאריך פתיחה או נזילות — מחושב כחייב';}
   }else if(rule.when==='hashkaa'){
@@ -1842,7 +1859,7 @@ function renderTaxSettings(){
       <td><input type="checkbox" data-tx="${esc(b.id)}" data-k="withheld" ${r.withheld?'checked':''} title="לא למסות רווח שכבר ביתרה"></td>
       <td><select data-tx="${esc(b.id)}" data-k="when">${TAX_WHEN.map(([v,n])=>`<option value="${v}" ${r.when===v?'selected':''}>${esc(n)}</option>`).join('')}</select></td></tr>`;}).join('')+
     `</table></div>
-    <div class="fc-tax-note">מקורות לברירות המחדל: <a href="https://www.kolzchut.org.il/he/%D7%A7%D7%A8%D7%9F_%D7%94%D7%A9%D7%AA%D7%9C%D7%9E%D7%95%D7%AA_%D7%9C%D7%A2%D7%95%D7%91%D7%93_%D7%A2%D7%A6%D7%9E%D7%90%D7%99" target="_blank" rel="noopener">כל זכות — קרן השתלמות לעצמאי</a> (פטור אחרי 6 שנים עד תקרה; 20,566 ₪ ב־2026; מעבר לכך 25%). גמל להשקעה: 25% על הרווח הריאלי במשיכה הונית, פטור בקצבה מוכרת מגיל 60. פוליסת חיסכון: 25% ריאלי במשיכה. ני״ע סחירים ומניות חו״ל: 25% על הרווח הריאלי בשקלים (טופס 1325, רשות המסים, סעיף 91). קריפטו: נכס, 25%. פיקדון לא צמוד ו־P2P: 15% נומינלי, לרוב בניכוי במקור. קופת גמל לתגמולים: קצבה; היוון לפי תיקון 190 הוא 15% נומינלי ורק בתנאים — כאן זו הנחה שצריך לסמן.</div>
+    <div class="fc-tax-note">מקורות לברירות המחדל: <a href="https://www.kolzchut.org.il/he/%D7%A7%D7%A8%D7%9F_%D7%94%D7%A9%D7%AA%D7%9C%D7%9E%D7%95%D7%AA_%D7%9C%D7%A2%D7%95%D7%91%D7%93_%D7%A2%D7%A6%D7%9E%D7%90%D7%99" target="_blank" rel="noopener">כל זכות — קרן השתלמות לעצמאי</a> (פטור אחרי 6 שנים, או אחרי 3 שנים מגיל פרישה, עד תקרה; 20,566 ₪ ב־2026; מעבר לכך 25%). גמל להשקעה: 25% על הרווח הריאלי במשיכה הונית, פטור בקצבה מוכרת מגיל 60. פוליסת חיסכון: 25% ריאלי במשיכה. ני״ע סחירים ומניות חו״ל: 25% על הרווח הריאלי בשקלים (טופס 1325, רשות המסים, סעיף 91). קריפטו: נכס, 25%. פיקדון לא צמוד ו־P2P: 15% נומינלי, לרוב בניכוי במקור. קופת גמל לתגמולים: קצבה; היוון לפי תיקון 190 הוא 15% נומינלי ורק בתנאים — כאן זו הנחה שצריך לסמן.</div>
     <button class="btn ghost sm mt" id="taxRulesReset" type="button">אפס כללי מס לברירת המחדל</button>`;
   $$('#taxRulesCard [data-tx]').forEach(el=>{
     const apply=()=>{
@@ -2619,7 +2636,7 @@ function editHolding(id,cat){
     <div class="field"><label>קרן נכון לתאריך</label><input id="ePrinAsOf" type="date" value="${esc(inv?principalAsOfOf(inv):'')}"></div>
     <div class="field" style="grid-column:1/-1"><label>הערת קרן</label><input id="ePrinNote" value="${esc(inv?principalNoteOf(inv):'')}" placeholder="למשל: סכום שהועבר מקופה קודמת ב־2024, כולל רווחים קודמים" maxlength="300"></div>
     <div class="field"><label>סוג לחישוב מס</label><select id="eTaxKind">${optList([['', 'לפי שם וקטגוריה'], ...TAX_RULES.map(r=>[r.id,r.label])], inv&&inv.taxKind||'')}</select><div class="hint">ריק = זיהוי אוטומטי (השתלמות, גמל, ברוקר…)</div></div>
-    <div class="field"><label>תאריך פתיחה</label><input id="eOpened" type="date" value="${esc(inv?openedOf(inv):'')}"><div class="hint">openedAt · לקה״ש הנזילות היא פתיחה + 6 שנים</div></div>
+    <div class="field"><label>תאריך פתיחה</label><input id="eOpened" type="date" value="${esc(inv?openedOf(inv):'')}"><div class="hint">openedAt · קה״ש: 6 שנים, או 3 שנים מגיל פרישה — המוקדם. משיכה ללימודים אחרי 3 שנים: הזינו תאריך נזילות</div></div>
     <div class="field"><label>תאריך נזילות</label><input id="eLiquidAt" type="date" value="${esc(inv?liquidAtOf(inv):'')}"><div class="hint">liquidAt · אם מולא, גובר על הפתיחה</div></div>
     <div class="field"><label>חלק חייב גם בפטור (%)</label><input id="eTaxShare" inputmode="decimal" value="${inv&&isFinite(+inv.taxableShare)&&+inv.taxableShare>0?Math.round(+inv.taxableShare*1000)/10:''}" placeholder="0" style="direction:ltr"><div class="hint">taxableShare · למשל הפקדות מעל תקרת השתלמות</div></div>
     <div class="field" style="grid-column:1/-1"><label>נזילות</label>
