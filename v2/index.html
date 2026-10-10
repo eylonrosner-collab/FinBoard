@@ -125,6 +125,19 @@ td.n,th.n{text-align:left}
 .ov-fc-val{font-size:26px;font-weight:800;letter-spacing:-.4px;line-height:1.15;margin:4px 0 2px}
 .ov-fc-range{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--dim);margin-top:2px}
 .ov-fc-meta{font-size:12px;line-height:1.45;margin-top:6px}
+.ov-fc-net{font-size:13px;font-weight:650;margin-top:2px;line-height:1.35}
+.fc-pair{display:flex;flex-wrap:wrap;gap:4px 28px;align-items:flex-end;margin-top:4px}
+.fc-pair .lbl{font-size:12px;color:var(--dim)}
+.fc-pair .big-result{font-size:34px}
+.fc-pair .net{color:var(--pos)}
+.fc-tax-note{font-size:12px;color:var(--dim);line-height:1.45;margin-top:8px}
+.fc-tax td,.fc-tax th{white-space:normal;vertical-align:top}
+.tax-rules input,.tax-rules select{height:32px;border-radius:8px;border:1px solid var(--line2);background:var(--card2);color:var(--text);font:inherit;padding:0 6px}
+@media(max-width:760px){
+  .fc-pair{flex-direction:column;align-items:stretch;gap:8px}
+  .fc-pair .big-result{font-size:28px}
+  .scen{grid-template-columns:1fr}
+}
 .task-add{display:flex;gap:8px;margin-bottom:8px}
 .task-add input{flex:1;min-width:0;height:36px;border-radius:9px;border:1px solid var(--line2);background:var(--card2);color:var(--text);padding:0 10px;font:inherit}
 .task-add input:focus{outline:2px solid color-mix(in srgb,var(--pri) 50%,transparent);border-color:var(--pri)}
@@ -525,13 +538,14 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
           <div class="field"><label>מרווח תרחישים (± נק' אחוז)</label><input type="number" id="fSpread" step="0.5"><div class="hint">שמרני / אופטימי</div></div>
           <div class="field"><label>אינפלציה שנתית (%)</label><input type="number" id="fInfl" step="0.1"><div class="hint">לחישוב ערך ריאלי (בכסף של היום)</div></div>
           <div class="field" id="goalFields" style="display:none"><label>סכום יעד (₪)</label><input type="number" id="fGoal" step="10000"><label class="chk" style="margin-top:6px"><input type="checkbox" id="fGoalReal" checked> היעד בכסף של היום</label></div>
-          <div class="field"><label>&nbsp;</label><label class="chk"><input type="checkbox" id="fTax"> הצג אחרי מס רווח הון (25%)</label><label class="chk"><input type="checkbox" id="fShowReal" checked> הצג קו ריאלי בגרף</label></div>
+          <div class="field"><label>&nbsp;</label><label class="chk"><input type="checkbox" id="fShowReal" checked> הצג קו ריאלי בגרף</label><div class="hint">מס רווח הון מחושב לפי סוג האחזקה. זו הערכה, לא ייעוץ מס.</div></div>
         </div>
       </div>
       <div class="grid g-2-1 mt">
         <div class="card" id="fcResult"></div>
         <div class="card" id="fcSide"></div>
       </div>
+      <div class="card mt" id="fcTaxCard"></div>
       <div class="card mt">
         <div class="card-head"><h3>מהיום ועד תאריך היעד</h3><span class="legend">רצועה מוצללת = טווח 10%–90% בסימולציית מונטה-קרלו (2,000 מסלולים)</span></div>
         <div class="chart lg"><canvas id="cFc"></canvas></div>
@@ -603,6 +617,7 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
             <div class="field"><label>סף דמי ניהול גבוהים (%)</label><input type="number" id="sFee" step="0.05"></div>
           </div></div>
       </div>
+      <div class="card mt" id="taxRulesCard"></div>
       <div class="card mt" id="gistCard"><h3>☁ חיבור Gist — סנכרון עם האתר המקורי</h3>
         <div id="gistStatus" style="font-size:13px;margin-bottom:10px"></div>
         <div class="form">
@@ -749,7 +764,8 @@ function makeExample(){
     /* Demo principal (money in). עו"ש is left unknown so coverage is partial.
        costBasis stays — same figure here, except the transferred kupa carries a caveat. */
     if(h[1]!=='עו"ש'){o.principal=o.costBasis;o.principalAsOf='2026-09-01';}
-    if(String(h[1]).includes('ותיקה')){o.principalNote='סכום שהועבר מקופה קודמת ב־2024, כולל רווחים קודמים';o.principalAsOf='2024-06-01';}
+    if(String(h[1]).includes('ותיקה')){o.principalNote='סכום שהועבר מקופה קודמת ב־2024, כולל רווחים קודמים';o.principalAsOf='2024-06-01';o.openedAt='2016-03-01';o.taxableShare=0.35;}
+    if(h[1]==='קרן השתלמות — כללי')o.openedAt='2026-06-01';
     /* pulledAt = day the balance was fetched. Differs from the history as-of date on most demo rows.
        עו"ש and Ethereum omit it so the single as-of date still shows. */
     if(h[1]!=='עו"ש'&&h[1]!=='Ethereum')o.pulledAt=iso(TODAY);
@@ -1432,7 +1448,7 @@ function rules(){
   if(crazy.length){const tr=trackReturn('fin'),cl=assumedReturn('fin');add('tracks-optimistic','info','📐','הנחות תשואה לא שמרניות במסלולים',`${crazy.map(t=>`${t.name}: ${t.rate}%/שנה`).join(', ')}. התשואה המשוקללת לפי המסלולים היא ${tr.toFixed(1)}% מול ${cl.toFixed(1)}% לפי הנחות סוג נכס — הפרש שמנפח תחזיות ארוכות.`,'בתחזית מוצעת כברירת מחדל התשואה לפי סוג נכס. אפשר לבחור את שיטת המסלולים בלחיצה.','מסלול בשימוש עם תשואה > 15%.');}
   // 8. locked kupa that may be liquid (השתלמות)
   const hish=S.investments.filter(i=>i.cat==='kupa'&&/השתלמות|קה"ש/.test(i.name));
-  if(hish.length)add('kupa-maybe-liq','info','🔓','קרן השתלמות ותיקה עשויה להיות נזילה',`${hish.map(i=>i.name).join(', ')} מסווגות "לא נזיל". קרן השתלמות שעברה 6 שנים ממועד הפתיחה ניתנת למשיכה פטורה ממס רווח הון.`,'אם עברו 6 שנים — סווג אותן כנזילות (משפיע על קרן חירום, יחס נזילות וחישובים). לא חייבים למשוך.','קה"ש בקטגוריית kupa.');
+  if(hish.length)add('kupa-maybe-liq','info','🔓','קרן השתלמות ותיקה עשויה להיות נזילה',`${hish.map(i=>i.name).join(', ')} מסווגות "לא נזיל". קרן השתלמות שעברה 6 שנים ממועד הפתיחה ניתנת למשיכה פטורה ממס רווח הון (עד תקרת ההפקדה).`,'אם עברו 6 שנים — סווג אותן כנזילות, והזן תאריך פתיחה באחזקה כדי שהתחזית תפטור את הרווח רק כשהקרן נזילה. לא חייבים למשוך.','קה"ש בקטגוריית kupa.');
   // 9. stale data
   const stale=fin.filter(i=>{const d=lastUpdate(i);return d&&daysBetween(d,TODAY)>60;});
   if(stale.length)add('stale-data','info','⏱️',`${stale.length} אחזקות לא עודכנו מעל 60 יום`,stale.map(i=>`${i.name} (${updateDateText(i)})`).join(', '),'עדכן יתרות כדי שהתשואות וההקצאה יהיו מדויקים.','עדכון אחרון > 60 יום.');
@@ -1526,12 +1542,14 @@ function renderOverview(){
   bindRecDismiss($('#ovRecs'));
   /* Quick forecast — SAME inputs/math as Forecast page FV mode (fcInputs + fcCompute). */
   const f=fcInputs();const res=fcCompute(f);
+  const ovTax=buildTaxBook(f,f.ret).at(res.n);
   const stressed=Math.round((f.depStress??100)*10)/10!==100;
   const scopeLbl=f.scope==='liq'?'נזיל בלבד':'כל ההון';
   $('#ovFc').innerHTML=`<div class="ov-fc-when dim">ב־<b>${heDate(f.date)}</b> · עוד ${(res.n/12).toFixed(1)} שנים · הון ${ils(res.P0)} (${scopeLbl})</div>
-    <div class="ov-fc-val" title="אותו חישוב כמו בעמוד התחזית, מצב שווי צפוי">${ils(res.exp)}</div>
+    <div class="ov-fc-val" title="שווי צפוי ברוטו, אותו חישוב כמו בעמוד התחזית">${ils(res.exp)}</div>
+    <div class="ov-fc-net">נטו אחרי מס <span class="pos">${ils(res.exp-(ovTax?ovTax.tax:0))}</span> <span class="faint">· מס ${ils(ovTax?ovTax.tax:0)}</span></div>
     <div class="ov-fc-range"><span>שמרני ${ils(res.cons)}</span><span>אופטימי ${ils(res.opt)}</span></div>
-    <div class="ov-fc-meta dim">ריאלי ${ils(res.real)} · הפקדה ${ils(res.monthly)}/חודש${stressed?` <span class="warn">(${Math.round(f.depStress)}% מ־${ilsT(f.monthly)})</span>`:''} · תשואה ${f.ret}% − דמי ניהול ${f.fee}%</div>`;
+    <div class="ov-fc-meta dim">ריאלי ברוטו ${ils(res.real)} · ריאלי נטו ${ils((res.exp-(ovTax?ovTax.tax:0))/ (res.deflate(res.n)||1))} · הפקדה ${ils(res.monthly)}/חודש${stressed?` <span class="warn">(${Math.round(f.depStress)}% מ־${ilsT(f.monthly)})</span>`:''} · תשואה ${f.ret}% − דמי ניהול ${f.fee}%</div>`;
   bindOverviewTasks();
   renderPgSummary();
 }
@@ -1642,15 +1660,207 @@ function fcCompute(f,monthlyOverride){
   const E=proj(0),C=proj(-f.spread),O=proj(+f.spread);
   const deflate=m=>Math.pow(1+f.infl/100,m/12);
   const exp=E[n].v,contrib=E[n].c,growth=exp-contrib;
-  const taxable=f.scope==='liq'?1:(T.fin-T.locked)/(T.fin||1); // kupa/השתלמות ≈ tax-exempt (simplified)
-  const tax=f.tax?Math.max(0,growth)*0.25*taxable:0;
-  return {n,P0,E,C,O,exp,cons:C[n].v,opt:O[n].v,contrib,growth,real:exp/deflate(n),tax,afterTax:exp-tax,deflate,taxable,monthly,stress:monthlyOverride!=null?null:stress,baseMonthly:f.monthly};
+  return {n,P0,E,C,O,exp,cons:C[n].v,opt:O[n].v,contrib,growth,real:exp/deflate(n),tax:0,afterTax:exp,deflate,taxable:1,monthly,stress:monthlyOverride!=null?null:stress,baseMonthly:f.monthly};
+}
+/* Capital-gains estimate by holding type. Rules live in fin26_v2 prefs.
+   Gross FV stays the single-pot project() result; tax is the sum of the same
+   rate applied per holding (linear, so the parts add up to that FV). */
+const TAX_RULES=[
+  {id:'hishtalmut',label:'קרן השתלמות',rate:25,basis:'nominal',exempt:false,withheld:false,when:'liquid'},
+  {id:'gemel',label:'קופת גמל (תגמולים/פיצויים)',rate:15,basis:'nominal',exempt:false,withheld:false,when:'pension'},
+  {id:'gemelHashkaa',label:'קופת גמל להשקעה',rate:25,basis:'real',exempt:false,withheld:false,when:'hashkaa'},
+  {id:'polisa',label:'פוליסת חיסכון',rate:25,basis:'real',exempt:false,withheld:false,when:'always'},
+  {id:'broker',label:'תיק ני״ע / מניות בחו״ל',rate:25,basis:'real',exempt:false,withheld:false,when:'always'},
+  {id:'crypto',label:'קריפטו',rate:25,basis:'real',exempt:false,withheld:false,when:'always'},
+  {id:'p2p',label:'הלוואות חברתיות (P2P)',rate:15,basis:'nominal',exempt:false,withheld:true,when:'always'},
+  {id:'deposit',label:'פיקדון שקלי לא צמוד',rate:15,basis:'nominal',exempt:false,withheld:true,when:'always'},
+  {id:'moneyfund',label:'קרן כספית / קרן נאמנות',rate:25,basis:'real',exempt:false,withheld:false,when:'always'},
+  {id:'fxcash',label:'מט״ח מזומן (עו״ש)',rate:0,basis:'nominal',exempt:true,withheld:false,when:'exempt'},
+  {id:'cash',label:'עו״ש שקלי',rate:0,basis:'nominal',exempt:true,withheld:false,when:'exempt'}];
+const TAX_WHEN=[['always','תמיד לפי השיעור'],['liquid','פטור רק אם נזיל לתאריך היעד'],['hashkaa','הוני, או קצבה פטורה מגיל 60'],['pension','קצבה / נעול; או היוון 15%'],['exempt','פטור']];
+function taxRule(id){
+  const base=TAX_RULES.find(r=>r.id===id)||TAX_RULES[TAX_RULES.length-1];
+  const over=(P.taxRules||{})[id]||{};
+  const rate=isFinite(+over.rate)?clamp(+over.rate,0,100):base.rate;
+  return {id:base.id,label:base.label,rate,
+    basis:over.basis==='nominal'||over.basis==='real'?over.basis:base.basis,
+    exempt:typeof over.exempt==='boolean'?over.exempt:!!base.exempt,
+    withheld:typeof over.withheld==='boolean'?over.withheld:!!base.withheld,
+    when:TAX_WHEN.some(w=>w[0]===over.when)?over.when:base.when};
+}
+function inferTaxKind(i){
+  if(i&&i.taxKind&&TAX_RULES.some(r=>r.id===i.taxKind))return i.taxKind;
+  const n=((i&&i.name)||'')+' '+((i&&i.inst)||'')+' '+((i&&i.track)||'');
+  if(/השתלמות/.test(n))return 'hishtalmut';
+  if(/פוליס/.test(n))return 'polisa';
+  if(/btb|בי\.טי\.בי|הלוואות חברתיות|p2p/i.test(n))return 'p2p';
+  if(/גמל להשקעה|להשקעה/.test(n)||(i&&i.cat==='gamel'))return 'gemelHashkaa';
+  if(i&&i.cat==='crypto')return 'crypto';
+  if(i&&i.cat==='forex')return /ברוקר|schwab|מניות|nasdaq|s&p/i.test(n)?'broker':'fxcash';
+  if(i&&i.cat==='kupa')return 'gemel';
+  if(i&&i.cat==='cash'){
+    if(/כספית|נאמנות/.test(n))return 'moneyfund';
+    if(/עו"ש|עו״ש/.test(n))return 'cash';
+    return 'deposit';
+  }
+  return 'broker';
+}
+function gainBasis(i){
+  const p=readPrincipal(i);
+  if(p!=null)return {basis:p,method:'principal'};
+  if(i&&isFinite(+i.costBasis)&&+i.costBasis>0)return {basis:+i.costBasis,method:'costBasis'};
+  const dz=holdingDietz(i);
+  if(dz&&isFinite(dz.gain))return {basis:(+i.bal||0)-dz.gain,method:'dietz'};
+  return {basis:null,method:'none'};
+}
+function indexedDeposits(monthly0,g,infl,n){
+  const rm=Math.pow(1+(+infl||0)/100,1/12);
+  let c=+monthly0||0,sum=0;
+  for(let m=1;m<=n;m++){if(m>1&&(m-1)%12===0)c*=1+(+g||0)/100;sum+=c*Math.pow(rm,n-m);}
+  return sum;
+}
+function ageAt(dateStr){return D(dateStr).getFullYear()-(+S.set.birthYear||1980);}
+function retireIso(){const by=+S.set.birthYear||1980,ra=+S.set.retAge||67;return `${by+ra}-01-01`;}
+function openedOf(i){const s=i&&typeof i.openedAt==='string'?i.openedAt.trim().slice(0,10):'';return /^\d{4}-\d{2}-\d{2}$/.test(s)?s:'';}
+function liquidAtOf(i){const s=i&&typeof i.liquidAt==='string'?i.liquidAt.trim().slice(0,10):'';return /^\d{4}-\d{2}-\d{2}$/.test(s)?s:'';}
+/* null = unknown. true/false = liquid by the target date. */
+function liquidByTarget(i,kind,target){
+  const explicit=liquidAtOf(i);
+  if(explicit)return target>=explicit;
+  if(kind==='hishtalmut'){
+    const opened=openedOf(i);
+    if(opened)return target>=iso(addMonths(opened,72));
+    if(i&&i.liquid===true)return true;
+    if(i&&i.liquid===false)return false;
+    return null;
+  }
+  if(kind==='gemel')return target>=retireIso();
+  return true;
+}
+function hashkaaExit(f){
+  const pref=(P.taxExit&&P.taxExit.gemelHashkaa)||'auto';
+  if(ageAt(f.date)<60)return 'lump';
+  return pref==='lump'?'lump':'annuity';
+}
+function gemelExit(f){
+  const pref=(P.taxExit&&P.taxExit.gemel)||'annuity';
+  if(pref==='lump190')return ageAt(f.date)>=60?'lump190':'locked';
+  return String(f.date)>=retireIso()?'annuity':'locked';
+}
+function assessHoldingTax(p,m,f,target,g,infl){
+  const rule=taxRule(p.kind);
+  const fv=p.series[m].v, fut=p.series[m].c-p.bal;
+  const basis=p.gb.basis==null?p.bal:p.gb.basis;
+  const nom=fv-(basis+fut);
+  const idxB=basis*Math.pow(1+(+infl||0)/100,m/12);
+  const idxF=indexedDeposits(p.monthly,g,infl,m);
+  const real=fv-idxB-idxF;
+  let useNom=nom, useReal=real;
+  if(rule.withheld){
+    useNom=fv-p.bal-fut;
+    useReal=fv-p.bal*Math.pow(1+(+infl||0)/100,m/12)-idxF;
+  }
+  const full=rule.basis==='real'?useReal:useNom;
+  let frac=1, exempt=false, reason='', unknown=false;
+  const basisHe=rule.basis==='real'?'ריאלי':'נומינלי';
+  if(rule.exempt||rule.when==='exempt'){frac=0;exempt=true;reason='פטור לפי הכלל שנבחר';}
+  else if(rule.when==='liquid'){
+    const liq=liquidByTarget(p.i,p.kind,target);
+    if(liq===true){
+      const above=clamp(isFinite(+p.i.taxableShare)?+p.i.taxableShare:0,0,1);
+      frac=above;exempt=above<=0;
+      reason=above>0?`נזילה לתאריך היעד · ${Math.round(above*100)}% מהרווח חייב (הפקדות מעל התקרה)`:'פטור — נזילה לתאריך היעד, וההפקדות בתוך התקרה (הנחה)';
+    }else if(liq===false){reason='עדיין לא נזילה בתאריך היעד — משיכה מחויבת במס';}
+    else{unknown=true;reason='אין תאריך פתיחה או נזילות — מחושב כחייב';}
+  }else if(rule.when==='hashkaa'){
+    const mode=hashkaaExit(f);
+    if(mode==='annuity'){frac=0;exempt=true;reason='קצבה מוכרת מגיל 60 — פטור ממס רווח הון (הנחה: המשיכה היא קצבה, לא סכום חד-פעמי)';}
+    else reason=ageAt(f.date)<60?`משיכה הונית — ${rule.rate}% על הרווח ה${basisHe}. קצבה פטורה רק מגיל 60`:`משיכה הונית — ${rule.rate}% על הרווח ה${basisHe}`;
+  }else if(rule.when==='pension'){
+    const mode=gemelExit(f);
+    if(mode==='lump190'){reason='היוון קצבה מוכרת (תיקון 190) — הנחה: גיל 60+ וקצבה מזערית. מס על הרווח הנומינלי';}
+    else if(mode==='annuity'){frac=0;exempt=true;reason='קצבה — אין מס רווח הון במודל. מס הכנסה על הקצבה עצמה לא מחושב (הנחה)';}
+    else{frac=0;exempt=true;reason='נעול עד פרישה — אין משיכה בתחזית, ולכן אין אירוע מס. משיכה שלא כדין לא ממודלת';}
+  }else reason=`${rule.rate}% על הרווח ה${basisHe}`+(rule.withheld?' · ריבית שכבר ביתרה נוכתה במקור ולא חויבה שוב':'');
+  const tax=Math.max(0,full)*frac*(rule.rate/100);
+  const estimated=p.gb.method!=='principal'||unknown;
+  return {kind:p.kind,label:rule.label,name:p.i.name,gain:full,tax,rate:rule.rate,basis:rule.basis,reason,exempt,estimated,withheld:!!rule.withheld};
+}
+function buildTaxBook(f,annR){
+  const hs=S.investments.filter(f.scope==='liq'?isLiq:isFin);
+  const P0=sum(hs,i=>+i.bal||0);
+  const n=Math.max(1,monthsBetween(TODAY,f.date));
+  const monthly=f.monthly*((f.depStress??100)/100);
+  const g=+f.growth||0, infl=+f.infl||0, fee=+f.fee||0;
+  const paths=hs.map(i=>{
+    const bal=+i.bal||0, w=P0>0?bal/P0:0;
+    return {i,bal,w,monthly:monthly*w,series:project(bal,monthly*w,annR,fee,g,n),gb:gainBasis(i),kind:inferTaxKind(i)};
+  });
+  function at(m){
+    const mm=Math.max(0,Math.min(n,m|0));
+    const target=iso(addMonths(TODAY,mm));
+    const items=paths.map(p=>assessHoldingTax(p,mm,f,target,g,infl));
+    return {items,tax:sum(items,x=>x.tax),estimated:items.some(x=>x.estimated&&x.tax>1),target,n};
+  }
+  const gross=P0>0?project(P0,monthly,annR,fee,g,n)[n].v:0;
+  return {n,P0,at,gross};
+}
+function taxGroups(items){
+  const map=new Map();
+  items.forEach(it=>{
+    const k=it.kind+'|'+it.reason;
+    if(!map.has(k))map.set(k,{...it,names:[],gain:0,tax:0,estimated:false});
+    const g=map.get(k);
+    g.names.push(it.name);g.gain+=it.gain;g.tax+=it.tax;g.estimated=g.estimated||it.estimated;
+  });
+  return [...map.values()].sort((a,b)=>b.tax-a.tax||b.gain-a.gain);
+}
+function taxTableHtml(snap){
+  const groups=taxGroups(snap.items);
+  const rows=groups.map(g=>`<tr><td><b>${esc(g.label)}</b><div class="faint" style="font-size:11px">${esc(g.names.join(' · '))}</div></td>
+    <td class="n">${ilsSigned(g.gain)}</td>
+    <td>${g.exempt?'פטור':`<span class="m">${g.rate}%</span> ${g.basis==='real'?'ריאלי':'נומינלי'}`}${g.estimated?' · <span class="warn">הערכה</span>':''}<div class="faint" style="font-size:11px">${esc(g.reason)}</div></td>
+    <td class="n">${g.tax>0.5?ils(g.tax):'<span class="pos m">₪0</span>'}</td></tr>`).join('');
+  return `<div class="tbl-wrap"><table class="fc-tax"><tr><th>סוג</th><th class="n">רווח לתחזית</th><th>שיעור / סיבת פטור</th><th class="n">מס</th></tr>${rows}</table></div>
+    <div class="fc-tax-note">הערכה בלבד, לא ייעוץ מס. הרווח = שווי צפוי − (קרן + הפקדות עתידיות). בלי <span class="num">principal</span> נופלים ל־costBasis או ליומן ההפקדות, והשורה מסומנת כהערכה. ניכוי במקור על ריבית שכבר ביתרה לא מחושב שוב; הצמיחה העתידית כן. אין קיזוז הפסדים, מס יסף, או מס הכנסה על קצבה. נדל״ן לא נכלל. <a href="#settings">עריכת הכללים ←</a></div>`;
+}
+function renderTaxSettings(){
+  const el=$('#taxRulesCard');if(!el)return;
+  const exit=P.taxExit||{};
+  const sel=(name,cur,opts)=>`<select data-exit="${name}">${opts.map(([v,n])=>`<option value="${esc(v)}" ${v===cur?'selected':''}>${esc(n)}</option>`).join('')}</select>`;
+  el.innerHTML=`<h3>מס רווח הון בתחזית</h3>
+    <div class="dim" style="font-size:12px;margin:6px 0 10px">כללים לעמוד התחזית בלבד (נשמרים ב־<span class="num">fin26_v2</span>, לא בקובץ של האתר המקורי). ברירות המחדל לפי פקודת מס הכנסה וכל זכות, נכון ל־2026, ועדיין הערכה — לא שומה. תאריך פתיחה, תאריך נזילות וחלק חייב מעל התקרה נשמרים על האחזקה (<span class="num">openedAt</span>, <span class="num">liquidAt</span>, <span class="num">taxableShare</span>, <span class="num">taxKind</span>).</div>
+    <div class="form" style="margin-bottom:10px">
+      <div class="field"><label>גמל להשקעה בתאריך היעד</label>${sel('gemelHashkaa',exit.gemelHashkaa||'auto',[['auto','אוטומטי: קצבה מגיל 60, אחרת הוני'],['lump','תמיד משיכה הונית'],['annuity','קצבה אם הגיל 60+']])}</div>
+      <div class="field"><label>קופת גמל לתגמולים</label>${sel('gemel',exit.gemel||'annuity',[['annuity','קצבה (אין מס רווח הון במודל)'],['lump190','היוון 15% נומינלי מגיל 60 (תיקון 190)']])}</div>
+    </div>
+    <div class="tbl-wrap"><table class="tax-rules"><tr><th>סוג</th><th>פטור</th><th class="n">שיעור %</th><th>בסיס</th><th>ניכוי במקור על הקיים</th><th>תנאי</th></tr>`+
+    TAX_RULES.map(b=>{const r=taxRule(b.id);return `<tr><td>${esc(r.label)}</td>
+      <td><input type="checkbox" data-tx="${esc(b.id)}" data-k="exempt" ${r.exempt?'checked':''}></td>
+      <td class="n"><input data-tx="${esc(b.id)}" data-k="rate" type="number" min="0" max="100" step="0.5" value="${r.rate}" style="width:72px;direction:ltr"></td>
+      <td><select data-tx="${esc(b.id)}" data-k="basis"><option value="real" ${r.basis==='real'?'selected':''}>ריאלי</option><option value="nominal" ${r.basis==='nominal'?'selected':''}>נומינלי</option></select></td>
+      <td><input type="checkbox" data-tx="${esc(b.id)}" data-k="withheld" ${r.withheld?'checked':''} title="לא למסות רווח שכבר ביתרה"></td>
+      <td><select data-tx="${esc(b.id)}" data-k="when">${TAX_WHEN.map(([v,n])=>`<option value="${v}" ${r.when===v?'selected':''}>${esc(n)}</option>`).join('')}</select></td></tr>`;}).join('')+
+    `</table></div>
+    <div class="fc-tax-note">מקורות לברירות המחדל: <a href="https://www.kolzchut.org.il/he/%D7%A7%D7%A8%D7%9F_%D7%94%D7%A9%D7%AA%D7%9C%D7%9E%D7%95%D7%AA_%D7%9C%D7%A2%D7%95%D7%91%D7%93_%D7%A2%D7%A6%D7%9E%D7%90%D7%99" target="_blank" rel="noopener">כל זכות — קרן השתלמות לעצמאי</a> (פטור אחרי 6 שנים עד תקרה; 20,566 ₪ ב־2026; מעבר לכך 25%). גמל להשקעה: 25% על הרווח הריאלי במשיכה הונית, פטור בקצבה מוכרת מגיל 60. פוליסת חיסכון: 25% ריאלי במשיכה. ני״ע סחירים ומניות חו״ל: 25% על הרווח הריאלי בשקלים (טופס 1325, רשות המסים, סעיף 91). קריפטו: נכס, 25%. פיקדון לא צמוד ו־P2P: 15% נומינלי, לרוב בניכוי במקור. קופת גמל לתגמולים: קצבה; היוון לפי תיקון 190 הוא 15% נומינלי ורק בתנאים — כאן זו הנחה שצריך לסמן.</div>
+    <button class="btn ghost sm mt" id="taxRulesReset" type="button">אפס כללי מס לברירת המחדל</button>`;
+  $$('#taxRulesCard [data-tx]').forEach(el=>{
+    const apply=()=>{
+      const id=el.dataset.tx,k=el.dataset.k;
+      P.taxRules=P.taxRules||{};P.taxRules[id]=Object.assign({},P.taxRules[id]||{});
+      P.taxRules[id][k]=el.type==='checkbox'?el.checked:el.type==='number'?(+el.value||0):el.value;
+      savePrefs();
+    };
+    el.oninput=apply;el.onchange=apply;
+  });
+  $$('#taxRulesCard [data-exit]').forEach(el=>el.onchange=()=>{P.taxExit=Object.assign({},P.taxExit||{},{[el.dataset.exit]:el.value});savePrefs();});
+  $('#taxRulesReset').onclick=()=>{delete P.taxRules;delete P.taxExit;savePrefs();renderTaxSettings();};
 }
 function bindFc(){
-  const f=fcInputs();const set=(id,v)=>{const el=$('#'+id);if(el.type==='checkbox')el.checked=!!v;else el.value=v;};
-  set('fDate',f.date);set('fScope',f.scope);set('fMonthly',f.monthly);set('fGrowth',f.growth);set('fRet',f.ret);set('fFee',f.fee);set('fSpread',f.spread);set('fInfl',f.infl);set('fGoal',f.goal);set('fGoalReal',f.goalReal);set('fTax',f.tax);set('fShowReal',f.showReal);
+  const f=fcInputs();const set=(id,v)=>{const el=$('#'+id);if(!el)return;if(el.type==='checkbox')el.checked=!!v;else el.value=v;};
+  set('fDate',f.date);set('fScope',f.scope);set('fMonthly',f.monthly);set('fGrowth',f.growth);set('fRet',f.ret);set('fFee',f.fee);set('fSpread',f.spread);set('fInfl',f.infl);set('fGoal',f.goal);set('fGoalReal',f.goalReal);set('fShowReal',f.showReal);
   set('fDepStress',Math.round(f.depStress));
-  const map={fDate:'date',fScope:'scope',fMonthly:'monthly',fGrowth:'growth',fRet:'ret',fFee:'fee',fSpread:'spread',fInfl:'infl',fGoal:'goal',fGoalReal:'goalReal',fTax:'tax',fShowReal:'showReal'};
+  const map={fDate:'date',fScope:'scope',fMonthly:'monthly',fGrowth:'growth',fRet:'ret',fFee:'fee',fSpread:'spread',fInfl:'infl',fGoal:'goal',fGoalReal:'goalReal',fShowReal:'showReal'};
   Object.entries(map).forEach(([id,k])=>{$('#'+id).oninput=$('#'+id).onchange=ev=>{const el=ev.target;P.fc[k]=el.type==='checkbox'?el.checked:el.type==='number'?(+el.value||0):el.value;savePrefs();renderForecast(false);};});
   const syncStressUI=()=>{const s=+($('#fDepStress').value)||0;$$('#fDepStressSeg button').forEach(b=>b.classList.toggle('on',+b.dataset.s===s));
     $('#fDepEff').innerHTML=ilsT((f.monthly||0)*s/100);};
@@ -1673,6 +1883,9 @@ function bindFc(){
 }
 function renderForecast(rebind=true){
   if(rebind)bindFc();const f=fcInputs();const r=fcCompute(f);const n=r.n;
+  const book=buildTaxBook(f,f.ret), tx=book.at(n);
+  const txC=buildTaxBook(f,f.ret-f.spread).at(n), txO=buildTaxBook(f,f.ret+f.spread).at(n);
+  const net=r.exp-tx.tax, netReal=net/(r.deflate(n)||1);
   const years=(n/12).toFixed(1);const vol=portVol(f.scope);
   const stressed=Math.round((f.depStress??100)*10)/10!==100;const rFull=stressed?fcCompute(f,f.monthly):r;
   const goalNom=fcMode==='goal'?(f.goalReal?f.goal*r.deflate(n):f.goal):null;
@@ -1687,13 +1900,16 @@ function renderForecast(rebind=true){
   let main;
   if(fcMode==='fv'){
     main=`<div class="dim">שווי צפוי ב-<b>${heDate(f.date)}</b> · בעוד ${years} שנים (${n} חודשים)${stressed?` · <span class="warn">הפקדה ${Math.round(f.depStress)}%</span>`:''}</div>
-    <div class="big-result">${ils(r.exp)}</div>
-    <div class="dim">בכסף של היום (אינפלציה ${f.infl}%): <b>${ils(r.real)}</b>${f.tax?` · אחרי מס רווח הון: <b>${ils(r.afterTax)}</b>`:''}</div>
+    <div class="fc-pair">
+      <div><div class="lbl">ברוטו</div><div class="big-result">${ils(r.exp)}</div></div>
+      <div><div class="lbl" title="הערכה לפי סוג האחזקה. לא ייעוץ מס.">נטו אחרי מס משוער</div><div class="big-result net">${ils(net)}</div></div>
+    </div>
+    <div class="dim">מס משוער <b>${ils(tx.tax)}</b> · ריאלי ברוטו <b>${ils(r.real)}</b> · ריאלי נטו <b>${ils(netReal)}</b> (אינפלציה ${f.infl}%)</div>
     <div class="stack"><div style="width:${pStart}%;background:var(--pri2)"></div><div style="width:${pC}%;background:var(--pri)"></div><div style="width:${pG}%;background:var(--pos)"></div></div>
     <div class="legend"><span><i style="background:var(--pri2)"></i>הון היום ${ils(r.P0)}</span><span><i style="background:var(--pri)"></i>הפקדות עתידיות ${ils(r.contrib-r.P0)}</span><span><i style="background:var(--pos)"></i>צמיחה (תשואה) ${ils(r.growth)}</span></div>
-    <div class="scen"><div><div class="s-l">שמרני (${(f.ret-f.spread).toFixed(1)}%)</div><div class="s-v">${ils(r.cons)}</div><div class="faint" style="font-size:11px">ריאלי ${ils(r.cons/r.deflate(n))}</div></div>
-      <div style="border-color:var(--pri)"><div class="s-l">צפוי (${f.ret}%)</div><div class="s-v">${ils(r.exp)}</div><div class="faint" style="font-size:11px">ריאלי ${ils(r.real)}</div></div>
-      <div><div class="s-l">אופטימי (${(f.ret+f.spread).toFixed(1)}%)</div><div class="s-v">${ils(r.opt)}</div><div class="faint" style="font-size:11px">ריאלי ${ils(r.opt/r.deflate(n))}</div></div></div>${stressBanner}`;
+    <div class="scen"><div><div class="s-l">שמרני (${(f.ret-f.spread).toFixed(1)}%)</div><div class="s-v">${ils(r.cons)}</div><div class="faint" style="font-size:11px">נטו ${ils(r.cons-txC.tax)} · ריאלי נטו ${ils((r.cons-txC.tax)/r.deflate(n))}</div></div>
+      <div style="border-color:var(--pri)"><div class="s-l">צפוי (${f.ret}%)</div><div class="s-v">${ils(r.exp)}</div><div class="faint" style="font-size:11px">נטו ${ils(net)} · ריאלי נטו ${ils(netReal)}</div></div>
+      <div><div class="s-l">אופטימי (${(f.ret+f.spread).toFixed(1)}%)</div><div class="s-v">${ils(r.opt)}</div><div class="faint" style="font-size:11px">נטו ${ils(r.opt-txO.tax)} · ריאלי נטו ${ils((r.opt-txO.tax)/r.deflate(n))}</div></div></div>${stressBanner}`;
   }else{
     const req=requiredMonthly(r.P0,goalNom,f.ret,f.fee,f.growth,n),reqC=requiredMonthly(r.P0,goalNom,f.ret-f.spread,f.fee,f.growth,n);
     const mcReq=req>0?monteCarlo(r.P0,req,f.ret,f.fee,f.growth,n,vol,2000,goalNom).prob:null;
@@ -1713,13 +1929,15 @@ function renderForecast(rebind=true){
   $('#fcSide').innerHTML=`<h3>טווח הסתברותי (מונטה-קרלו)</h3>
     <table><tr><td>תרחיש רע (10%)</td><td class="n">${ils(mc.p10[mcEnd])}</td></tr><tr><td>חציון (50%)</td><td class="n"><b>${ils(mc.p50[mcEnd])}</b></td></tr><tr><td>תרחיש טוב (90%)</td><td class="n">${ils(mc.p90[mcEnd])}</td></tr></table>
     <div class="faint" style="font-size:11px;margin-top:8px">תנודתיות שנתית משוערת ${(vol*100).toFixed(1)}% לפי הקצאת התיק. 10% מהמסלולים מסתיימים מתחת לתרחיש הרע.${stressed?` מחושב עם הפקדה לחוצה ${ilsT(r.monthly)}/חודש.`:''}</div>
-    <h3 class="mt">הנחות</h3><div style="font-size:12px" class="dim">הון התחלתי ${ils(r.P0)} (${f.scope==='liq'?'נזיל':'נזיל + קופות'}) · הפקדה ${ils(r.monthly)}/חודש${stressed?` <span class="warn">(${Math.round(f.depStress)}% מ־${ilsT(f.monthly)})</span>`:''}${f.growth?` (+${f.growth}%/שנה)`:''} · תשואה ${f.ret}% − דמי ניהול ${f.fee}% = נטו ${(f.ret-f.fee).toFixed(2)}% · ריבית דריבית חודשית. ${f.tax?`מס 25% על הצמיחה, רק על ${(r.taxable*100).toFixed(0)}% החייבים (קה"ש/קופות ≈ פטורים — פישוט).`:''} לא כולל פנסיה/נדל"ן/הלוואות.</div>`;
+    <h3 class="mt">הנחות</h3><div style="font-size:12px" class="dim">הון התחלתי ${ils(r.P0)} (${f.scope==='liq'?'נזיל':'נזיל + קופות'}) · הפקדה ${ils(r.monthly)}/חודש${stressed?` <span class="warn">(${Math.round(f.depStress)}% מ־${ilsT(f.monthly)})</span>`:''}${f.growth?` (+${f.growth}%/שנה)`:''} · תשואה ${f.ret}% − דמי ניהול ${f.fee}% = נטו ${(f.ret-f.fee).toFixed(2)}% · ריבית דריבית חודשית. המס לפי סוג אחזקה (לא 25% אחיד). רצועת מונטה-קרלו היא ברוטו. לא כולל פנסיה חובה/נדל"ן/הלוואות.</div>`;
+  const taxCard=$('#fcTaxCard');if(taxCard)taxCard.innerHTML=`<div class="card-head"><h3>מס רווח הון משוער · ${heDate(f.date)}</h3><span class="sub">מס ${ils(tx.tax)} · נטו ${ils(net)}</span></div>${fcMode==='goal'?'<div class="dim" style="font-size:12px;margin-bottom:8px">המס כאן הוא על השווי הצפוי בהפקדה הנוכחית, לא על סכום היעד.</div>':''}${taxTableHtml(tx)}`;
   // chart
   const step=Math.max(1,Math.ceil(n/120));const xs=[];for(let m=0;m<=n;m+=step)xs.push(m);if(xs[xs.length-1]!==n)xs.push(n);
   const dt=m=>iso(addMonths(TODAY,m));const ds=[
     {label:'P10',data:mc.idx.map((m,k)=>({x:dt(m),y:mc.p10[k]})),borderWidth:0,pointRadius:0,fill:false,backgroundColor:'transparent'},
     {label:'טווח 10%–90%',data:mc.idx.map((m,k)=>({x:dt(m),y:mc.p90[k]})),borderWidth:0,pointRadius:0,fill:'-1',backgroundColor:cv('--pri')+'1f'},
     {label:`צפוי ${f.ret}%`,data:xs.map(m=>({x:dt(m),y:r.E[m].v})),borderColor:cv('--pri'),borderWidth:2.6,pointRadius:0,tension:.2},
+    {label:'נטו אחרי מס',data:xs.map(m=>({x:dt(m),y:r.E[m].v-book.at(m).tax})),borderColor:cv('--pos'),borderWidth:2,pointRadius:0,tension:.2},
     {label:`שמרני ${(f.ret-f.spread).toFixed(1)}%`,data:xs.map(m=>({x:dt(m),y:r.C[m].v})),borderColor:cv('--warn'),borderDash:[5,4],borderWidth:1.6,pointRadius:0},
     {label:`אופטימי ${(f.ret+f.spread).toFixed(1)}%`,data:xs.map(m=>({x:dt(m),y:r.O[m].v})),borderColor:cv('--pos'),borderDash:[5,4],borderWidth:1.6,pointRadius:0},
     {label:'הון היום + הפקדות (ללא תשואה)',data:xs.map(m=>({x:dt(m),y:r.E[m].c})),borderColor:cv('--dim'),backgroundColor:cv('--dim')+'14',fill:'origin',borderWidth:1.2,pointRadius:0}];
@@ -1729,14 +1947,14 @@ function renderForecast(rebind=true){
     plugins:{legend:{rtl:true,labels:{boxWidth:10,filter:i=>i.text!=='P10'}},tooltip:{filter:i=>i.dataset.label!=='P10',callbacks:{label:c=>` ${c.dataset.label}: ${ilsT(c.raw.y)}`}}}}});
   // milestones
   const ms=[];for(let m=12;m<n;m+=12)ms.push(m);ms.push(n);
-  $('#tblFc').innerHTML=`<tr><th>תאריך</th><th class="n">סך הפקדות (כולל הון היום)</th><th class="n">שמרני</th><th class="n">צפוי</th><th class="n">אופטימי</th><th class="n hide-m">צפוי ריאלי</th><th class="n hide-m">מתוכו צמיחה</th></tr>`+
-    ms.map(m=>`<tr><td>${heDate(addMonths(TODAY,m))}</td><td class="n">${ils(r.E[m].c)}</td><td class="n">${ils(r.C[m].v)}</td><td class="n"><b>${ils(r.E[m].v)}</b></td><td class="n">${ils(r.O[m].v)}</td><td class="n hide-m">${ils(r.E[m].v/r.deflate(m))}</td><td class="n hide-m">${ils(r.E[m].v-r.E[m].c)}</td></tr>`).join('');
+  $('#tblFc').innerHTML=`<tr><th>תאריך</th><th class="n">סך הפקדות (כולל הון היום)</th><th class="n">שמרני</th><th class="n">צפוי ברוטו</th><th class="n">נטו אחרי מס</th><th class="n hide-m">אופטימי</th><th class="n hide-m">צפוי ריאלי</th></tr>`+
+    ms.map(m=>{const tm=book.at(m).tax;return `<tr><td>${heDate(addMonths(TODAY,m))}</td><td class="n">${ils(r.E[m].c)}</td><td class="n">${ils(r.C[m].v)}</td><td class="n"><b>${ils(r.E[m].v)}</b></td><td class="n">${ils(r.E[m].v-tm)}</td><td class="n hide-m">${ils(r.O[m].v)}</td><td class="n hide-m">${ils(r.E[m].v/r.deflate(m))}</td></tr>`;}).join('');
   $('#fcMath').innerHTML=`<div class="formula">i = (1 + R − fee)^(1/12) − 1          // monthly net rate
 FV(n) = P·(1+i)^n + C·((1+i)^n − 1)/i      // n months, deposit C at end of month
 Real(n) = FV(n) / (1+π)^(n/12)             // today's money
 Goal mode:  C* = (Goal − P·(1+i)^n) · i / ((1+i)^n − 1)
 Scenarios: R−Δ / R / R+Δ  ·  Monte-Carlo: monthly lognormal, σ from allocation</div>
-  <div class="dim mt" style="font-size:12px">P = הון התחלתי, C = הפקדה חודשית × גורם סיכון להפקדה (100%/75%/… — לא משנה את R), עם עליה שנתית אופציונלית. R = תשואה שנתית צפויה, fee = דמי ניהול, π = אינפלציה, Δ = מרווח תרחישים. ברירות המחדל: הפקדה = ממוצע 12 החודשים האחרונים; תשואה = ממוצע משוקלל לפי הקצאה; דמי ניהול = ממוצע feePct. זו תחזית ולא הבטחה.</div>`;
+  <div class="dim mt" style="font-size:12px">P = הון התחלתי, C = הפקדה חודשית × גורם סיכון להפקדה (100%/75%/… — לא משנה את R), עם עליה שנתית אופציונלית. R = תשואה שנתית צפויה, fee = דמי ניהול, π = אינפלציה, Δ = מרווח תרחישים. המס לא משנה את FV: כל אחזקה מוקרנת באותו שיעור, הרווח הוא FV − (קרן + הפקדות עתידיות), ועל רווח ריאלי מנכים גם את עליית המדד על הקרן ועל כל הפקדה. ברירות המחדל: הפקדה = ממוצע 12 החודשים האחרונים; תשואה = ממוצע משוקלל לפי הקצאה; דמי ניהול = ממוצע feePct. זו תחזית ולא הבטחה, והמס אינו ייעוץ.</div>`;
 }
 
 /* RECOMMENDATIONS + AI */
@@ -1752,7 +1970,7 @@ function aiSummary(){
     holdings:S.investments.filter(isFin).sort((a,b)=>b.bal-a.bal).map(i=>{const p=holdingPerf(i);return {name:i.name,category:i.cat,track:i.track,weightPct:+(i.bal/T.fin*100).toFixed(1),returnPct:p?+(p.r*100).toFixed(1):null,feePct:isFinite(i.feePct)?i.feePct:null};}),
     loans:S.loans.filter(l=>!l.closed).map(l=>{const a=amort(l);return {name:l.name,balance:Math.round(l.bal),ratePct:l.rate,monthlyPayment:loanPay(l),monthsLeft:a.ok?a.months:null,remainingInterest:a.ok?Math.round(a.interest):null};}),
     savings:{avgMonthlyLast12m:Math.round(avgMonthlyContrib()),monthlyExpenses:P.monthlyExpenses},
-    forecast:{targetDate:f.date,monthlyContribution:f.monthly,expectedReturnPct:f.ret,feePct:f.fee,inflationPct:f.infl,expected:Math.round(r.exp),conservative:Math.round(r.cons),optimistic:Math.round(r.opt),realExpected:Math.round(r.real)},
+    forecast:{targetDate:f.date,monthlyContribution:f.monthly,expectedReturnPct:f.ret,feePct:f.fee,inflationPct:f.infl,expected:Math.round(r.exp),conservative:Math.round(r.cons),optimistic:Math.round(r.opt),realExpected:Math.round(r.real),estimatedCapitalGainsTaxILS:Math.round(buildTaxBook(f,f.ret).at(r.n).tax),note:'Tax is an estimate by holding type, not advice. Net = expected − tax.'},
     ruleFindings:rules().map(x=>({severity:x.sev,title:x.title,reason:x.why}))};
 }
 function aiPrompt(sum){return `אתה מנתח פיננסי. לפניך סיכום מובנה (JSON) של תיק משק בית ישראלי. אל תמציא מספרים שאינם ב-JSON.
@@ -2195,7 +2413,7 @@ function renderSettings(){
   $('#setSrc').innerHTML=SRC==='gist'?`<div class="chip gist">☁ Gist (live)</div><p class="mt">נטען עכשיו מ-GitHub Gist (<span class="num">${GIST_FILENAME}</span>, עודכן ב-GitHub: ${GIST_META&&GIST_META.gistUpdated?heDate(GIST_META.gistUpdated):'—'}). ${cnt}</p>${ro}`
    :SRC==='gistCache'?`<div class="chip gist">☁ Gist (עותק שמור)</div><p class="mt">${cnt}</p>${ro}`
    :SRC==='local'?`<div class="chip real">💾 נתוני דפדפן מקומיים</div><p class="mt">נקרא מ-<span class="num">localStorage['fin26']</span>: ${cnt}</p>${ro}`
-   :`<div class="chip ex">נתוני דוגמה ${SRC_NOTE}</div><p class="mt">הנתונים סינתטיים, באותו מבנה של FinBoard (tracks / investments / loans / slog / set) + שדות חדשים אופציונליים: <span class="num">costBasis</span>, <span class="num">feePct</span>, <span class="num">principal</span>, <span class="num">principalNote</span>, <span class="num">principalAsOf</span>, <span class="num">pulledAt</span>.</p><p class="dim">כדי לראות נתונים אמיתיים: פתח באותו דפדפן שבו האתר המקורי מחובר, או הזן Gist ID למטה. <span class="num">?demo=1</span> מכריח נתוני דוגמה.</p>`;
+   :`<div class="chip ex">נתוני דוגמה ${SRC_NOTE}</div><p class="mt">הנתונים סינתטיים, באותו מבנה של FinBoard (tracks / investments / loans / slog / set) + שדות חדשים אופציונליים: <span class="num">costBasis</span>, <span class="num">feePct</span>, <span class="num">principal</span>, <span class="num">principalNote</span>, <span class="num">principalAsOf</span>, <span class="num">pulledAt</span>, <span class="num">openedAt</span>, <span class="num">liquidAt</span>, <span class="num">taxKind</span>, <span class="num">taxableShare</span>.</p><p class="dim">כדי לראות נתונים אמיתיים: פתח באותו דפדפן שבו האתר המקורי מחובר, או הזן Gist ID למטה. <span class="num">?demo=1</span> מכריח נתוני דוגמה.</p>`;
   renderGistCard();renderBackups();
   const bind=(id,k,parse=Number)=>{const el=$('#'+id);el.value=P[k]??'';el.oninput=()=>{P[k]=el.value===''?null:parse(el.value);savePrefs();};};
   bind('sExp','monthlyExpenses');bind('sEmMonths','emMonths');bind('sConc','concPct');bind('sDrift','driftPct');bind('sFee','feeHigh');
@@ -2205,6 +2423,7 @@ function renderSettings(){
     $$('[data-t]').forEach(i=>i.oninput=()=>{P.targets[i.dataset.t]=+i.value||0;savePrefs();const s2=sum(Object.values(P.targets),Number);$('#tgtSum b').textContent=s2+'%';$('#tgtSum b').className=Math.abs(s2-100)<.01?'pos':'warn';});
     $$('[data-ar]').forEach(i=>i.oninput=()=>{P.assume[i.dataset.ar].ret=+i.value||0;savePrefs();});
     $$('[data-av]').forEach(i=>i.oninput=()=>{P.assume[i.dataset.av].vol=+i.value||0;savePrefs();});};drawT();
+  renderTaxSettings();
   if($('#lookNote')) $('#lookNote').textContent=lookStatusNote();
   const fmtMix=o=>Object.entries(o||{}).map(([k,v])=>`${CLASSES[k]?.n||GEO[k]?.n||k} ${Math.round(v*100)}%`).join(' · ');
   const prodHe={'gemel-invest':'גמל להשקעה',hishtalmut:'קרן השתלמות','gemel-savings':'קופת גמל',pensia:'פנסיה',policy:'פוליסה'};
@@ -2399,6 +2618,10 @@ function editHolding(id,cat){
     <div class="field"><label>רווח (₪) — במקום קרן</label><input id="eGain" inputmode="decimal" value="" placeholder="יתרה − קרן" style="direction:ltr"><div class="hint">ממלאים רק אחד. הרווח לא נשמר בנפרד.</div></div>
     <div class="field"><label>קרן נכון לתאריך</label><input id="ePrinAsOf" type="date" value="${esc(inv?principalAsOfOf(inv):'')}"></div>
     <div class="field" style="grid-column:1/-1"><label>הערת קרן</label><input id="ePrinNote" value="${esc(inv?principalNoteOf(inv):'')}" placeholder="למשל: סכום שהועבר מקופה קודמת ב־2024, כולל רווחים קודמים" maxlength="300"></div>
+    <div class="field"><label>סוג לחישוב מס</label><select id="eTaxKind">${optList([['', 'לפי שם וקטגוריה'], ...TAX_RULES.map(r=>[r.id,r.label])], inv&&inv.taxKind||'')}</select><div class="hint">ריק = זיהוי אוטומטי (השתלמות, גמל, ברוקר…)</div></div>
+    <div class="field"><label>תאריך פתיחה</label><input id="eOpened" type="date" value="${esc(inv?openedOf(inv):'')}"><div class="hint">openedAt · לקה״ש הנזילות היא פתיחה + 6 שנים</div></div>
+    <div class="field"><label>תאריך נזילות</label><input id="eLiquidAt" type="date" value="${esc(inv?liquidAtOf(inv):'')}"><div class="hint">liquidAt · אם מולא, גובר על הפתיחה</div></div>
+    <div class="field"><label>חלק חייב גם בפטור (%)</label><input id="eTaxShare" inputmode="decimal" value="${inv&&isFinite(+inv.taxableShare)&&+inv.taxableShare>0?Math.round(+inv.taxableShare*1000)/10:''}" placeholder="0" style="direction:ltr"><div class="hint">taxableShare · למשל הפקדות מעל תקרת השתלמות</div></div>
     <div class="field" style="grid-column:1/-1"><label>נזילות</label>
       <label class="liq-tog ${isLiq(inv||{cat:c})?'':'locked'}" id="eLiqLab" style="margin-top:6px"><input type="checkbox" id="eLiq" ${isLiq(inv||{cat:c})?'checked':''}> נזיל</label>
       <div class="hint">מסומן = נזיל. לא מסומן = סגור לפרישה. ברירת מחדל לפי קטגוריה; נשמר ב־<span class="num">liquid</span> (האתר המקורי מתעלם).</div></div>
@@ -2492,6 +2715,10 @@ function saveHolding(id){
     if(prin!=null){inv.principal=prin;inv.principalAsOf=/^\d{4}-\d{2}-\d{2}$/.test(pasof)?pasof:today;}
     else{delete inv.principal;delete inv.principalAsOf;}
     if(pnote)inv.principalNote=pnote;else delete inv.principalNote;
+    const taxKind=fv('eTaxKind');if(taxKind&&TAX_RULES.some(r=>r.id===taxKind))inv.taxKind=taxKind;else delete inv.taxKind;
+    const opened=fv('eOpened').trim();if(/^\d{4}-\d{2}-\d{2}$/.test(opened))inv.openedAt=opened;else delete inv.openedAt;
+    const liqAt=fv('eLiquidAt').trim();if(/^\d{4}-\d{2}-\d{2}$/.test(liqAt))inv.liquidAt=liqAt;else delete inv.liquidAt;
+    const sharePct=parseNum(fv('eTaxShare'));if(isFinite(sharePct)&&sharePct>0)inv.taxableShare=clamp(sharePct/100,0,1);else delete inv.taxableShare;
     inv.liquid=liquid; // additive field; original site ignores unknown keys
     if(mgr)inv.managerUrl=mgr;else delete inv.managerUrl; // additive; original site ignores
   },id?`עריכת ${name}`:`הוספת ${name}`);
