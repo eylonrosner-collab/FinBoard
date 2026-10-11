@@ -114,7 +114,7 @@
      Safari keeps setItem as an own property, so the instance method is replaced
      too. Demo pages cannot touch real keys. Any other page that writes
      fin26_snaps as a JSON array has demo points removed before they hit disk. */
-  var REAL_KEYS = { fin26: 1, fin26_snaps: 1, fin26_gemini: 1, fin26_v2: 1, fin26_token: 1, fin26_gist: 1, fin26_vault: 1 };
+  var REAL_KEYS = { fin26: 1, fin26_snaps: 1, fin26_gemini: 1, fin26_v2: 1, fin26_token: 1, fin26_gist: 1, fin26_vault: 1, fin26_bio: 1 };
   function demoPage() {
     try {
       var loc = g.location;

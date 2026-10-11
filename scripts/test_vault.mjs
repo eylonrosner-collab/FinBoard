@@ -78,6 +78,67 @@ eq(FinCrypto.planGate({}) === 'open', 'empty -> open');
 eq(FinCrypto.planGate({ tasks: { v: 1, items: [] } }) === 'open', 'empty tasks are not personal plaintext');
 eq(FinCrypto.planGate({ finance: shares }) === 'open', 'non-finance object is not personal');
 
+const mem = new Map();
+global.localStorage = {
+  getItem(k) { return mem.has(k) ? mem.get(k) : null; },
+  setItem(k, v) { mem.set(String(k), String(v)); },
+  removeItem(k) { mem.delete(String(k)); }
+};
+FinCrypto.clearSession();
+const bioPass = 'biometric-test-pass';
+const bioVault = await FinCrypto.createVault(bioPass);
+const bioEnv = await FinCrypto.seal(finance);
+const prf = new Uint8Array(32);
+crypto.getRandomValues(prf);
+prf[0] = 7;
+const saltB64 = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64');
+await FinCrypto.enrollBio(prf, 'Y3JlZGlk', saltB64);
+const storedBio = JSON.parse(localStorage.getItem('fin26_bio'));
+eq(storedBio.credId === 'Y3JlZGlk' && storedBio.salt === saltB64 && storedBio.ct && storedBio.iv && storedBio.fp, 'bio record stores cred, salt, wrap');
+eq(!JSON.stringify(storedBio).includes(bioPass), 'passphrase is not in the bio record');
+eq(!storedBio.passphrase && !storedBio.secret, 'no passphrase field');
+eq(FinCrypto.bioRecord().credId === 'Y3JlZGlk' && !FinCrypto.bioRecord().ct, 'public bio record omits the wrap');
+eq(await FinCrypto.bioReady(bioVault.wraps), 'bio ready for current wraps');
+FinCrypto.clearSession();
+eq(!FinCrypto.unlocked(), 'cleared before bio unlock');
+await FinCrypto.unlockFromBio(prf, bioVault.wraps);
+const viaBio = await FinCrypto.open(bioEnv);
+eq(viaBio.investments[0].accNum === '999', 'prf unwrap opens the payload');
+FinCrypto.clearSession();
+const wrongPrf = new Uint8Array(prf);
+wrongPrf[1] = wrongPrf[1] ^ 0xff;
+await throwsCode(() => FinCrypto.unlockFromBio(wrongPrf, FinCrypto.readVault()), 'BAD_BIO');
+eq(!FinCrypto.unlocked(), 'bad prf leaves the session locked');
+eq(!FinCrypto.bioRecord(), 'bad prf drops the wrap');
+eq(FinCrypto.bioPrompt().ask === true, 'bad prf asks to re-enable');
+await FinCrypto.unlock(bioPass, bioVault.wraps);
+await FinCrypto.enrollBio(prf, 'Y3JlZGlkMg==', saltB64);
+const fpPass = FinCrypto.bioRecord().fp;
+await FinCrypto.changePassphrase('changed-pass-99');
+eq(!FinCrypto.bioRecord(), 'passphrase change drops the biometric wrap');
+eq(FinCrypto.bioPrompt().ask === true, 'passphrase change asks to re-enable');
+eq(!JSON.parse(localStorage.getItem('fin26_bio')).ct, 'wrapped key is gone after passphrase change');
+const rewrappedBio = FinCrypto.applyWraps(bioEnv);
+FinCrypto.clearSession();
+const afterBioPass = await FinCrypto.open(rewrappedBio, 'changed-pass-99');
+eq(afterBioPass.investments[0].bal === 10, 'new passphrase still opens the payload');
+await FinCrypto.enrollBio(prf, 'Y3JlZGlkMw==', saltB64);
+eq(FinCrypto.bioRecord().fp && FinCrypto.bioRecord().fp !== fpPass, 'passphrase change gets a new wrap fingerprint');
+const tampered = JSON.parse(localStorage.getItem('fin26_bio'));
+tampered.fp = 'stale-fingerprint';
+localStorage.setItem('fin26_bio', JSON.stringify(tampered));
+eq(await FinCrypto.bioReady(FinCrypto.wraps()) === false, 'stale fingerprint is not ready');
+eq(FinCrypto.bioPrompt().ask === true && !FinCrypto.bioRecord(), 'stale fingerprint invalidates the wrap');
+await FinCrypto.enrollBio(prf, 'bGFzdA==', saltB64);
+eq(!!FinCrypto.bioRecord(), 'enrolled again before re-key');
+await FinCrypto.createVault('brand-new-pass');
+eq(!FinCrypto.bioRecord(), 'a new data key drops the biometric wrap');
+eq(FinCrypto.bioPrompt().ask === true, 'a new data key asks to re-enable');
+await FinCrypto.enrollBio(prf, 'ZGlzYWJsZQ==', saltB64);
+await FinCrypto.forgetBio(FinCrypto.wraps());
+eq(!FinCrypto.bioRecord(), 'disable removes the enrollment');
+eq(FinCrypto.bioPrompt().ask === false && FinCrypto.bioPrompt().dismissedFp, 'disable remembers the dismissal');
+
 /* served files must not contain the removed secret identifiers.
    The numeric PIN, account numbers, and phone are not repeated here, so this
    test file itself does not republish them on GitHub Pages. */

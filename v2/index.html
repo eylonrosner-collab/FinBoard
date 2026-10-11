@@ -345,6 +345,8 @@ body.tz-recipient #privBtn{display:none!important}
 .lock-key{direction:ltr;text-align:left;font-family:ui-monospace,monospace;font-size:13px;line-height:1.7;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:12px;word-break:break-all;user-select:all}
 .lock-warn{background:color-mix(in srgb,var(--warn) 12%,transparent);border:1px solid color-mix(in srgb,var(--warn) 45%,transparent);border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:10px}
 .lock-err{min-height:18px;color:var(--neg);font-size:13px;margin-top:8px}
+.lock-or{display:flex;align-items:center;gap:8px;color:var(--dim);font-size:12px;margin:10px 0 4px}
+.lock-or::before,.lock-or::after{content:"";flex:1;height:1px;background:var(--line)}
 .lock-card label.chk{margin:10px 0}
 #backupBtn{font-size:13px;font-weight:600}
 body.share-view .app{grid-template-columns:1fr;position:relative;z-index:1;background:transparent;min-height:100dvh}
@@ -521,6 +523,10 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
     <h1 id="lockTitle">FinBoard נעול</h1>
     <p id="lockSub"></p>
     <div id="lockUnlock">
+      <div id="lockBio" hidden>
+        <button class="btn" id="lockBioBtn" type="button">פתיחה עם Face ID / טביעת אצבע</button>
+        <div class="lock-or">או סיסמה / מפתח שחזור</div>
+      </div>
       <input id="lockSecret" type="password" autocomplete="current-password" placeholder="סיסמה או מפתח שחזור" style="direction:ltr;text-align:left">
       <button class="btn" id="lockOpenBtn" type="button">פתיחה</button>
     </div>
@@ -562,6 +568,13 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
       </div>
     </div>
     <div id="srcMsg" class="banner info" style="display:none"></div>
+    <div id="bioPrompt" class="banner info" hidden>
+      <div id="bioPromptText"></div>
+      <div class="chips-row">
+        <button class="btn sm" id="bioPromptYes" type="button">הפעל כניסה ביומטרית במכשיר זה</button>
+        <button class="btn ghost sm" id="bioPromptNo" type="button">לא עכשיו</button>
+      </div>
+    </div>
     <div id="syncBar" class="banner err syncbar"><span id="syncTxt"></span><button class="btn sm" id="syncRetry">סנכרן ל-Gist עכשיו</button></div>
     <div id="demoBanner" class="banner demo-banner" hidden>מצב הדגמה — נתונים בדויים</div>
     <div id="exBanner" class="banner" style="display:none"><b>נתוני דוגמה.</b> כל המספרים במסך זה הם נתונים לדוגמה בלבד (לא הנתונים האמיתיים שלך). כדי לראות את הנתונים שלך: פתח את הדף באותו דפדפן שבו האתר המקורי מחובר, או הזן Gist ID בעמוד <a href="#settings">הגדרות</a>.</div>
@@ -838,7 +851,16 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
           <div class="field"><label>אימות</label><input id="np2" type="password" autocomplete="new-password"></div>
           <div class="field"><label>&nbsp;</label><button class="btn ghost" id="npBtn" type="button">החלפת סיסמה</button></div>
         </div>
-        <div class="hint" id="npMsg">החלפה עוטפת מחדש את מפתח הנתונים. הקבצים לא מוצפנים מחדש. מפתח השחזור נשאר בתוקף.</div>
+        <div class="hint" id="npMsg">החלפה עוטפת מחדש את מפתח הנתונים. הקבצים לא מוצפנים מחדש. מפתח השחזור נשאר בתוקף. כניסה ביומטרית במכשיר זה מתבטלת וצריך להפעיל אותה שוב.</div>
+        <div id="bioBox" class="mt">
+          <div style="font-weight:700;margin-bottom:6px">כניסה ביומטרית במכשיר זה</div>
+          <div id="bioStatus" class="dim" style="font-size:12px;margin-bottom:8px"></div>
+          <div class="chips-row">
+            <button class="btn" id="bioEnable" type="button">הפעל כניסה ביומטרית במכשיר זה</button>
+            <button class="btn ghost" id="bioDisable" type="button" hidden>בטל כניסה ביומטרית במכשיר זה</button>
+          </div>
+          <div class="hint" id="bioMsg"></div>
+        </div>
       </div>
       <div class="card mt"><div class="card-head"><h3>🗂 גיבויים (לפני שמירות של v2)</h3><div class="tools"><button class="btn ghost sm" id="bkNow">צור גיבוי עכשיו</button></div></div>
         <div class="dim" style="font-size:12px;margin-bottom:8px">לפני השמירה הראשונה בכל סשן (ולפני כל שחזור) נשמר עותק של הנתונים הקודמים ב-<span class="num">fin26_v2.backups</span> (10 אחרונים, בדפדפן הזה בלבד). שחזור שומר את הגיבוי כנתונים הנוכחיים (בדפדפן וב-Gist).</div>
@@ -860,7 +882,7 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
   var demo=/[?&]demo=1(?:&|$)/.test(location.search)||/\/demo\/?(?:index\.html)?$/.test(location.pathname);
   if(!demo) return;
   document.documentElement.classList.add('demo');
-  var blocked={fin26:1,fin26_snaps:1,fin26_gemini:1,fin26_v2:1,fin26_token:1,fin26_gist:1,fin26_vault:1};
+  var blocked={fin26:1,fin26_snaps:1,fin26_gemini:1,fin26_v2:1,fin26_token:1,fin26_gist:1,fin26_vault:1,fin26_bio:1};
   function harden(storage){
     if(!storage||storage.__finDemoHardened) return;
     var get=storage.getItem, set=storage.setItem, rem=storage.removeItem;
@@ -3781,6 +3803,7 @@ function renderSettings(){
   $('#tblLook').innerHTML=`<tr><th>מסלול</th><th>סוג נכס</th><th>מטבע</th><th class="hide-m">גאוגרפיה</th><th>מקור</th><th class="n">תשואה ב-v1</th></tr>`+lookRows().map(r=>{const tr=S.tracks.find(x=>x.name===r.t);const who=rowWho(r.hs);
     return `<tr style="${r.unused?'opacity:.55':''}"><td><b>${esc(r.t)}</b>${r.unused?' <span class="faint">(לא בשימוש)</span>':''}${who?`<div class="faint" style="font-size:11px">${esc(who)}${r.hs.length>1?` · ${r.hs.length} אחזקות`:''}</div>`:''}</td><td>${fmtMix(r.L.cls)}</td><td>${fmtMix(r.L.ccy)}</td><td class="hide-m">${fmtMix(r.L.geo)}</td><td>${srcTag(r.L)}</td><td class="n m ${tr&&tr.rate>15?'warn':''}">${tr?tr.rate+'%':'—'}</td></tr>`;}).join('');
   $('#resetPrefs').onclick=()=>{if(confirm('לאפס את הגדרות FinBoard 2.0 במכשיר הזה? (פרטי ה-Gist נשמרים). settings.json ב-Gist לא משתנה עד שלוחצים «העלה את הגדרות החישוב של המכשיר הזה ל-Gist».')){const v=v2raw();const keep={};V2_META.forEach(k=>{if(v[k]!==undefined)keep[k]=v[k];});writeV2(keep);loadPrefs();savePrefs();applyTheme();show(CUR);}};
+  if(window.refreshBioSettings) window.refreshBioSettings();
 }
 const RENDER={update:renderUpdate,overview:renderOverview,alloc:renderAlloc,perf:renderPerf,forecast:()=>renderForecast(true),recs:renderRecs,loans:renderLoans,savings:renderSavings,tzofik:renderTzofik,settings:renderSettings};
 
@@ -4700,8 +4723,16 @@ async function boot(){
     byId('lockRecovery').hidden = which !== 'recovery';
     byId('lockMigrate').hidden = which !== 'migrate';
     lockErr('');
-    const focus = which === 'unlock' ? 'lockSecret' : which === 'setup' ? 'lockPass' : null;
-    if (focus) setTimeout(() => { const el = byId(focus); if (el) el.focus(); }, 40);
+    const openBtn = byId('lockOpenBtn');
+    if (which !== 'unlock') {
+      const bio = byId('lockBio');
+      if (bio) bio.hidden = true;
+      if (openBtn) openBtn.classList.remove('ghost');
+      const focus = which === 'setup' ? 'lockPass' : null;
+      if (focus) setTimeout(() => { const el = byId(focus); if (el) el.focus(); }, 40);
+    } else {
+      refreshBioUnlock();
+    }
   }
   function hideGate() { byId('lockGate').hidden = true; }
   window.finboardOnLocked = function (wraps) {
@@ -4717,6 +4748,7 @@ async function boot(){
     } else if (!V2_PROBE) {
       V2_PROBE = { vault: FC.readVault(), finance: wraps || null, local: null, tasks: null, mode: 'unlock' };
     }
+    refreshBioUnlock();
   };
 
   async function probeV2() {
@@ -4815,6 +4847,7 @@ async function boot(){
     }
     hideGate();
     await _boot();
+    await refreshBioPrompt();
   }
 
   boot = async function () {
@@ -4844,26 +4877,36 @@ async function boot(){
     }
   };
 
+  async function continueUnlocked() {
+    if (V2_AFTER === 'migrate') {
+      showPanel('migrate', 'נמצאו נתונים גלויים', 'לפני שהם יוצפנו ב-Gist יורד גיבוי למחשב. קישורי צופיק לא מוצפנים.');
+    } else if (V2_AFTER === 'reload') {
+      hideGate();
+      await hydrateV2();
+      await reloadData();
+      await refreshBioPrompt();
+    } else await bootMain();
+  }
   async function submitUnlock() {
+    if (gateBusy) return;
+    cancelBio();
     const secret = byId('lockSecret').value;
     const wraps = wrapsFor(V2_PROBE);
     if (!secret || !wraps) { lockErr('אין מעטפת הצפנה לפתיחה'); return; }
     lockErr('בודק…');
+    gateBusy = true;
     byId('lockOpenBtn').disabled = true;
     try {
       await FC.unlock(secret, wraps);
       byId('lockSecret').value = '';
-      if (V2_AFTER === 'migrate') {
-        showPanel('migrate', 'נמצאו נתונים גלויים', 'לפני שהם יוצפנו ב-Gist יורד גיבוי למחשב. קישורי צופיק לא מוצפנים.');
-      } else if (V2_AFTER === 'reload') {
-        hideGate();
-        await hydrateV2();
-        await reloadData();
-      } else await bootMain();
+      await continueUnlocked();
     } catch (e) {
       FC.clearSession();
       lockErr('הסיסמה או מפתח השחזור שגויים');
-    } finally { byId('lockOpenBtn').disabled = false; }
+    } finally {
+      gateBusy = false;
+      byId('lockOpenBtn').disabled = false;
+    }
   }
   async function submitSetup() {
     const a = byId('lockPass').value, b = byId('lockPass2').value;
@@ -4984,6 +5027,320 @@ async function boot(){
     if (Object.keys(map).length) await patchFiles(c, map);
   }
 
+  const BIO_UNSUPPORTED = 'כניסה ביומטרית לא זמינה בדפדפן הזה. צריך iOS 18 ומעלה, או גרסה עדכנית של Safari או Chrome.';
+  const BIO_USER_ID = new TextEncoder().encode('finboard-v2-user');
+  let gateBusy = false;
+  let bioGen = 0;
+  let bioAbort = null;
+  let bioAutoSent = false;
+  let bioUiSeq = 0;
+  let prfPromise = null;
+
+  function bufToB64(buf) {
+    const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+    let bin = '';
+    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin);
+  }
+  function b64ToBuf(s) {
+    const bin = atob(String(s || ''));
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+  function bytesOf(buf) {
+    if (buf instanceof Uint8Array) return new Uint8Array(buf);
+    if (buf instanceof ArrayBuffer) return new Uint8Array(buf);
+    if (buf && buf.buffer instanceof ArrayBuffer) return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+    return new Uint8Array(0);
+  }
+  function prfBytes(cred) {
+    const ext = (cred && cred.getClientExtensionResults && cred.getClientExtensionResults()) || {};
+    const first = ext.prf && ext.prf.results && ext.prf.results.first;
+    return { enabled: !!(ext.prf && ext.prf.enabled), bytes: first ? bytesOf(first) : null };
+  }
+  function detectPrf() {
+    if (DEMO || !window.isSecureContext || !location.hostname) return Promise.resolve('no');
+    if (!window.PublicKeyCredential || !navigator.credentials || typeof navigator.credentials.create !== 'function' || typeof navigator.credentials.get !== 'function') return Promise.resolve('no');
+    if (typeof PublicKeyCredential.getClientCapabilities !== 'function') return Promise.resolve('maybe');
+    return PublicKeyCredential.getClientCapabilities().then(caps => {
+      if (!caps) return 'maybe';
+      if (caps.prf === true || caps['extension:prf'] === true) return 'yes';
+      if (caps.prf === false || caps['extension:prf'] === false) return 'no';
+      return 'maybe';
+    }).catch(() => 'maybe');
+  }
+  function prfSupport() {
+    if (!prfPromise) prfPromise = detectPrf();
+    return prfPromise;
+  }
+  function cancelBio() {
+    bioGen++;
+    if (bioAbort) {
+      try { bioAbort.abort(); } catch (e) {}
+      bioAbort = null;
+    }
+  }
+  function webAuthnRp() {
+    return { name: 'FinBoard', id: location.hostname };
+  }
+  async function refreshBioUnlock() {
+    const seq = ++bioUiSeq;
+    const gate = byId('lockGate');
+    const unlock = byId('lockUnlock');
+    if (DEMO || !gate || gate.hidden || !unlock || unlock.hidden) return;
+    const wraps = wrapsFor(V2_PROBE);
+    let show = false;
+    try { show = !!(wraps && await FC.bioReady(wraps)); } catch (e) { show = false; }
+    if (seq !== bioUiSeq) return;
+    if (gate.hidden || unlock.hidden || DEMO) return;
+    const box = byId('lockBio');
+    if (box) box.hidden = !show;
+    const openBtn = byId('lockOpenBtn');
+    if (openBtn) openBtn.classList.toggle('ghost', !!show);
+    if (show) {
+      const sub = byId('lockSub');
+      if (sub) sub.textContent = 'אפשר לפתוח עם Face ID או טביעת אצבע במכשיר זה, או להזין סיסמה / מפתח שחזור. הסיסמה עצמה לא נשמרת.';
+      maybeAutoBio();
+    } else {
+      const el = byId('lockSecret');
+      if (el) setTimeout(() => { if (document.activeElement && document.activeElement !== document.body) return; el.focus(); }, 40);
+    }
+  }
+  function maybeAutoBio() {
+    if (bioAutoSent || DEMO || gateBusy) return;
+    bioAutoSent = true;
+    setTimeout(() => {
+      const gate = byId('lockGate');
+      const unlock = byId('lockUnlock');
+      const box = byId('lockBio');
+      if (!gate || gate.hidden || !unlock || unlock.hidden || !box || box.hidden || gateBusy) return;
+      runBioUnlock(true);
+    }, 30);
+  }
+  async function assertProbeOpens() {
+    const p = V2_PROBE || {};
+    const env = [p.finance, p.local, p.tasks, p.snaps, p.settings].find(x => FC.isEnvelope(x));
+    if (env) await FC.open(env);
+  }
+  function hideBioButton() {
+    const box = byId('lockBio');
+    if (box) box.hidden = true;
+    const openBtn = byId('lockOpenBtn');
+    if (openBtn) openBtn.classList.remove('ghost');
+  }
+  async function runBioUnlock(auto) {
+    if (DEMO || gateBusy) return;
+    const my = ++bioGen;
+    if (bioAbort) {
+      try { bioAbort.abort(); } catch (e) {}
+    }
+    const ac = new AbortController();
+    bioAbort = ac;
+    const wraps = wrapsFor(V2_PROBE);
+    const rec = FC.bioRecord();
+    if (!rec || !wraps) return;
+    const btn = byId('lockBioBtn');
+    if (!auto && btn) btn.disabled = true;
+    if (!auto) lockErr('ממתין לאימות ביומטרי…');
+    let held = false;
+    let opened = false;
+    try {
+      const assertion = await navigator.credentials.get({
+        publicKey: {
+          challenge: crypto.getRandomValues(new Uint8Array(32)),
+          rpId: location.hostname,
+          allowCredentials: [{ type: 'public-key', id: b64ToBuf(rec.credId) }],
+          userVerification: 'required',
+          timeout: 60000,
+          extensions: { prf: { eval: { first: b64ToBuf(rec.salt) } } }
+        },
+        signal: ac.signal
+      });
+      if (!assertion) {
+        const err = new Error('cancel');
+        err.name = 'NotAllowedError';
+        throw err;
+      }
+      if (my !== bioGen || gateBusy) return;
+      const prf = prfBytes(assertion);
+      if (!prf.bytes || prf.bytes.length !== 32) {
+        const err = new Error('NO_PRF');
+        err.name = 'NoPrf';
+        throw err;
+      }
+      held = true;
+      gateBusy = true;
+      await FC.unlockFromBio(prf.bytes, wraps);
+      try { await assertProbeOpens(); }
+      catch (e) {
+        FC.clearSession();
+        FC.dropBio(true);
+        const stale = new Error('STALE_BIO');
+        stale.code = 'STALE_BIO';
+        throw stale;
+      }
+      if (my !== bioGen) { FC.clearSession(); return; }
+      const secret = byId('lockSecret');
+      if (secret) secret.value = '';
+      opened = true;
+    } catch (e) {
+      if (my !== bioGen || (ac.signal && ac.signal.aborted)) return;
+      if (FC.unlocked()) FC.clearSession();
+      const code = e && (e.code || e.name);
+      if (code === 'STALE_BIO' || code === 'BAD_BIO') {
+        hideBioButton();
+        if (!auto) lockErr('הכניסה הביומטרית לא תואמת את מפתח ההצפנה הנוכחי. הזינו סיסמה או מפתח שחזור.');
+        return;
+      }
+      if (auto) return;
+      if (code === 'NotAllowedError' || code === 'AbortError') {
+        lockErr('הכניסה הביומטרית בוטלה. אפשר להזין סיסמה או מפתח שחזור.');
+      } else if (code === 'NoPrf') {
+        lockErr('הדפדפן לא החזיר מפתח מהאימות הביומטרי. הזינו סיסמה או מפתח שחזור.');
+      } else {
+        lockErr('הכניסה הביומטרית נכשלה. הזינו סיסמה או מפתח שחזור.');
+      }
+      return;
+    } finally {
+      if (btn) btn.disabled = false;
+      if (bioAbort === ac) bioAbort = null;
+      if (held && !opened) gateBusy = false;
+    }
+    try { await continueUnlocked(); }
+    finally { if (held) gateBusy = false; }
+  }
+  async function enableBio(statusEl) {
+    const say = (t) => { if (statusEl) statusEl.textContent = t || ''; };
+    if (DEMO) return;
+    if (!FC.unlocked()) { say('פתחו את הנתונים קודם.'); return; }
+    const support = await prfSupport();
+    if (support === 'no') { say(BIO_UNSUPPORTED); await refreshBioSettings(); return; }
+    say('ממתין לאימות ביומטרי…');
+    const salt = crypto.getRandomValues(new Uint8Array(32));
+    let cred;
+    try {
+      cred = await navigator.credentials.create({
+        publicKey: {
+          challenge: crypto.getRandomValues(new Uint8Array(32)),
+          rp: webAuthnRp(),
+          user: { id: BIO_USER_ID, name: 'finboard', displayName: 'FinBoard' },
+          pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+          timeout: 60000,
+          authenticatorSelection: {
+            authenticatorAttachment: 'platform',
+            residentKey: 'preferred',
+            userVerification: 'required'
+          },
+          attestation: 'none',
+          extensions: { prf: { eval: { first: salt } } }
+        }
+      });
+    } catch (e) {
+      if (e && (e.name === 'NotAllowedError' || e.name === 'AbortError')) say('ההפעלה בוטלה.');
+      else if (e && e.name === 'SecurityError') say('הדפדפן לא מאפשר מפתח כניסה בכתובת הזו.');
+      else say('לא הצלחתי להפעיל כניסה ביומטרית.');
+      return;
+    }
+    let prf = prfBytes(cred);
+    if (prf.enabled && (!prf.bytes || prf.bytes.length !== 32)) {
+      try {
+        const assertion = await navigator.credentials.get({
+          publicKey: {
+            challenge: crypto.getRandomValues(new Uint8Array(32)),
+            rpId: location.hostname,
+            allowCredentials: [{ type: 'public-key', id: cred.rawId }],
+            userVerification: 'required',
+            timeout: 60000,
+            extensions: { prf: { eval: { first: salt } } }
+          }
+        });
+        prf = prfBytes(assertion);
+        prf.enabled = true;
+      } catch (e) {
+        if (e && (e.name === 'NotAllowedError' || e.name === 'AbortError')) say('ההפעלה בוטלה.');
+        else say('לא הצלחתי להפעיל כניסה ביומטרית.');
+        return;
+      }
+    }
+    if (!prf.enabled || !prf.bytes || prf.bytes.length !== 32) {
+      say(BIO_UNSUPPORTED);
+      return;
+    }
+    try {
+      await FC.enrollBio(prf.bytes, bufToB64(cred.rawId), bufToB64(salt));
+    } catch (e) {
+      say('לא הצלחתי לשמור את הכניסה הביומטרית.');
+      return;
+    }
+    if (!FC.bioRecord()) { say('לא הצלחתי לשמור את הכניסה הביומטרית.'); return; }
+    say('כניסה ביומטרית הופעלה במכשיר זה. הסיסמה לא נשמרה.');
+    await refreshBioSettings();
+    await refreshBioPrompt();
+  }
+  async function disableBio() {
+    if (DEMO) return;
+    await FC.forgetBio(FC.wraps() || wrapsFor(V2_PROBE));
+    const msg = byId('bioMsg');
+    if (msg) msg.textContent = 'הכניסה הביומטרית בוטלה במכשיר זה. הסיסמה ומפתח השחזור נשארו.';
+    await refreshBioSettings();
+    await refreshBioPrompt();
+  }
+  async function refreshBioSettings() {
+    const box = byId('bioBox');
+    if (!box) return;
+    if (DEMO) { box.hidden = true; return; }
+    const status = byId('bioStatus');
+    const enable = byId('bioEnable');
+    const disable = byId('bioDisable');
+    const support = await prfSupport();
+    const rec = FC.bioRecord();
+    const prompt = FC.bioPrompt();
+    if (status) {
+      if (support === 'no' && !rec) status.textContent = BIO_UNSUPPORTED;
+      else if (rec) status.textContent = 'פעילה במכשיר זה. Face ID או טביעת אצבע פותחים את הנתונים בלי להקליד סיסמה. הסיסמה לא נשמרת במכשיר.';
+      else if (prompt.ask) status.textContent = 'הסיסמה או מפתח הנתונים השתנו, והכניסה הביומטרית במכשיר זה בוטלה. אפשר להפעיל אותה מחדש.';
+      else status.textContent = 'לא פעילה במכשיר זה.';
+    }
+    if (enable) enable.hidden = support === 'no' || !!rec || !FC.unlocked();
+    if (disable) disable.hidden = !rec;
+  }
+  async function refreshBioPrompt() {
+    const el = byId('bioPrompt');
+    if (!el) return;
+    el.hidden = true;
+    if (DEMO || !FC.unlocked()) return;
+    if (document.body.classList.contains('share-view') || document.body.classList.contains('tz-recipient')) return;
+    if (FC.bioRecord()) return;
+    const support = await prfSupport();
+    if (support === 'no') return;
+    const fp = await FC.wrapsFingerprint(FC.wraps());
+    const prompt = FC.bioPrompt();
+    if (!prompt.ask && prompt.dismissedFp && prompt.dismissedFp === fp) return;
+    const text = byId('bioPromptText');
+    if (text) {
+      text.textContent = prompt.ask
+        ? 'הסיסמה או מפתח הנתונים השתנו, והכניסה הביומטרית במכשיר זה בוטלה. אפשר להפעיל אותה מחדש.'
+        : 'אפשר לפתוח את FinBoard במכשיר זה עם Face ID או טביעת אצבע, בלי להקליד את הסיסמה.';
+    }
+    el.hidden = false;
+  }
+  window.refreshBioSettings = () => { refreshBioSettings(); };
+  const bioBtn = byId('lockBioBtn');
+  if (bioBtn) bioBtn.onclick = () => runBioUnlock(false);
+  const bioEnable = byId('bioEnable');
+  if (bioEnable) bioEnable.onclick = () => enableBio(byId('bioMsg'));
+  const bioDisable = byId('bioDisable');
+  if (bioDisable) bioDisable.onclick = () => disableBio();
+  const bioYes = byId('bioPromptYes');
+  if (bioYes) bioYes.onclick = () => enableBio(byId('bioPromptText'));
+  const bioNo = byId('bioPromptNo');
+  if (bioNo) bioNo.onclick = async () => {
+    if (DEMO || FC.bioRecord()) { await refreshBioPrompt(); return; }
+    await FC.forgetBio(FC.wraps() || wrapsFor(V2_PROBE));
+    await refreshBioPrompt();
+  };
+
   byId('lockOpenBtn').onclick = () => submitUnlock();
   byId('lockSetupBtn').onclick = () => submitSetup();
   byId('lockCopyBtn').onclick = () => copyRecovery();
@@ -5007,10 +5364,14 @@ async function boot(){
     if (a !== b) { msg.textContent = 'האימות אינו תואם.'; return; }
     msg.textContent = 'מעדכן…';
     try {
+      const hadBio = !!FC.bioRecord();
       await FC.changePassphrase(a);
       await propagateWrapsV2();
       byId('np1').value = ''; byId('np2').value = '';
       msg.textContent = 'הסיסמה הוחלפה. מפתח השחזור ללא שינוי.';
+      if (hadBio) msg.textContent += ' הכניסה הביומטרית במכשיר זה בוטלה — אפשר להפעיל אותה מחדש.';
+      await refreshBioSettings();
+      await refreshBioPrompt();
     } catch (e) { msg.textContent = 'ההחלפה נכשלה.'; }
   };
 

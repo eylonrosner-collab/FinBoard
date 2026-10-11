@@ -43,6 +43,21 @@ fbk1-ab12-cd34-…   (fbk1- plus 64 hex digits in groups of 4)
 
 Either the passphrase or this key unwraps the data key. There is no other recovery path.
 
+### Biometric unlock (this device only)
+
+After a passphrase unlock, v2 can register a **platform passkey** (Touch ID / Face ID) with the WebAuthn PRF extension. The passkey is not a copy of the passphrase. Registration asks the authenticator for 32 PRF bytes from a random salt that stays on this device. Those bytes are the HKDF-SHA256 input (`salt` `finboard-bio-hkdf-v1`, `info` `finboard-data-key-wrap`) for an AES-GCM key that wraps the raw data key.
+
+`localStorage['fin26_bio']` stores only:
+
+| Field | Meaning |
+| --- | --- |
+| `credId` | platform credential id |
+| `salt` | the PRF salt for this device |
+| `iv`, `ct` | AES-GCM wrap of the data key |
+| `fp` | fingerprint of the passphrase and recovery wraps |
+
+The passphrase is never written. Demo mode (`?demo=1` and `/v2/demo/`) cannot read or write this key. If the wraps change — passphrase change or a new data key — the record is deleted and v2 asks to turn biometric unlock on again. Passphrase and recovery key still open the book. Browsers without PRF (older than iOS 18 / current Safari or Chrome) do not get a weaker fallback.
+
 ## What is encrypted
 
 | Location | Encrypted |
