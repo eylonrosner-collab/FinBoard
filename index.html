@@ -11,6 +11,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 <script src="assets/finboard-crypto.js"></script>
+<script src="assets/finboard-demo-guard.js"></script>
 <style>
 
 :root{--bg:#eef4fb;--surface:#ffffff;--surface2:#daeaf7;--border:#b3d4ef;--accent:#0d6efd;--accent2:#6610f2;--green:#0a8a4a;--red:#c0392b;--orange:#b86c00;--text:#0d2a45;--text-dim:#3a6080;--text-faint:#7aaac8;--gold:#b8860b}
@@ -2600,6 +2601,7 @@ async function readSnaps(){
   }catch(e){return [];}
 }
 async function writeSnaps(snaps){
+  if(window.FinDemoGuard)snaps=FinDemoGuard.strip(snaps);
   SNAPS_MEM=snaps;
   try{
     const payload=(window.FinCrypto&&FinCrypto.unlocked())?await FinCrypto.seal(snaps):snaps;
@@ -2672,7 +2674,17 @@ function buildPlainBackup(){
   return {finboardBackup:1,exportedAt:new Date().toISOString(),plaintext:true,files:{'finance_data.json':fin,'tasks.json':tasks},fin26_snaps:snaps};
 }
 
+function scrubPlainSnaps(){
+  if(!window.FinDemoGuard)return;
+  try{
+    const raw=JSON.parse(localStorage.getItem('fin26_snaps')||'null');
+    if(!Array.isArray(raw))return;
+    const clean=FinDemoGuard.strip(raw);
+    if(clean.length!==raw.length)localStorage.setItem('fin26_snaps',JSON.stringify(clean));
+  }catch(e){}
+}
 async function startRoot(){
+  scrubPlainSnaps();
   stripAccessHash();
   if(!window.FinCrypto){await bootApp();return;}
   if(!getToken()&&!getGistId()){
@@ -2871,14 +2883,25 @@ async function bootApp(){
   resetAutoLock();
   recalcSlog();
   SNAPS_MEM=await readSnaps();
+  if(window.FinDemoGuard){
+    const clean=FinDemoGuard.strip(SNAPS_MEM);
+    if(clean.length!==SNAPS_MEM.length)await writeSnaps(clean);
+  }
   try{
     const snaps=SNAPS_MEM.slice();
     const today=new Date().toISOString().slice(0,10);
-    const last=snaps[snaps.length-1];
-    if(!last||last.d!==today){
-      snaps.push({d:today,v:liquidTotal()+illiqTotal()});
-      if(snaps.length>200)snaps.splice(0,snaps.length-200);
-      await writeSnaps(snaps);
+    const v=liquidTotal()+illiqTotal();
+    if(!(window.FinDemoGuard&&FinDemoGuard.isDemoPoint(today,v))){
+      const row={d:today,v:v,real:1};
+      const last=snaps[snaps.length-1];
+      if(!last||last.d!==today){
+        snaps.push(row);
+        if(snaps.length>200)snaps.splice(0,snaps.length-200);
+        await writeSnaps(snaps);
+      }else if(!last.real){
+        snaps[snaps.length-1]=Object.assign({},last,{real:1});
+        await writeSnaps(snaps);
+      }
     }
   }catch(e){}
   renderAll();

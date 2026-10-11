@@ -2,7 +2,7 @@
    Navigations and index.html are network-first so a deploy is not stuck on a stale page.
    GitHub Gist responses, decrypted payloads, and other personal API calls are never cached. */
 'use strict';
-const CACHE = 'finboard-v2-shell-2';
+const CACHE = 'finboard-v2-shell-3';
 const SHELL = [
   './',
   './index.html',
@@ -11,7 +11,8 @@ const SHELL = [
   './icons/icon-180.png',
   './icons/icon-192.png',
   './icons/icon-512.png',
-  '../assets/finboard-crypto.js'
+  '../assets/finboard-crypto.js',
+  '../assets/finboard-demo-guard.js'
 ];
 
 function sensitive(url) {
