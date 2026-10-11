@@ -39,7 +39,7 @@ eq(FinCrypto.isEnvelope(envFin) && FinCrypto.isEnvelope(envTasks), 'envelopes');
 eq(!envFin.ct.includes('בדיקה') && !JSON.stringify(envFin).includes('999'), 'no plaintext in finance envelope');
 eq(envFin.wrapP === envTasks.wrapP && envFin.ct !== envTasks.ct, 'shared data key, distinct payloads');
 eq(!FinCrypto.shouldEncryptFile('tzofik_shares.json'), 'tzofik_shares stays clear');
-eq(FinCrypto.shouldEncryptFile('finance_data.json') && FinCrypto.shouldEncryptFile('tasks.json'), 'data files encrypted');
+eq(FinCrypto.shouldEncryptFile('finance_data.json') && FinCrypto.shouldEncryptFile('tasks.json') && FinCrypto.shouldEncryptFile('snaps.json') && FinCrypto.shouldEncryptFile('settings.json'), 'data files encrypted');
 eq(JSON.stringify(shares).includes('pub'), 'share fixture untouched');
 
 FinCrypto.clearSession();

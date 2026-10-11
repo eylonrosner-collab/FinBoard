@@ -818,7 +818,7 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
         </div>
         <div class="chips-row" style="margin-top:10px"><button class="btn ghost" id="gReload">טען מחדש מה-Gist</button><button class="btn ghost" id="gForget">שכח פרטי Gist של v2</button></div>
         <div id="gMsg" class="mt" style="font-size:13px"></div>
-        <div class="faint mt" style="font-size:11px">טעינה: <span class="num">GET api.github.com/gists/{id}</span>. שמירה (רק כשאתה לוחץ "שמור"): <span class="num">PATCH</span> של <span class="num">finance_data.json</span>, אותה בקשה כמו באתר המקורי, אחרי בדיקה שה-Gist לא עודכן בינתיים ממקום אחר. אם האתר המקורי כבר מחובר בדפדפן הזה, נעשה שימוש ב-<span class="num">fin26_token</span>/<span class="num">fin26_gist</span> שלו. פרטים שהוזנו כאן נשמרים רק ב-<span class="num">fin26_v2</span>. ה-token מוזן כאן או באתר המקורי ונשמר רק ב-localStorage — לא בקישור ולא ב-QR. משימות הסקירה נשמרות בנפרד — ב-<span class="num">fin26_v2</span> ובקובץ <span class="num">tasks.json</span> באותו Gist (לא בתוך <span class="num">finance_data.json</span>), כדי שהאתר המקורי לא יושפע.</div>
+        <div class="faint mt" style="font-size:11px">טעינה: <span class="num">GET api.github.com/gists/{id}</span>. שמירת יתרות: <span class="num">PATCH</span> של <span class="num">finance_data.json</span>. תמונות שווי והגדרות חישוב נשמרות בנפרד ב-<span class="num">snaps.json</span> וב-<span class="num">settings.json</span> (מוצפנים, אותו מעטפת), כדי שהאתר המקורי שמשכתב את <span class="num">finance_data.json</span> לא ימחק אותן. משימות ב-<span class="num">tasks.json</span>. ה-token נשמר רק ב-localStorage — לא בקישור ולא ב-QR.</div>
       </div>
       <div class="card mt"><h3>הקצאת יעד והנחות לפי סוג נכס</h3>
         <div class="tbl-wrap"><table id="tblTargets"></table></div>
@@ -874,9 +874,10 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
 'use strict';
 /* =====================================================================
    FinBoard 2.0 — reads/writes the SAME localStorage keys as v1:
-   'fin26' (state S), 'fin26_snaps' (daily totals), 'fin26_gemini' (AI key).
-   Prefs / backups / cache live in 'fin26_v2'. Real-estate holdings are kept
-   in storage but ignored everywhere in v2 UI and calculations.
+   'fin26' (state S), 'fin26_snaps' (daily totals, also synced as snaps.json),
+   'fin26_gemini' (AI key). Calculation prefs sync as settings.json.
+   Theme, blur, and the open tab stay in 'fin26_v2' on this device only.
+   Real-estate holdings are kept in storage but ignored everywhere in v2 UI and calculations.
    Overview tasks are NOT inside finance_data.json. They live in fin26_v2.tasks
    (fin26_v2.demoTasks while showing example data) and, when a gist token
    exists, in the same Gist as tasks.json. v1 only reads finance_data.json.
@@ -1036,9 +1037,12 @@ let taskSaveTimer=null,taskLocalTimer=null,taskPushing=false,taskAgain=false;
 let taskStatusKind='local',taskStatusErr='';
 const GIST_FILENAME='finance_data.json'; // same file name the original site uses
 const TASKS_FILE='tasks.json'; // separate gist file — v1 never reads it, and v1's PATCH of finance_data.json leaves other files in place
+const SNAPS_FILE='snaps.json'; // portfolio totals for period returns — not inside finance_data.json, so v1's rewrite cannot drop them
+const SETTINGS_FILE='settings.json'; // forecast / tax / CPI / ranges — same reason
+const SYNC_CALC_KEYS=['fc','assume','targets','taxRules','taxExit','loanCpi','monthlyExpenses','emMonths','concPct','driftPct','feeHigh','ovRange','alScope','pgScope','rbNewMoney'];
 const KEY_TOKEN='fin26_token', KEY_GIST='fin26_gist'; // original keys — READ ONLY here
 function v2raw(){try{return JSON.parse(localStorage.getItem(KEY_V2)||'{}')||{};}catch(e){return {};}}
-const V2_META=['auth','cache','backups','pendingSync','histAssets','dismissedRecs','tzShortCache','tasks','demoTasks'];
+const V2_META=['auth','cache','backups','pendingSync','histAssets','dismissedRecs','tzShortCache','tasks','demoTasks','syncBackup'];
 function writeV2(v){ // quota-safe: drop oldest backups, then cache, if storage is full
   for(let k=0;k<14;k++){try{localStorage.setItem(KEY_V2,JSON.stringify(v));return true;}catch(e){
     if(v.backups&&v.backups.length>1)v.backups.pop();else if(v.cache)delete v.cache;else if(v.backups&&v.backups.length)v.backups.pop();else{console.warn('fin26_v2 write failed',e);return false;}}}
@@ -1084,6 +1088,7 @@ async function fetchGistRaw(c){
       try{parsed[name]=JSON.parse(text);}catch(e){parsed[name]=text;}
     }
     LAST_GIST_PARSED=parsed;
+    GIST_FETCH_OK=true;
     return {parsed,updated_at:d.updated_at||null,files};
   }catch(e){
     if(e.name==='AbortError')throw new Error('תם הזמן לחיבור ל-GitHub (אין רשת?)');
@@ -1092,6 +1097,7 @@ async function fetchGistRaw(c){
   }finally{clearTimeout(to);}
 }
 let LAST_GIST_PARSED=null;
+let GIST_FETCH_OK=false;
 let PENDING_PLAIN=null;
 /* READ-ONLY Gist fetch — GET only, mirrors the original gistLoad() parsing */
 async function fetchGist(c){
@@ -1126,6 +1132,7 @@ async function readLocal(){
 const tsOf=o=>{const t=Date.parse(o&&o.lastUpdated||'');return isFinite(t)?t:0;};
 async function loadData(){
   S=null;SNAPS=[];SRC='example';SRC_NOTE='';SRC_MSG='';SRC_MSG_KIND='info';GIST_META=null;PENDING_PLAIN=null;
+  LAST_GIST_PARSED=null;GIST_FETCH_OK=false;
   const forceDemo=/[?&]demo=1/.test(location.search);
   let gistPack=null;
   if(!forceDemo){
@@ -1152,7 +1159,6 @@ async function loadData(){
   S.investments.forEach(i=>{i.bal=+i.bal||0;});
   adoptTasks(gistPack);
   BASE_TS=tsOf(S);DRAFT={inv:{},loan:{}};
-  if(!DEMO){try{mergeHistAssetsSeed();}catch(e){console.warn('hist merge',e);}}
 }
 const isRealSrc=()=>SRC!=='example';
 /* prefs */
@@ -1175,7 +1181,7 @@ function loadPrefs(opts){
   Object.keys(DEF_ASSUME).forEach(k=>P.assume[k]=Object.assign({...DEF_ASSUME[k]},(P.assume||{})[k]||{}));
   P.privacy=sessionPrivacy; /* every entry starts blurred; reveal lasts only for this visit */
 }
-function savePrefs(){if(DEMO)return;const v=v2raw();const out={...P};delete out.privacy;V2_META.forEach(k=>{if(v[k]!==undefined)out[k]=v[k];else delete out[k];});writeV2(out);}
+function savePrefs(opts){if(DEMO)return;const v=v2raw();const out={...P};delete out.privacy;V2_META.forEach(k=>{if(v[k]!==undefined)out[k]=v[k];else delete out[k];});writeV2(out);if(!(opts&&opts.skipPush))queueSharedPush('settings');}
 
 /* ---------------- OVERVIEW TASKS ----------------
    Stored outside finance_data.json so the original site (which JSON.parses that
@@ -1518,14 +1524,16 @@ function renderAnnualFees(){
   elM.innerHTML=t.missing.length?`ללא דמי ניהול רשומים (${t.missing.length}): ${t.missing.map(i=>esc(i.name)).join(' · ')}`:(t.rows.length?'לכל האחזקות הפיננסיות יש דמי ניהול רשומים. נדל״ן לא נכלל.':'נדל״ן לא נכלל בחישוב.');
 }
 
-function persistSnaps(snaps){
-  const clean=(snaps||[]).filter(x=>x&&x.d&&isFinite(x.v)).map(x=>({d:iso(x.d),v:Math.round(+x.v)}))
-    .sort((a,b)=>a.d.localeCompare(b.d));
+let snapWriteGen=0;
+function persistSnaps(snaps,opts){
+  const clean=normalizeSnaps(snaps);
   const trimmed=clean.length>400?clean.slice(clean.length-400):clean;
   SNAPS=trimmed;
-  const write=payload=>{try{localStorage.setItem(KEY_SNAPS,JSON.stringify(payload));}catch(e){console.warn('snaps persist',e);}};
+  const gen=++snapWriteGen;
+  const write=payload=>{if(gen!==snapWriteGen)return;try{localStorage.setItem(KEY_SNAPS,JSON.stringify(payload));}catch(e){console.warn('snaps persist',e);}};
   if(window.FinCrypto&&FinCrypto.unlocked())FinCrypto.seal(trimmed).then(write).catch(e=>console.warn('snaps',e));
   else if(!(window.FinCrypto&&FinCrypto.readVault()))write(trimmed);
+  if(!(opts&&opts.skipPush))queueSharedPush('snaps');
   return trimmed;
 }
 async function readSnaps(){
@@ -1550,9 +1558,9 @@ function mergeHistAssetsSeed(){
     if(byDate.has(d))continue;
     let near=false;for(const ed of byDate.keys()){if(Math.abs(daysBetween(ed,d))<=3){near=true;break;}}
     if(near)continue;
-    const row={d,v:Math.round(+p.v)};existing.push(row);byDate.set(d,row);added++;
+    const row={d,v:Math.round(+p.v),seed:1};existing.push(row);byDate.set(d,row);added++;
   }
-  if(added)persistSnaps(existing);
+  if(added)persistSnaps(existing,{skipPush:true});
   v2patch(v=>{
     const prev=v.histAssets||{};
     v.histAssets={
@@ -1567,6 +1575,225 @@ function mergeHistAssetsSeed(){
     };
   });
   return added;
+}
+/* Portfolio totals and calculation prefs are shared via encrypted gist files so
+   period returns and the forecast match on every device. Theme, blur, and the
+   open tab stay in this browser. v1 rewrites finance_data.json wholesale, so
+   these live in snaps.json / settings.json (same pattern as tasks.json). */
+let SYNC_ORIGIN={snaps:'',settings:'',public:''};
+let sharedPushTimer=null,sharedPushing=false,sharedAgain=false;
+function normalizeSnaps(rows){
+  const list=Array.isArray(rows)?rows:(rows&&Array.isArray(rows.snaps)?rows.snaps:[]);
+  const map=new Map();
+  for(const x of list){
+    if(!x||x.d==null||!isFinite(+x.v))continue;
+    const d=iso(x.d);
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(d))continue;
+    const row={d,v:Math.round(+x.v)};
+    if(x.seed)row.seed=1;
+    map.set(d,row);
+  }
+  return [...map.values()].sort((a,b)=>a.d.localeCompare(b.d)).slice(-400);
+}
+function realSnaps(rows){return normalizeSnaps(rows).filter(s=>!s.seed).map(s=>({d:s.d,v:s.v}));}
+function snapsSame(a,b){
+  if(!a||!b||a.length!==b.length)return false;
+  for(let i=0;i<a.length;i++)if(a[i].d!==b[i].d||a[i].v!==b[i].v)return false;
+  return true;
+}
+/* Gist value wins on a shared date. Dates that exist on only one side are kept. */
+function unionSnaps(gistRows,localRows){
+  const map=new Map();
+  for(const s of realSnaps(localRows))map.set(s.d,{d:s.d,v:s.v});
+  for(const s of realSnaps(gistRows))map.set(s.d,{d:s.d,v:s.v});
+  return [...map.values()].sort((a,b)=>a.d.localeCompare(b.d)).slice(-400);
+}
+function withLocalToday(merged,localReal){
+  const today=iso(TODAY);
+  const loc=localReal.find(s=>s.d===today);
+  if(!loc)return merged;
+  const next=merged.filter(s=>s.d!==today);
+  next.push({d:loc.d,v:loc.v});
+  next.sort((a,b)=>a.d.localeCompare(b.d));
+  return next;
+}
+async function openStored(value){
+  if(value==null||value==='')return {state:'missing',doc:null};
+  if(window.FinCrypto&&FinCrypto.isEnvelope(value)){
+    if(!FinCrypto.unlocked())return {state:'locked',doc:null};
+    try{return {state:'ok',doc:await FinCrypto.open(value)};}
+    catch(e){return {state:'bad',doc:null};}
+  }
+  return {state:'ok',doc:value};
+}
+function calcSlice(src){
+  const out={};
+  if(!src||typeof src!=='object')return out;
+  for(const k of SYNC_CALC_KEYS){
+    if(src[k]!==undefined)out[k]=JSON.parse(JSON.stringify(src[k]));
+  }
+  return out;
+}
+function settingsDoc(slice){return Object.assign({v:1},slice||{});}
+function applyCalcToP(slice){
+  if(!P||!slice)return;
+  for(const k of SYNC_CALC_KEYS){
+    if(slice[k]!==undefined)P[k]=JSON.parse(JSON.stringify(slice[k]));
+  }
+  P.targets=Object.assign({...DEF_TARGETS},P.targets||{});
+  if(P.pgScope!=='liq')P.pgScope='fin';
+  P.assume=P.assume||{};
+  Object.keys(DEF_ASSUME).forEach(k=>{P.assume[k]=Object.assign({...DEF_ASSUME[k]},(P.assume||{})[k]||{});});
+  if(P.ovRange==null||!isFinite(+P.ovRange))P.ovRange=0;
+}
+function canWriteGist(){
+  const c=getCreds();
+  if(!c||!c.token||!GIST_FETCH_OK||DEMO||SRC==='example')return null;
+  if(window.FinCrypto&&FinCrypto.readVault()&&!FinCrypto.unlocked())return null;
+  return c;
+}
+async function patchSharedFile(c,name,obj){
+  if(DEMO)throw new Error('מצב הדגמה');
+  if(window.FinCrypto&&FinCrypto.readVault()&&!FinCrypto.unlocked())throw new Error('הנתונים נעולים');
+  const payload=(window.FinCrypto&&FinCrypto.unlocked())?await FinCrypto.seal(obj):obj;
+  await patchGistFile(c,name,JSON.stringify(payload,null,2));
+  if(LAST_GIST_PARSED)LAST_GIST_PARSED[name]=payload;
+}
+function rememberSyncBackup(localReal,localSlice){
+  const v=v2raw()||{};
+  if(v.syncBackup)return;
+  if(!localReal.length&&!Object.keys(localSlice).length)return;
+  v2patch(x=>{x.syncBackup={at:new Date().toISOString(),snaps:localReal,settings:localSlice};});
+}
+function applySeedLocal(){if(!DEMO){try{mergeHistAssetsSeed();}catch(e){console.warn('hist merge',e);}}}
+async function syncSharedState(){
+  SYNC_ORIGIN={snaps:'',settings:'',public:'קובץ האתר public-allocation.json ועדכון מ-data.gov.il — לא ב-Gist ולא לפי דפדפן'};
+  if(DEMO||SRC==='example'||!S){
+    SYNC_ORIGIN.snaps=DEMO?'מצב הדגמה — לא מסונכרן ל-Gist':'נתוני דוגמה — לא נשמרים ב-Gist';
+    SYNC_ORIGIN.settings=SYNC_ORIGIN.snaps;
+    if(!DEMO&&SRC==='example')applySeedLocal();
+    return;
+  }
+  const parsed=LAST_GIST_PARSED;
+  let gSn={state:'missing',doc:null},gSt={state:'missing',doc:null};
+  if(parsed){
+    gSn=await openStored(parsed[SNAPS_FILE]);
+    gSt=await openStored(parsed[SETTINGS_FILE]);
+  }
+  if(!GIST_FETCH_OK){
+    try{SNAPS=await readSnaps();}catch(e){SNAPS=[];}
+    applySeedLocal();
+    SYNC_ORIGIN.snaps='ה-Gist לא נטען בטעינה הזו — תמונות השווי מהמכשיר (fin26_snaps)';
+    SYNC_ORIGIN.settings='ה-Gist לא נטען בטעינה הזו — הגדרות החישוב מהמכשיר (fin26_v2)';
+    return;
+  }
+  if(gSn.state==='locked'||gSt.state==='locked'){
+    try{SNAPS=await readSnaps();}catch(e){SNAPS=[];}
+    applySeedLocal();
+    SYNC_ORIGIN.snaps='קבצי ה-Gist נעולים — לא מוזגו';
+    SYNC_ORIGIN.settings=SYNC_ORIGIN.snaps;
+    return;
+  }
+  const localSnaps=await readSnaps();
+  const gistReal=gSn.state==='ok'?realSnaps(gSn.doc):[];
+  const localReal=realSnaps(localSnaps);
+  const localSlice=calcSlice(v2raw());
+  rememberSyncBackup(localReal,localSlice);
+  const merged=unionSnaps(gistReal,localReal);
+  const localOnly=localReal.filter(s=>!gistReal.some(g=>g.d===s.d));
+  persistSnaps(merged,{skipPush:true});
+  const c=canWriteGist();
+  let snapsUploaded=false;
+  if(c&&gSn.state!=='bad'&&!snapsSame(merged,gistReal)&&(localReal.length||gistReal.length)){
+    try{await patchSharedFile(c,SNAPS_FILE,{v:1,snaps:merged});snapsUploaded=true;}
+    catch(e){console.warn('snaps sync',e);SYNC_ORIGIN.snapsErr=e.message||String(e);}
+  }
+  if(!gistReal.length&&!localReal.length)SYNC_ORIGIN.snaps='אין תמונות שווי שמורות — התשואה מחושבת מהיסטוריית האחזקות שב-Gist';
+  else if(gistReal.length&&localOnly.length&&snapsUploaded)SYNC_ORIGIN.snaps='Gist (snaps.json) + תאריכים שהיו רק במכשיר הזה, ומוזגו עכשיו';
+  else if(gistReal.length&&localOnly.length&&!c)SYNC_ORIGIN.snaps='Gist (snaps.json). תאריכים נוספים במכשיר הזה לא הועלו — אין token עם הרשאת gist';
+  else if(gistReal.length)SYNC_ORIGIN.snaps='Gist (snaps.json)';
+  else if(snapsUploaded)SYNC_ORIGIN.snaps='הועלה ל-Gist (snaps.json) מהמכשיר הזה';
+  else if(!c)SYNC_ORIGIN.snaps='רק במכשיר הזה (fin26_snaps) — אין token לשמירה ל-Gist';
+  else SYNC_ORIGIN.snaps=SYNC_ORIGIN.snapsErr?('במכשיר הזה — ההעלאה ל-Gist נכשלה: '+SYNC_ORIGIN.snapsErr):'במכשיר הזה (ההעלאה ל-Gist לא הושלמה)';
+  const gistSlice=gSt.state==='ok'?calcSlice(gSt.doc):{};
+  const mergedSlice={};
+  const fillKeys=[];
+  for(const k of SYNC_CALC_KEYS){
+    if(gistSlice[k]!==undefined)mergedSlice[k]=gistSlice[k];
+    else if(localSlice[k]!==undefined){mergedSlice[k]=localSlice[k];fillKeys.push(k);}
+  }
+  applyCalcToP(mergedSlice);
+  savePrefs({skipPush:true});
+  let setUploaded=false;
+  if(c&&gSt.state!=='bad'&&fillKeys.length&&JSON.stringify(settingsDoc(gistSlice))!==JSON.stringify(settingsDoc(mergedSlice))){
+    try{await patchSharedFile(c,SETTINGS_FILE,settingsDoc(mergedSlice));setUploaded=true;}
+    catch(e){console.warn('settings sync',e);SYNC_ORIGIN.settingsErr=e.message||String(e);}
+  }
+  if(gSt.state==='ok'&&!fillKeys.length)SYNC_ORIGIN.settings='Gist (settings.json)';
+  else if(gSt.state==='ok'&&fillKeys.length&&setUploaded)SYNC_ORIGIN.settings='Gist (settings.json) + שדות שהיו רק במכשיר הזה ('+fillKeys.join(', ')+')';
+  else if(setUploaded)SYNC_ORIGIN.settings='הועלה ל-Gist (settings.json) מהמכשיר הזה';
+  else if(gSt.state!=='ok'&&!Object.keys(localSlice).length)SYNC_ORIGIN.settings='ברירת מחדל של האתר (אין עדיין settings.json ב-Gist)';
+  else if(!c&&Object.keys(localSlice).length)SYNC_ORIGIN.settings='רק במכשיר הזה (fin26_v2) — אין token לשמירה ל-Gist';
+  else if(SYNC_ORIGIN.settingsErr)SYNC_ORIGIN.settings='במכשיר הזה — ההעלאה ל-Gist נכשלה: '+SYNC_ORIGIN.settingsErr;
+  else SYNC_ORIGIN.settings=gSt.state==='ok'?'Gist (settings.json)':'במכשיר הזה';
+  applySeedLocal();
+}
+function queueSharedPush(kind){
+  if(DEMO||SRC==='example')return;
+  clearTimeout(sharedPushTimer);
+  sharedPushTimer=setTimeout(()=>pushSharedGist(kind),700);
+}
+async function pushSharedGist(kind){
+  if(DEMO||SRC==='example')return;
+  const c=canWriteGist();
+  if(!c)return;
+  if(sharedPushing){sharedAgain=kind||true;return;}
+  sharedPushing=true;
+  try{
+    const raw=await fetchGistRaw(c);
+    if(kind!=='settings'){
+      const gSn=await openStored(raw.parsed[SNAPS_FILE]);
+      if(gSn.state!=='locked'&&gSn.state!=='bad'){
+        const gistReal=gSn.state==='ok'?realSnaps(gSn.doc):[];
+        const localReal=realSnaps(SNAPS);
+        let merged=unionSnaps(gistReal,localReal);
+        if(kind==='snaps')merged=withLocalToday(merged,localReal);
+        if(!snapsSame(merged,gistReal)){
+          await patchSharedFile(c,SNAPS_FILE,{v:1,snaps:merged});
+          persistSnaps(merged,{skipPush:true});
+          applySeedLocal();
+          SYNC_ORIGIN.snaps='Gist (snaps.json)';
+        }
+      }
+    }
+    if(kind!=='snaps'){
+      const gSt=await openStored(raw.parsed[SETTINGS_FILE]);
+      if(gSt.state!=='locked'&&gSt.state!=='bad'){
+        const slice=calcSlice(P);
+        const gistSlice=gSt.state==='ok'?calcSlice(gSt.doc):{};
+        if(JSON.stringify(settingsDoc(gistSlice))!==JSON.stringify(settingsDoc(slice))){
+          await patchSharedFile(c,SETTINGS_FILE,settingsDoc(slice));
+          SYNC_ORIGIN.settings='Gist (settings.json)';
+        }
+      }
+    }
+  }catch(e){console.warn('shared push',e);}
+  finally{
+    sharedPushing=false;
+    if(sharedAgain){const k=sharedAgain;sharedAgain=false;pushSharedGist(k===true?undefined:k);}
+  }
+}
+function syncOriginHtml(){
+  const o=SYNC_ORIGIN||{};
+  const bak=v2raw().syncBackup;
+  const bakTxt=bak?'<div class="mt dim">לפני המיזוג הראשון נשמר במכשיר הזה עותק של תמונות השווי והגדרות החישוב שהיו בו (fin26_v2.syncBackup).</div>':'';
+  return `<div class="mt" id="setSync" style="font-size:12.5px;line-height:1.55">
+    <div><b>תמונות שווי (תשואה לפי תקופה)</b> — ${esc(o.snaps||'—')}</div>
+    <div><b>הגדרות חישוב (תחזית, מס, יעדים, מדד, טווח)</b> — ${esc(o.settings||'—')}</div>
+    <div><b>רק במכשיר הזה</b> — ערכת נושא, טשטוש, הטאב הפתוח, והסתרת משימות שבוצעו.</div>
+    <div><b>פירוק מסלולים ציבורי</b> — ${esc(o.public||'קובץ האתר ועדכון מ-data.gov.il, לא ב-Gist')}</div>
+    ${bakTxt}
+  </div>`;
 }
 /* timeline of total financial assets: fin26_snaps + reconstruction from per-holding history, + today */
 function timeline(){
@@ -3371,8 +3598,8 @@ function renderSettings(){
   const nSn=SNAPS.length;
   const ha=v2raw().histAssets;
   const histTxt=ha?` · יבוא היסטוריה: ${ha.total||0} נק׳ (${ha.from||'—'}→${ha.to||'—'}), נוספו מצטבר ${ha.addedTotal??ha.added??'—'}`:'';
-  const cnt=`${S.investments.length} אחזקות, ${S.loans.length} הלוואות, ${S.slog.length} רשומות חיסכון; <span class="num">fin26_snaps</span> (מקומי): ${nSn} נקודות${histTxt}. עדכון אחרון בנתונים: ${S.lastUpdated?heDate(S.lastUpdated):'—'}.`;
-  const ro='<p class="dim">עריכה בעמוד "עדכון" נשמרת בפורמט של האתר המקורי ב-<span class="num">fin26</span> (וב-Gist אם יש token), כך ששני האתרים מסונכרנים. העדפות, מטמון וגיבויים של v2 נשמרים ב-<span class="num">fin26_v2</span>.</p>';
+  const cnt=`${S.investments.length} אחזקות, ${S.loans.length} הלוואות, ${S.slog.length} רשומות חיסכון; תמונות שווי: ${nSn} נקודות${histTxt}. עדכון אחרון בנתונים: ${S.lastUpdated?heDate(S.lastUpdated):'—'}.`;
+  const ro='<p class="dim">עריכת יתרות נשמרת ב-<span class="num">fin26</span> וב-<span class="num">finance_data.json</span>. תמונות השווי והגדרות החישוב (תחזית, מס, מדד, טווחים) נשמרות ב-<span class="num">snaps.json</span> וב-<span class="num">settings.json</span> באותו Gist. ערכת נושא, טשטוש והטאב נשארים במכשיר.</p>';
   if(DEMO){
     $('#setSrc').innerHTML='<div class="chip ex">מצב הדגמה</div><p class="mt">נתונים בדויים בלבד. אין חיבור ל-Gist, ואין קריאה או כתיבה של הנתונים האמיתיים במכשיר הזה. עריכה מתאפסת ברענון.</p>';
     applyDemoChrome();
@@ -3382,6 +3609,7 @@ function renderSettings(){
    :SRC==='local'?`<div class="chip real">💾 נתוני דפדפן מקומיים</div><p class="mt">נקרא מ-<span class="num">localStorage['fin26']</span>: ${cnt}</p>${ro}`
    :`<div class="chip ex">נתוני דוגמה ${SRC_NOTE}</div><p class="mt">הנתונים סינתטיים, באותו מבנה של FinBoard (tracks / investments / loans / slog / set) + שדות חדשים אופציונליים: <span class="num">costBasis</span>, <span class="num">feePct</span>, <span class="num">principal</span>, <span class="num">principalNote</span>, <span class="num">principalAsOf</span>, <span class="num">pulledAt</span>, <span class="num">openedAt</span>, <span class="num">liquidAt</span>, <span class="num">taxKind</span>, <span class="num">taxableShare</span>. בהלוואה גם <span class="num">group</span>, <span class="num">loanNo</span>, <span class="num">startDate</span>, <span class="num">endDate</span>, <span class="num">linkage</span>, <span class="num">balAsOf</span>.</p><p class="dim">כדי לראות נתונים אמיתיים: פתח באותו דפדפן שבו האתר המקורי מחובר, או הזן Gist ID למטה. <span class="num">?demo=1</span> מכריח נתוני דוגמה.</p>`;
   }
+  if($('#setSrc'))$('#setSrc').insertAdjacentHTML('beforeend',syncOriginHtml());
   renderGistCard();renderBackups();
   const bind=(id,k,parse=Number)=>{const el=$('#'+id);el.value=P[k]??'';el.oninput=()=>{P[k]=el.value===''?null:parse(el.value);savePrefs();};};
   bind('sExp','monthlyExpenses');bind('sEmMonths','emMonths');bind('sConc','concPct');bind('sDrift','driftPct');bind('sFee','feeHigh');
@@ -3404,7 +3632,7 @@ function renderSettings(){
     return rows;};
   $('#tblLook').innerHTML=`<tr><th>מסלול</th><th>סוג נכס</th><th>מטבע</th><th class="hide-m">גאוגרפיה</th><th>מקור</th><th class="n">תשואה ב-v1</th></tr>`+lookRows().map(r=>{const tr=S.tracks.find(x=>x.name===r.t);const who=rowWho(r.hs);
     return `<tr style="${r.unused?'opacity:.55':''}"><td><b>${esc(r.t)}</b>${r.unused?' <span class="faint">(לא בשימוש)</span>':''}${who?`<div class="faint" style="font-size:11px">${esc(who)}${r.hs.length>1?` · ${r.hs.length} אחזקות`:''}</div>`:''}</td><td>${fmtMix(r.L.cls)}</td><td>${fmtMix(r.L.ccy)}</td><td class="hide-m">${fmtMix(r.L.geo)}</td><td>${srcTag(r.L)}</td><td class="n m ${tr&&tr.rate>15?'warn':''}">${tr?tr.rate+'%':'—'}</td></tr>`;}).join('');
-  $('#resetPrefs').onclick=()=>{if(confirm('לאפס את הגדרות FinBoard 2.0? (פרטי ה-Gist של v2 נשמרים)')){const v=v2raw();const keep={};V2_META.forEach(k=>{if(v[k]!==undefined)keep[k]=v[k];});writeV2(keep);loadPrefs();applyTheme();show(CUR);}};
+  $('#resetPrefs').onclick=()=>{if(confirm('לאפס את הגדרות FinBoard 2.0? (פרטי ה-Gist של v2 נשמרים). איפוס עם token מעדכן גם את settings.json כדי ששאר המכשירים יראו אותן ברירות מחדל.')){const v=v2raw();const keep={};V2_META.forEach(k=>{if(v[k]!==undefined)keep[k]=v[k];});writeV2(keep);loadPrefs();savePrefs();applyTheme();show(CUR);}};
 }
 const RENDER={update:renderUpdate,overview:renderOverview,alloc:renderAlloc,perf:renderPerf,forecast:()=>renderForecast(true),recs:renderRecs,loans:renderLoans,savings:renderSavings,tzofik:renderTzofik,settings:renderSettings};
 
@@ -4126,7 +4354,7 @@ function applySource(){
 async function reloadData(){
   SESSION_BACKED=false;
   Object.keys(charts).forEach(k=>{charts[k].destroy();delete charts[k];});
-  await loadData();loadPrefs({keepPrivacy:true});applySource();show(CUR);
+  await loadData();loadPrefs({keepPrivacy:true});await syncSharedState();applySource();show(CUR);
 }
 async function loadPublicFile(){
   try{
@@ -4199,6 +4427,7 @@ async function boot(){
   $('#srcChip').textContent='טוען נתונים…';$('#pageSub').textContent='טוען…';
   await loadPublicFile();
   await loadData();loadPrefs();
+  await syncSharedState();
   const th=new URLSearchParams(location.search).get('theme');if(th)P.theme=th;
   applyTheme();buildNav();applySource();initPrivIdle();
   $('#themeBtn').onclick=()=>{P.theme=document.documentElement.dataset.theme==='dark'?'light':'dark';savePrefs();applyTheme();show(CUR);};
@@ -4267,6 +4496,10 @@ async function boot(){
         v.tasksEnc = await FC.seal(v.tasks);
         delete v.tasks;
       }
+      if (v.syncBackup && v.syncBackup.snaps && !v.syncBackup.enc) {
+        const at = v.syncBackup.at;
+        v.syncBackup = { at: at, enc: await FC.seal({ snaps: v.syncBackup.snaps, settings: v.syncBackup.settings || {} }) };
+      }
       if (gen !== v2Gen) return;
       localStorage.setItem(KEY_V2, JSON.stringify(v));
     } catch (e) { console.warn('v2 seal', e); }
@@ -4291,6 +4524,12 @@ async function boot(){
     if (FC.isEnvelope(raw.tasksEnc)) {
       try { raw.tasks = await FC.open(raw.tasksEnc); } catch (e) {}
       delete raw.tasksEnc;
+    }
+    if (raw.syncBackup && FC.isEnvelope(raw.syncBackup.enc)) {
+      try {
+        const o = await FC.open(raw.syncBackup.enc);
+        raw.syncBackup = { at: raw.syncBackup.at, snaps: o.snaps || [], settings: o.settings || {} };
+      } catch (e) {}
     }
     V2_MEM = raw;
   }
@@ -4330,18 +4569,20 @@ async function boot(){
     let local = null;
     try { local = JSON.parse(localStorage.getItem(KEY_STATE) || 'null'); } catch (e) {}
     const vault = FC.readVault();
-    let finance = null, tasks = null;
+    let finance = null, tasks = null, snaps = null, settings = null;
     const c = getCreds();
     if (c && !/[?&]demo=1/.test(location.search)) {
       const raw = await fetchGistRaw(c);
       finance = raw.parsed[GIST_FILENAME] || null;
       tasks = raw.parsed[TASKS_FILE] || null;
+      snaps = raw.parsed[SNAPS_FILE] || null;
+      settings = raw.parsed[SETTINGS_FILE] || null;
     }
-    return { vault: vault, local: local, finance: finance, tasks: tasks, mode: FC.planGate({ vault: vault, local: local, finance: finance, tasks: tasks }) };
+    return { vault: vault, local: local, finance: finance, tasks: tasks, snaps: snaps, settings: settings, mode: FC.planGate({ vault: vault, local: local, finance: finance, tasks: tasks, snaps: snaps, settings: settings }) };
   }
   function wrapsFor(p) {
     p = p || {};
-    return p.vault || FC.readVault() || FC.wrapsOf(p.finance) || FC.wrapsOf(p.local) || FC.wrapsOf(p.tasks);
+    return p.vault || FC.readVault() || FC.wrapsOf(p.finance) || FC.wrapsOf(p.local) || FC.wrapsOf(p.tasks) || FC.wrapsOf(p.snaps) || FC.wrapsOf(p.settings);
   }
   function newerFinance(p) {
     const a = p && FC.isPersonalFinance(p.local) ? p.local : null;
@@ -4392,6 +4633,10 @@ async function boot(){
     const map = {};
     map['finance_data.json'] = JSON.stringify(sealed, null, 2);
     if (backup.files['tasks.json']) map['tasks.json'] = JSON.stringify(await FC.seal(backup.files['tasks.json']), null, 2);
+    if (Array.isArray(backup.files.fin26_snaps) && backup.files.fin26_snaps.length) {
+      const rows = realSnaps(backup.files.fin26_snaps);
+      if (rows.length) map['snaps.json'] = JSON.stringify(await FC.seal({ v: 1, snaps: rows }), null, 2);
+    }
     await patchFiles(c, map);
     return { gist: true };
   }
@@ -4528,6 +4773,8 @@ async function boot(){
       } catch (e) { toast('הגיבוי מהמכשיר. קבצי Gist נוספים לא נטענו: ' + e.message, 'warn', 7000); }
     }
     if (Array.isArray(SNAPS) && SNAPS.length) files.fin26_snaps = SNAPS;
+    try { files['snaps.json'] = { v: 1, snaps: realSnaps(SNAPS) }; } catch (e) {}
+    try { files['settings.json'] = settingsDoc(calcSlice(P)); } catch (e) {}
     FC.downloadJson(FC.datedName('finboard-backup'), { finboardBackup: 1, exportedAt: new Date().toISOString(), files: files });
     toast('הגיבוי ירד למחשב', 'ok');
   }
@@ -4546,8 +4793,17 @@ async function boot(){
       saveTasksLocal();
       queueTaskPush();
     }
-    const snaps = (obj.files && obj.files.fin26_snaps) || obj.fin26_snaps;
-    if (Array.isArray(snaps)) persistSnaps(snaps);
+    const snapFile = obj.files && obj.files['snaps.json'];
+    const snaps = (obj.files && obj.files.fin26_snaps) || (snapFile && (snapFile.snaps || snapFile)) || obj.fin26_snaps;
+    if (Array.isArray(snaps)) persistSnaps(snaps, { skipPush: true });
+    const cred = getCreds();
+    if (cred && cred.token && snapFile && typeof snapFile === 'object' && !Array.isArray(snapFile)) {
+      try { await patchSharedFile(cred, SNAPS_FILE, { v: 1, snaps: realSnaps(snapFile.snaps || []) }); } catch (e) {}
+    }
+    if (obj.files && obj.files['settings.json'] && typeof obj.files['settings.json'] === 'object') {
+      applyCalcToP(calcSlice(obj.files['settings.json']));
+      savePrefs();
+    }
     SESSION_BACKED = false;
     await commit(() => JSON.parse(JSON.stringify(fin)), 'שחזור מקובץ');
   }
@@ -4566,7 +4822,7 @@ async function boot(){
     if (!c || !c.token) return;
     const raw = await fetchGistRaw(c);
     const map = {};
-    ['finance_data.json', 'tasks.json'].forEach(name => {
+    ['finance_data.json', 'tasks.json', 'snaps.json', 'settings.json'].forEach(name => {
       const cur = raw.parsed[name];
       if (FC.isEnvelope(cur)) map[name] = JSON.stringify(FC.applyWraps(cur, w), null, 2);
     });

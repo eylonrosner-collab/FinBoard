@@ -46,7 +46,7 @@
   }
   function shouldEncryptFile(name) {
     if (CLEARTEXT_FILES[name]) return false;
-    return name === 'finance_data.json' || name === 'tasks.json';
+    return name === 'finance_data.json' || name === 'tasks.json' || name === 'snaps.json' || name === 'settings.json';
   }
   function parseRecovery(text) {
     var s = String(text || '').trim().toLowerCase().replace(/\s+/g, '');
@@ -198,7 +198,7 @@
 
   function planGate(probe) {
     probe = probe || {};
-    var enc = !!(probe.vault || isEnvelope(probe.local) || isEnvelope(probe.finance) || isEnvelope(probe.tasks));
+    var enc = !!(probe.vault || isEnvelope(probe.local) || isEnvelope(probe.finance) || isEnvelope(probe.tasks) || isEnvelope(probe.snaps) || isEnvelope(probe.settings));
     var plain = !!(isPersonalFinance(probe.local) || isPersonalFinance(probe.finance) || isTaskDoc(probe.tasks));
     if (enc && plain) return 'unlock-then-migrate';
     if (enc) return 'unlock';
