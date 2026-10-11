@@ -45,7 +45,7 @@ body.privacy:not(.tz-recipient) .tz-val .m,
 body.privacy:not(.tz-recipient) .period .p-v .m,
 body.privacy:not(.tz-recipient) .loan-sum .val .m{filter:blur(22px);-webkit-filter:blur(22px)}
 body.privacy:not(.tz-recipient) .chart,
-body.privacy:not(.tz-recipient) .hold-chart{filter:blur(10px);-webkit-filter:blur(10px)}
+body.privacy:not(.tz-recipient) .hold-chart{filter:blur(16px);-webkit-filter:blur(16px)}
 body.privacy:not(.tz-recipient) .uin input,
 body.privacy:not(.tz-recipient) .pg-amt input,
 body.privacy:not(.tz-recipient) .pg-dep input,
@@ -307,6 +307,10 @@ pre.json{max-height:320px;overflow:auto;direction:ltr;text-align:left;font-size:
   .loan-cpi input{height:44px;width:88px}
   #p-loans .card-head .tools,#loanSchedCard .tools{width:100%}
   #p-loans .loan-sim{grid-template-columns:1fr}
+  #p-loans .field input,#p-loans .field select{height:44px}
+  #p-loans table{font-size:12px}
+  #p-loans th,#p-loans td{padding:8px 4px}
+  #tblLoans .loan-nm{min-width:148px;position:sticky;right:0;background:var(--card);z-index:2}
   .ov-bottom{grid-template-columns:1fr}.ov-tasks{grid-column:auto}
   .ov-fc-val{font-size:24px}
   .task-add input,.task-text{font-size:16px}
@@ -2063,12 +2067,12 @@ function paintSchedule(loans){
       ?`מסלול צמוד מדד מחושב ${cpi?`עם הנחת מדד ${cpi}% בשנה (היתרה וההחזר מוצמדים כל חודש)`:'<b>בלי מדד עתידי</b> — לוח נומינלי. אפשר להזין הנחת מדד (למשל 2.5%) והלוח יתעדכן.'}`
       :'אין במבחר מסלול צמוד מדד. לוח שפיצר לפי הריבית והתאריך של כל הלוואה.';
   }
-  const head=`<tr><th>שנה</th><th class="n">שולם</th><th class="n">קרן</th><th class="n">ריבית</th><th class="n">יתרה בסוף השנה</th><th class="n">החזר בסוף השנה</th></tr>`;
+  const head=`<tr><th>שנה</th><th class="n">שולם</th><th class="n hide-m">קרן</th><th class="n hide-m">ריבית</th><th class="n">יתרה בסוף</th><th class="n">החזר בסוף</th></tr>`;
   if(!years.length){$('#tblSched').innerHTML=head+'<tr><td class="empty" colspan="6">אין לוח להצגה</td></tr>'; return;}
   $('#tblSched').innerHTML=head+years.map(y=>{
     const open=loanSchedOpen.has(String(y.y));
-    const months=y.months.map(r=>`<tr class="loan-mo" data-mo="${y.y}" ${open?'':'hidden'}><td>${esc(heMonY(r.ym+'-01'))}</td><td class="n">${ils(r.pay)}</td><td class="n">${ils(r.principal)}</td><td class="n">${ils(r.interest)}</td><td class="n">${ils(r.bal)}</td><td class="n">${ils(r.pay)}</td></tr>`).join('');
-    return `<tr><td><button type="button" class="qchip" data-loan-year="${y.y}" aria-expanded="${open?'true':'false'}">${open?'▾':'▸'} ${y.y}</button></td><td class="n">${ils(y.pay)}</td><td class="n">${ils(y.principal)}</td><td class="n">${ils(y.interest)}</td><td class="n"><b>${ils(y.bal)}</b></td><td class="n">${ils(y.payEnd)}</td></tr>`+months;
+    const months=y.months.map(r=>`<tr class="loan-mo" data-mo="${y.y}" ${open?'':'hidden'}><td>${esc(heMonY(r.ym+'-01'))}</td><td class="n">${ils(r.pay)}</td><td class="n hide-m">${ils(r.principal)}</td><td class="n hide-m">${ils(r.interest)}</td><td class="n">${ils(r.bal)}</td><td class="n">${ils(r.pay)}</td></tr>`).join('');
+    return `<tr><td><button type="button" class="qchip" data-loan-year="${y.y}" aria-expanded="${open?'true':'false'}">${open?'▾':'▸'} ${y.y}</button></td><td class="n">${ils(y.pay)}</td><td class="n hide-m">${ils(y.principal)}</td><td class="n hide-m">${ils(y.interest)}</td><td class="n"><b>${ils(y.bal)}</b></td><td class="n">${ils(y.payEnd)}</td></tr>`+months;
   }).join('');
   $$('#tblSched [data-loan-year]').forEach(b=>b.onclick=()=>{
     const y=b.dataset.loanYear;
@@ -2200,16 +2204,16 @@ function renderLoans(){
     <div class="card kpi"><div class="lbl">חופשי מחובות</div><div class="val" style="font-size:18px">${last?esc(heMonY(last)):'—'}</div><div class="foot">${last?`תשלום אחרון ${heDate(last)}`:''}</div></div>`;
   const groups=loanGroupsOf(shown);
   renderGroupCards(groups);
-  $('#tblLoans').innerHTML=`<tr><th>הלוואה</th><th class="n">יתרה</th><th class="n">ריבית</th><th class="n">החזר</th><th class="n">סיום</th><th class="n hide-m">ריבית שנותרה</th><th class="bar-cell hide-m">שולם</th><th>מול השקעה</th><th></th></tr>`+
+  $('#tblLoans').innerHTML=`<tr><th class="loan-nm">הלוואה</th><th class="n">יתרה</th><th class="n">ריבית</th><th class="n">החזר</th><th class="n">סיום</th><th class="n hide-m">ריבית שנותרה</th><th class="bar-cell hide-m">שולם</th><th>מול השקעה</th><th class="loan-edit"></th></tr>`+
     am.slice().sort((a,b)=>String(a.l.group||'תת').localeCompare(String(b.l.group||'תת'),'he')||b.l.rate-a.l.rate).map(({l,a})=>{
       const base=loanBankBal(l);
       const paid=l.origBal?1-base/l.origBal:0;
       const v=l.rate>expAT+0.5?'<span class="tag neg">עדיף לפרוע</span>':l.rate<expAT-1?'<span class="tag pos">השקעה עדיפה*</span>':'<span class="tag">ניטרלי</span>';
       const sub=[l.group,l.inst,l.linkage,l.loanNo].filter(Boolean).join(' · ');
       const gap=a.differs?`<div class="warn" style="font-size:10px">לסילוק עד הסיום: ${ils(a.contractual)}</div>`:'';
-      return `<tr><td><b>${esc(l.name)}</b><div class="faint" style="font-size:11px">${esc(sub)}</div></td><td class="n">${loanBalHtml(l)}</td><td class="n m">${(+l.rate||0).toFixed(2)}%</td><td class="n">${ils(loanPay(l))}${gap}</td>
+      return `<tr><td class="loan-nm"><b>${esc(l.name)}</b><div class="faint" style="font-size:11px">${esc(sub)}</div></td><td class="n">${loanBalHtml(l)}</td><td class="n m">${(+l.rate||0).toFixed(2)}%</td><td class="n">${ils(loanPay(l))}${gap}</td>
       <td class="n">${a.ok&&a.rows.length?esc(heMonY(a.rows[a.rows.length-1].date)):(a.ok?'—':'<span class="neg">ההחזר לא מכסה ריבית</span>')}</td><td class="n hide-m">${a.ok?ils(a.interest):'—'}</td>
-      <td class="bar-cell hide-m"><div class="mini-bar"><div style="width:${Math.max(0,paid)*100}%;background:var(--pos)"></div></div><div class="faint m" style="font-size:10px">${(Math.max(0,paid)*100).toFixed(0)}%</div></td><td>${v}</td><td><button class="edit-ic" data-edit-loan="${esc(l.id)}" title="עריכה">✏️</button></td></tr>`;
+      <td class="bar-cell hide-m"><div class="mini-bar"><div style="width:${Math.max(0,paid)*100}%;background:var(--pos)"></div></div><div class="faint m" style="font-size:10px">${(Math.max(0,paid)*100).toFixed(0)}%</div></td><td>${v}</td><td class="loan-edit"><button class="edit-ic" data-edit-loan="${esc(l.id)}" title="עריכה">✏️</button></td></tr>`;
     }).join('')+
     `<tr><td colspan="9" class="faint" style="font-size:11px">* השוואה לתשואה צפויה אחרי מס ≈ ${expAT.toFixed(1)}%. יתרה עם תאריך „נכון ל־” מגולגלת להיום לפי יום החיוב (1 בחודש, או יום תאריך ההתחלה), הריבית וההחזר הרשומים — הערכה לתצוגה, לא נשמרת. כשיש תאריך סיום, לוח הסילוקין הוא שפיצר שמאפס את היתרה המוערכת עד התאריך; ההחזר הרשום מוצג בנפרד, עם הערה אם הוא שונה מהותית.</td></tr>`;
   $$('#loanChartMode button').forEach(b=>b.onclick=()=>{loanChartMode=b.dataset.m==='pay'?'pay':'bal'; paintLoanChart(act);});
@@ -3935,10 +3939,14 @@ function armPrivIdle(){
   if(!P||P.privacy||document.body.classList.contains('tz-recipient'))return;
   privIdleTimer=setTimeout(reblurValues,PRIV_IDLE_MS);
 }
+function syncPrivacyRender(){
+  /* Option labels cannot be blurred, so rebuild the loans page when the eye toggles. */
+  if(CUR==='loans') renderLoans();
+}
 function reblurValues(){
   clearTimeout(privIdleTimer);clearTimeout(privHiddenTimer);
   if(!P||document.body.classList.contains('tz-recipient'))return;
-  if(!P.privacy){P.privacy=true;applyTheme();}
+  if(!P.privacy){P.privacy=true;applyTheme();syncPrivacyRender();}
 }
 function notePrivActivity(){
   if(!P||P.privacy||document.body.classList.contains('tz-recipient'))return;
@@ -4077,7 +4085,7 @@ async function boot(){
   $('#themeBtn').onclick=()=>{P.theme=document.documentElement.dataset.theme==='dark'?'light':'dark';savePrefs();applyTheme();show(CUR);};
   $('#privBtn').onclick=()=>{
     if(document.body.classList.contains('tz-recipient'))return;
-    P.privacy=!P.privacy;applyTheme();
+    P.privacy=!P.privacy;applyTheme();syncPrivacyRender();
     if(P.privacy){clearTimeout(privIdleTimer);}else armPrivIdle();
   };
   window.addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(h.startsWith('access='))return;show(resolvePage(ingestTzHash(h)||'overview'));});
