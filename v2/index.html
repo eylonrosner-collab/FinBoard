@@ -809,6 +809,8 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
           </div></div>
       </div>
       <div class="card mt" id="taxRulesCard"></div>
+      <div class="card mt" id="calcSyncCard"></div>
+      <div class="card mt" id="snapHistCard"></div>
       <div class="card mt" id="gistCard"><h3>☁ חיבור Gist — סנכרון עם האתר המקורי</h3>
         <div id="gistStatus" style="font-size:13px;margin-bottom:10px"></div>
         <div class="form">
@@ -850,16 +852,33 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
 <div class="toast" id="toast"></div>
 <script src="lookthrough.js"></script>
 <script>
-/* Demo mode must be sealed before crypto or the app read localStorage. */
+/* Demo mode must be sealed before crypto or the app reads localStorage.
+   Safari keeps setItem as an own property of localStorage, so a prototype
+   patch alone does not block writes. Replace the instance methods too.
+   /v2/demo/ is demo even if the redirect has not added ?demo=1 yet. */
 (function(){
-  if(!/[?&]demo=1(?:&|$)/.test(location.search)) return;
+  var demo=/[?&]demo=1(?:&|$)/.test(location.search)||/\/demo\/?(?:index\.html)?$/.test(location.pathname);
+  if(!demo) return;
   document.documentElement.classList.add('demo');
   var blocked={fin26:1,fin26_snaps:1,fin26_gemini:1,fin26_v2:1,fin26_token:1,fin26_gist:1,fin26_vault:1};
-  var proto=Storage.prototype;
-  var get=proto.getItem, set=proto.setItem, rem=proto.removeItem;
-  proto.getItem=function(k){ if(this===localStorage && blocked[String(k)]) return null; return get.call(this,k); };
-  proto.setItem=function(k,v){ if(this===localStorage && blocked[String(k)]) return; return set.call(this,k,v); };
-  proto.removeItem=function(k){ if(this===localStorage && blocked[String(k)]) return; return rem.call(this,k); };
+  function harden(storage){
+    if(!storage||storage.__finDemoHardened) return;
+    var get=storage.getItem, set=storage.setItem, rem=storage.removeItem;
+    if(typeof set!=='function') return;
+    var api={
+      getItem:function(k){ if(blocked[String(k)]) return null; return get.call(storage,k); },
+      setItem:function(k,v){ if(blocked[String(k)]) return; return set.call(storage,k,v); },
+      removeItem:function(k){ if(blocked[String(k)]) return; return rem.call(storage,k); }
+    };
+    try{ storage.getItem=api.getItem; storage.setItem=api.setItem; storage.removeItem=api.removeItem; storage.__finDemoHardened=1; }catch(e){}
+    try{
+      Storage.prototype.getItem=function(k){ if(blocked[String(k)]&&(this===localStorage||this===sessionStorage)) return null; return get.call(this,k); };
+      Storage.prototype.setItem=function(k,v){ if(blocked[String(k)]&&(this===localStorage||this===sessionStorage)) return; return set.call(this,k,v); };
+      Storage.prototype.removeItem=function(k){ if(blocked[String(k)]&&(this===localStorage||this===sessionStorage)) return; return rem.call(this,k); };
+    }catch(e){}
+  }
+  harden(localStorage);
+  try{ harden(sessionStorage); }catch(e){}
   var orig=window.fetch;
   if(orig) window.fetch=function(input, init){
     var url='';
@@ -870,6 +889,7 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
 })();
 </script>
 <script src="../assets/finboard-crypto.js"></script>
+<script src="../assets/finboard-demo-guard.js"></script>
 <script>
 'use strict';
 /* =====================================================================
@@ -883,7 +903,7 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
    exists, in the same Gist as tasks.json. v1 only reads finance_data.json.
    ===================================================================== */
 const KEY_STATE='fin26', KEY_SNAPS='fin26_snaps', KEY_GEMINI='fin26_gemini', KEY_V2='fin26_v2';
-const DEMO=/[?&]demo=1(?:&|$)/.test(location.search);
+const DEMO=/[?&]demo=1(?:&|$)/.test(location.search)||/\/demo\/?(?:index\.html)?$/.test(location.pathname);
 /* Sanitized historical total-assets ({d,v} only — no names/accounts). Merged into fin26_snaps when missing. */
 const HIST_ASSETS_SEED=[{"d":"2021-03-03","v":1874094},{"d":"2021-04-19","v":2322700},{"d":"2021-05-21","v":2503105},{"d":"2021-06-16","v":2503837},{"d":"2021-07-26","v":2600825},{"d":"2021-09-04","v":2620038},{"d":"2021-10-12","v":2609376},{"d":"2021-11-18","v":2711865},{"d":"2022-01-03","v":2732161},{"d":"2022-04-03","v":2827800},{"d":"2022-05-28","v":2821720},{"d":"2022-08-12","v":2940593},{"d":"2022-09-26","v":2894643},{"d":"2022-11-01","v":2228223},{"d":"2022-12-29","v":2069782},{"d":"2023-02-25","v":1777480},{"d":"2023-04-16","v":1846249},{"d":"2023-05-02","v":1901751},{"d":"2023-08-17","v":2236798},{"d":"2023-10-06","v":2310518},{"d":"2023-11-07","v":2402398},{"d":"2023-12-18","v":2445840},{"d":"2024-01-21","v":2522538},{"d":"2024-02-12","v":2548365},{"d":"2024-03-12","v":2718985},{"d":"2024-04-15","v":2885158},{"d":"2024-06-16","v":3034121},{"d":"2024-08-07","v":3090608},{"d":"2024-08-25","v":3139931},{"d":"2024-10-05","v":3290608},{"d":"2024-12-15","v":3599527},{"d":"2025-02-08","v":3685127},{"d":"2025-05-29","v":3629830},{"d":"2025-07-02","v":3834031},{"d":"2025-08-06","v":3996395},{"d":"2025-09-13","v":4089904},{"d":"2025-12-15","v":4393438},{"d":"2026-10-07","v":4421972}];
 const HIST_ASSETS_META={n:38,from:'2021-03-03',to:'2026-10-07',src:'xlsx-import'};
@@ -1042,7 +1062,7 @@ const SETTINGS_FILE='settings.json'; // forecast / tax / CPI / ranges — same r
 const SYNC_CALC_KEYS=['fc','assume','targets','taxRules','taxExit','loanCpi','monthlyExpenses','emMonths','concPct','driftPct','feeHigh','ovRange','alScope','pgScope','rbNewMoney'];
 const KEY_TOKEN='fin26_token', KEY_GIST='fin26_gist'; // original keys — READ ONLY here
 function v2raw(){try{return JSON.parse(localStorage.getItem(KEY_V2)||'{}')||{};}catch(e){return {};}}
-const V2_META=['auth','cache','backups','pendingSync','histAssets','dismissedRecs','tzShortCache','tasks','demoTasks','syncBackup'];
+const V2_META=['auth','cache','backups','pendingSync','histAssets','dismissedRecs','tzShortCache','tasks','demoTasks','syncBackup','snapGate','deletedSnaps','trustedSnaps'];
 function writeV2(v){ // quota-safe: drop oldest backups, then cache, if storage is full
   for(let k=0;k<14;k++){try{localStorage.setItem(KEY_V2,JSON.stringify(v));return true;}catch(e){
     if(v.backups&&v.backups.length>1)v.backups.pop();else if(v.cache)delete v.cache;else if(v.backups&&v.backups.length)v.backups.pop();else{console.warn('fin26_v2 write failed',e);return false;}}}
@@ -1181,7 +1201,7 @@ function loadPrefs(opts){
   Object.keys(DEF_ASSUME).forEach(k=>P.assume[k]=Object.assign({...DEF_ASSUME[k]},(P.assume||{})[k]||{}));
   P.privacy=sessionPrivacy; /* every entry starts blurred; reveal lasts only for this visit */
 }
-function savePrefs(opts){if(DEMO)return;const v=v2raw();const out={...P};delete out.privacy;V2_META.forEach(k=>{if(v[k]!==undefined)out[k]=v[k];else delete out[k];});writeV2(out);if(!(opts&&opts.skipPush))queueSharedPush('settings');}
+function savePrefs(){if(DEMO)return;const v=v2raw();const out={...P};delete out.privacy;V2_META.forEach(k=>{if(v[k]!==undefined)out[k]=v[k];else delete out[k];});writeV2(out);if(typeof CUR!=='undefined'&&CUR==='settings'){try{renderCalcSync();}catch(e){}}}
 
 /* ---------------- OVERVIEW TASKS ----------------
    Stored outside finance_data.json so the original site (which JSON.parses that
@@ -1525,8 +1545,10 @@ function renderAnnualFees(){
 }
 
 let snapWriteGen=0;
+function snapsWritable(){return !DEMO&&SRC!=='example';}
 function persistSnaps(snaps,opts){
-  const clean=normalizeSnaps(snaps);
+  if(!snapsWritable())return SNAPS;
+  const clean=stripDemoSnaps(normalizeSnaps(snaps));
   const trimmed=clean.length>400?clean.slice(clean.length-400):clean;
   SNAPS=trimmed;
   const gen=++snapWriteGen;
@@ -1549,13 +1571,15 @@ async function readSnaps(){
 }
 /* Merge HIST_ASSETS_SEED into fin26_snaps: skip exact dates and points within ±3 days of an existing snap. Never overwrite. */
 function mergeHistAssetsSeed(){
+  if(DEMO||SRC==='example')return 0;
   if(typeof HIST_ASSETS_SEED==='undefined'||!HIST_ASSETS_SEED.length)return 0;
-  const existing=SNAPS.slice();
+  const deleted=new Set((v2raw().deletedSnaps)||[]);
+  const existing=stripDemoSnaps(SNAPS.slice());
   const byDate=new Map(existing.map(s=>[iso(s.d),s]));
   let added=0;
   for(const p of HIST_ASSETS_SEED){
     const d=iso(p.d);if(!d||!isFinite(p.v))continue;
-    if(byDate.has(d))continue;
+    if(deleted.has(d)||byDate.has(d))continue;
     let near=false;for(const ed of byDate.keys()){if(Math.abs(daysBetween(ed,d))<=3){near=true;break;}}
     if(near)continue;
     const row={d,v:Math.round(+p.v),seed:1};existing.push(row);byDate.set(d,row);added++;
@@ -1591,11 +1615,34 @@ function normalizeSnaps(rows){
     if(!/^\d{4}-\d{2}-\d{2}$/.test(d))continue;
     const row={d,v:Math.round(+x.v)};
     if(x.seed)row.seed=1;
+    if(x.real)row.real=1;
     map.set(d,row);
   }
   return [...map.values()].sort((a,b)=>a.d.localeCompare(b.d)).slice(-400);
 }
-function realSnaps(rows){return normalizeSnaps(rows).filter(s=>!s.seed).map(s=>({d:s.d,v:s.v}));}
+function realSnaps(rows){return normalizeSnaps(rows).filter(s=>!s.seed).map(s=>s.real?{d:s.d,v:s.v,real:1}:{d:s.d,v:s.v});}
+function isDemoSnap(s){return !!(s&&window.FinDemoGuard&&FinDemoGuard.isDemoPoint(s.d,s.v));}
+function stripDemoSnaps(rows){return (rows||[]).filter(s=>s&&!isDemoSnap(s));}
+function deletedSnapSet(){return new Set((v2raw().deletedSnaps)||[]);}
+function trustedSnapSet(){return new Set((v2raw().trustedSnaps)||[]);}
+/* First gist sync on this device may upload real local history.
+   After snapGate is set, only points recorded while the real book was open
+   (trustedSnaps) are eligible — a later demo leak cannot be unioned in. */
+function eligibleLocalSnaps(rows){
+  const deleted=deletedSnapSet();
+  let list=stripDemoSnaps(realSnaps(rows)).filter(s=>!deleted.has(s.d));
+  if(v2raw().snapGate){const trust=trustedSnapSet();list=list.filter(s=>s.real||trust.has(s.d));}
+  return list.map(s=>({d:s.d,v:s.v}));
+}
+function composeSnaps(gistRows,localRows){
+  const deleted=deletedSnapSet();
+  const gist=stripDemoSnaps(realSnaps(gistRows)).filter(s=>!deleted.has(s.d)).map(s=>({d:s.d,v:s.v}));
+  const local=eligibleLocalSnaps(localRows);
+  const map=new Map();
+  for(const s of local)map.set(s.d,s);
+  for(const s of gist)map.set(s.d,s);
+  return [...map.values()].sort((a,b)=>a.d.localeCompare(b.d)).slice(-400);
+}
 function snapsSame(a,b){
   if(!a||!b||a.length!==b.length)return false;
   for(let i=0;i<a.length;i++)if(a[i].d!==b[i].d||a[i].v!==b[i].v)return false;
@@ -1635,6 +1682,23 @@ function calcSlice(src){
   return out;
 }
 function settingsDoc(slice){return Object.assign({v:1},slice||{});}
+const CALC_HE={fc:'תחזית',assume:'הנחות תשואה ותנודתיות',targets:'יעדי הקצאה',taxRules:'כללי מס',taxExit:'מסלול מימוש',loanCpi:'מדד להלוואות',monthlyExpenses:'הוצאות חודשיות',emMonths:'חודשי קרן חירום',concPct:'סף ריכוזיות',driftPct:'סף סטייה',feeHigh:'סף דמי ניהול',ovRange:'טווח גרף הסקירה',alScope:'היקף הקצאה',pgScope:'היקף קרן',rbNewMoney:'איזון בכסף חדש'};
+function calcBrief(k,val){
+  if(val==null)return 'אין';
+  if(k==='fc')return `תשואה ${val.ret??'—'}% · הפקדה ${val.monthly??'—'} · ${val.date||'תאריך ברירת מחדל'}`;
+  if(k==='loanCpi'||k==='monthlyExpenses'||k==='emMonths'||k==='concPct'||k==='driftPct'||k==='feeHigh'||k==='ovRange')return String(val);
+  if(typeof val!=='object')return String(val);
+  return 'ערכים שונים';
+}
+function calcDiff(local,gist){
+  const out=[];
+  for(const k of SYNC_CALC_KEYS){
+    if(local==null||local[k]===undefined)continue;
+    if(JSON.stringify(local[k])===JSON.stringify(gist&&gist[k]))continue;
+    out.push({k,local:local[k],gist:gist?gist[k]:undefined});
+  }
+  return out;
+}
 function applyCalcToP(slice){
   if(!P||!slice)return;
   for(const k of SYNC_CALC_KEYS){
@@ -1659,21 +1723,56 @@ async function patchSharedFile(c,name,obj){
   await patchGistFile(c,name,JSON.stringify(payload,null,2));
   if(LAST_GIST_PARSED)LAST_GIST_PARSED[name]=payload;
 }
+function scrubDemoFromLocalBackup(){
+  const snaps=(v2raw().syncBackup||{}).snaps;
+  if(!Array.isArray(snaps)||!snaps.some(isDemoSnap))return;
+  v2patch(x=>{
+    if(x.syncBackup&&Array.isArray(x.syncBackup.snaps))
+      x.syncBackup.snaps=stripDemoSnaps(realSnaps(x.syncBackup.snaps)).map(s=>({d:s.d,v:s.v}));
+  });
+}
+async function scrubStoredSnaps(){
+  if(DEMO||SRC==='example')return;
+  scrubDemoFromLocalBackup();
+  let rows=[];
+  try{rows=await readSnaps();}catch(e){return;}
+  if(!rows.some(isDemoSnap)||!snapsWritable())return;
+  persistSnaps(stripDemoSnaps(rows),{skipPush:true});
+}
 function rememberSyncBackup(localReal,localSlice){
   const v=v2raw()||{};
-  if(v.syncBackup)return;
+  if(v.syncBackup){
+    const snaps=v.syncBackup.snaps;
+    if(Array.isArray(snaps)){
+      const clean=stripDemoSnaps(realSnaps(snaps)).map(s=>({d:s.d,v:s.v}));
+      if(clean.length!==snaps.length)v2patch(x=>{if(x.syncBackup)x.syncBackup.snaps=clean;});
+    }
+    return;
+  }
   if(!localReal.length&&!Object.keys(localSlice).length)return;
   v2patch(x=>{x.syncBackup={at:new Date().toISOString(),snaps:localReal,settings:localSlice};});
 }
-function applySeedLocal(){if(!DEMO){try{mergeHistAssetsSeed();}catch(e){console.warn('hist merge',e);}}}
+function applySeedLocal(){if(DEMO||SRC==='example')return;try{mergeHistAssetsSeed();}catch(e){console.warn('hist merge',e);}}
+let DEVICE_CALC=null,GIST_CALC=null,SNAP_ORIGIN={},DEMO_DROPPED=0;
+function markSnapOrigins(gistRows,localRows,merged){
+  SNAP_ORIGIN={};
+  const gistDates=new Set(stripDemoSnaps(realSnaps(gistRows)).map(s=>s.d));
+  const trust=trustedSnapSet();
+  for(const s of merged){
+    if(gistDates.has(s.d))SNAP_ORIGIN[s.d]='Gist';
+    else if(trust.has(s.d))SNAP_ORIGIN[s.d]='נרשם במכשיר';
+    else SNAP_ORIGIN[s.d]='מכשיר זה';
+  }
+}
+function armSnapGate(){if(!v2raw().snapGate)v2patch(v=>{v.snapGate={at:new Date().toISOString()};});}
 async function syncSharedState(){
   SYNC_ORIGIN={snaps:'',settings:'',public:'קובץ האתר public-allocation.json ועדכון מ-data.gov.il — לא ב-Gist ולא לפי דפדפן'};
   if(DEMO||SRC==='example'||!S){
     SYNC_ORIGIN.snaps=DEMO?'מצב הדגמה — לא מסונכרן ל-Gist':'נתוני דוגמה — לא נשמרים ב-Gist';
     SYNC_ORIGIN.settings=SYNC_ORIGIN.snaps;
-    if(!DEMO&&SRC==='example')applySeedLocal();
     return;
   }
+  await scrubStoredSnaps();
   const parsed=LAST_GIST_PARSED;
   let gSn={state:'missing',doc:null},gSt={state:'missing',doc:null};
   if(parsed){
@@ -1696,46 +1795,42 @@ async function syncSharedState(){
   }
   const localSnaps=await readSnaps();
   const gistReal=gSn.state==='ok'?realSnaps(gSn.doc):[];
-  const localReal=realSnaps(localSnaps);
+  DEMO_DROPPED=localSnaps.filter(isDemoSnap).length+gistReal.filter(isDemoSnap).length;
+  const localClean=stripDemoSnaps(realSnaps(localSnaps)).map(s=>({d:s.d,v:s.v}));
   const localSlice=calcSlice(v2raw());
-  rememberSyncBackup(localReal,localSlice);
-  const merged=unionSnaps(gistReal,localReal);
-  const localOnly=localReal.filter(s=>!gistReal.some(g=>g.d===s.d));
+  rememberSyncBackup(localClean,localSlice);
+  const merged=composeSnaps(gistReal,localSnaps);
+  const gistClean=stripDemoSnaps(gistReal).filter(s=>!deletedSnapSet().has(s.d)).map(s=>({d:s.d,v:s.v}));
+  const localOnly=merged.filter(s=>!gistClean.some(g=>g.d===s.d));
+  markSnapOrigins(gistReal,localSnaps,merged);
   persistSnaps(merged,{skipPush:true});
   const c=canWriteGist();
   let snapsUploaded=false;
-  if(c&&gSn.state!=='bad'&&!snapsSame(merged,gistReal)&&(localReal.length||gistReal.length)){
+  const gistFileRows=gistReal.map(s=>({d:s.d,v:s.v}));
+  const pending=!snapsSame(merged,gistFileRows);
+  if(c&&gSn.state!=='bad'&&pending){
     try{await patchSharedFile(c,SNAPS_FILE,{v:1,snaps:merged});snapsUploaded=true;}
     catch(e){console.warn('snaps sync',e);SYNC_ORIGIN.snapsErr=e.message||String(e);}
   }
-  if(!gistReal.length&&!localReal.length)SYNC_ORIGIN.snaps='אין תמונות שווי שמורות — התשואה מחושבת מהיסטוריית האחזקות שב-Gist';
-  else if(gistReal.length&&localOnly.length&&snapsUploaded)SYNC_ORIGIN.snaps='Gist (snaps.json) + תאריכים שהיו רק במכשיר הזה, ומוזגו עכשיו';
-  else if(gistReal.length&&localOnly.length&&!c)SYNC_ORIGIN.snaps='Gist (snaps.json). תאריכים נוספים במכשיר הזה לא הועלו — אין token עם הרשאת gist';
-  else if(gistReal.length)SYNC_ORIGIN.snaps='Gist (snaps.json)';
-  else if(snapsUploaded)SYNC_ORIGIN.snaps='הועלה ל-Gist (snaps.json) מהמכשיר הזה';
-  else if(!c)SYNC_ORIGIN.snaps='רק במכשיר הזה (fin26_snaps) — אין token לשמירה ל-Gist';
-  else SYNC_ORIGIN.snaps=SYNC_ORIGIN.snapsErr?('במכשיר הזה — ההעלאה ל-Gist נכשלה: '+SYNC_ORIGIN.snapsErr):'במכשיר הזה (ההעלאה ל-Gist לא הושלמה)';
+  /* Arm only once the pre-sync local history is on the Gist (or there was nothing to send).
+     A failed upload must not lock those points out of the next try. */
+  if(gSn.state!=='bad'&&(!pending||snapsUploaded))armSnapGate();
+  const dropNote=DEMO_DROPPED?` הוסרו ${DEMO_DROPPED} נקודות של נתוני ההדגמה (לא הועלו).`:'';
+  if(!gistClean.length&&!merged.length)SYNC_ORIGIN.snaps='אין תמונות שווי שמורות — התשואה מחושבת מהיסטוריית האחזקות שב-Gist.'+dropNote;
+  else if(gistClean.length&&localOnly.length&&snapsUploaded)SYNC_ORIGIN.snaps='Gist (snaps.json) + תאריכים שהיו רק במכשיר הזה, ומוזגו עכשיו.'+dropNote;
+  else if(gistClean.length&&localOnly.length&&!c)SYNC_ORIGIN.snaps='Gist (snaps.json). תאריכים נוספים במכשיר הזה לא הועלו — אין token עם הרשאת gist.'+dropNote;
+  else if(gistClean.length)SYNC_ORIGIN.snaps='Gist (snaps.json).'+dropNote;
+  else if(snapsUploaded)SYNC_ORIGIN.snaps='הועלה ל-Gist (snaps.json) מהמכשיר הזה.'+dropNote;
+  else if(!c)SYNC_ORIGIN.snaps='רק במכשיר הזה (fin26_snaps) — אין token לשמירה ל-Gist.'+dropNote;
+  else SYNC_ORIGIN.snaps=(SYNC_ORIGIN.snapsErr?('במכשיר הזה — ההעלאה ל-Gist נכשלה: '+SYNC_ORIGIN.snapsErr):'במכשיר הזה (ההעלאה ל-Gist לא הושלמה).')+dropNote;
   const gistSlice=gSt.state==='ok'?calcSlice(gSt.doc):{};
-  const mergedSlice={};
-  const fillKeys=[];
-  for(const k of SYNC_CALC_KEYS){
-    if(gistSlice[k]!==undefined)mergedSlice[k]=gistSlice[k];
-    else if(localSlice[k]!==undefined){mergedSlice[k]=localSlice[k];fillKeys.push(k);}
-  }
-  applyCalcToP(mergedSlice);
-  savePrefs({skipPush:true});
-  let setUploaded=false;
-  if(c&&gSt.state!=='bad'&&fillKeys.length&&JSON.stringify(settingsDoc(gistSlice))!==JSON.stringify(settingsDoc(mergedSlice))){
-    try{await patchSharedFile(c,SETTINGS_FILE,settingsDoc(mergedSlice));setUploaded=true;}
-    catch(e){console.warn('settings sync',e);SYNC_ORIGIN.settingsErr=e.message||String(e);}
-  }
-  if(gSt.state==='ok'&&!fillKeys.length)SYNC_ORIGIN.settings='Gist (settings.json)';
-  else if(gSt.state==='ok'&&fillKeys.length&&setUploaded)SYNC_ORIGIN.settings='Gist (settings.json) + שדות שהיו רק במכשיר הזה ('+fillKeys.join(', ')+')';
-  else if(setUploaded)SYNC_ORIGIN.settings='הועלה ל-Gist (settings.json) מהמכשיר הזה';
-  else if(gSt.state!=='ok'&&!Object.keys(localSlice).length)SYNC_ORIGIN.settings='ברירת מחדל של האתר (אין עדיין settings.json ב-Gist)';
-  else if(!c&&Object.keys(localSlice).length)SYNC_ORIGIN.settings='רק במכשיר הזה (fin26_v2) — אין token לשמירה ל-Gist';
-  else if(SYNC_ORIGIN.settingsErr)SYNC_ORIGIN.settings='במכשיר הזה — ההעלאה ל-Gist נכשלה: '+SYNC_ORIGIN.settingsErr;
-  else SYNC_ORIGIN.settings=gSt.state==='ok'?'Gist (settings.json)':'במכשיר הזה';
+  DEVICE_CALC=localSlice;
+  GIST_CALC=gistSlice;
+  const diffs=calcDiff(localSlice,gistSlice);
+  if(!diffs.length&&Object.keys(gistSlice).length)applyCalcToP(gistSlice);
+  SYNC_ORIGIN.settings=diffs.length
+    ?'במכשיר הזה יש הגדרות חישוב שונות מאלה שב-Gist (settings.json). הן לא נדרסות אוטומטית — אפשר להעלות אותן מהכרטיס למטה.'
+    :(Object.keys(gistSlice).length?'Gist (settings.json)':'במכשיר הזה (אין עדיין settings.json ב-Gist). ההעלאה ל-Gist היא ידנית.');
   applySeedLocal();
 }
 function queueSharedPush(kind){
@@ -1755,25 +1850,21 @@ async function pushSharedGist(kind){
       const gSn=await openStored(raw.parsed[SNAPS_FILE]);
       if(gSn.state!=='locked'&&gSn.state!=='bad'){
         const gistReal=gSn.state==='ok'?realSnaps(gSn.doc):[];
-        const localReal=realSnaps(SNAPS);
-        let merged=unionSnaps(gistReal,localReal);
-        if(kind==='snaps')merged=withLocalToday(merged,localReal);
-        if(!snapsSame(merged,gistReal)){
+        let merged=composeSnaps(gistReal,SNAPS);
+        if(kind==='snaps'){
+          const today=iso(TODAY);
+          const loc=eligibleLocalSnaps(SNAPS).find(s=>s.d===today);
+          if(loc&&!(window.FinDemoGuard&&FinDemoGuard.isDemoPoint(loc.d,loc.v))){
+            merged=merged.filter(s=>s.d!==today).concat([loc]).sort((a,b)=>a.d.localeCompare(b.d));
+          }
+        }
+        const gistFileRows=gistReal.map(s=>({d:s.d,v:s.v}));
+        if(!snapsSame(merged,gistFileRows)){
           await patchSharedFile(c,SNAPS_FILE,{v:1,snaps:merged});
+          markSnapOrigins(gistReal,SNAPS,merged);
           persistSnaps(merged,{skipPush:true});
           applySeedLocal();
           SYNC_ORIGIN.snaps='Gist (snaps.json)';
-        }
-      }
-    }
-    if(kind!=='snaps'){
-      const gSt=await openStored(raw.parsed[SETTINGS_FILE]);
-      if(gSt.state!=='locked'&&gSt.state!=='bad'){
-        const slice=calcSlice(P);
-        const gistSlice=gSt.state==='ok'?calcSlice(gSt.doc):{};
-        if(JSON.stringify(settingsDoc(gistSlice))!==JSON.stringify(settingsDoc(slice))){
-          await patchSharedFile(c,SETTINGS_FILE,settingsDoc(slice));
-          SYNC_ORIGIN.settings='Gist (settings.json)';
         }
       }
     }
@@ -3594,6 +3685,62 @@ function renderTzofik(){
 }
 
 /* SETTINGS */
+async function uploadDeviceCalc(){
+  if(DEMO||SRC==='example')return;
+  const c=canWriteGist();
+  if(!c){toast('כדי להעלות הגדרות חישוב צריך token עם הרשאת gist','warn',7000);return;}
+  const slice=calcSlice(P);
+  try{
+    await patchSharedFile(c,SETTINGS_FILE,settingsDoc(slice));
+    DEVICE_CALC=slice;GIST_CALC=JSON.parse(JSON.stringify(slice));
+    SYNC_ORIGIN.settings='Gist (settings.json) — הועלה עכשיו מהמכשיר הזה';
+    toast('הגדרות החישוב של המכשיר הזה הועלו ל-Gist','ok');
+    if(CUR==='settings')renderSettings();
+  }catch(e){toast('ההעלאה נכשלה: '+(e&&e.message?e.message:e),'err',8000);}
+}
+async function deleteSnapPoint(d){
+  if(DEMO||SRC==='example')return;
+  if(!confirm('למחוק את נקודת '+d+'? היא תוסר גם מה-Gist אם יש token.'))return;
+  v2patch(v=>{
+    v.deletedSnaps=[...new Set([...(v.deletedSnaps||[]),d])];
+    v.trustedSnaps=(v.trustedSnaps||[]).filter(x=>x!==d);
+  });
+  persistSnaps(SNAPS.filter(s=>iso(s.d)!==d),{skipPush:true});
+  delete SNAP_ORIGIN[d];
+  const c=canWriteGist();
+  if(c){
+    try{await pushSharedGist('snaps');toast('הנקודה נמחקה וסונכרנה ל-Gist','ok');}
+    catch(e){toast('נמחקה במכשיר. הסנכרון ל-Gist נכשל: '+(e&&e.message?e.message:e),'warn',8000);}
+  }else toast('הנקודה נמחקה במכשיר הזה. אין token, אז ה-Gist לא עודכן.','warn',7000);
+  if(CUR==='settings')renderSettings();
+}
+function renderCalcSync(){
+  const el=$('#calcSyncCard');if(!el)return;
+  if(DEMO||SRC==='example'){el.hidden=true;return;}
+  el.hidden=false;
+  const diffs=calcDiff(calcSlice(P),GIST_CALC||{});
+  const token=!!(getCreds()&&getCreds().token);
+  const rows=diffs.map(d=>`<div style="padding:4px 0"><b>${esc(CALC_HE[d.k]||d.k)}</b><div class="dim">במכשיר: ${esc(calcBrief(d.k,d.local))} · ב-Gist: ${esc(calcBrief(d.k,d.gist))}</div></div>`).join('');
+  el.innerHTML=`<h3>הגדרות חישוב מול ה-Gist</h3>
+    <p class="dim" style="font-size:12.5px">הגדרות החישוב לא נדרסות אוטומטית. אם המכשיר הזה שונה מה-Gist, אפשר להעלות אותו במפורש.</p>
+    ${diffs.length?`<div class="mt">${rows}</div>`:'<p class="mt">אין הבדל בין הגדרות החישוב במכשיר הזה לבין settings.json.</p>'}
+    <div class="mt"><button class="btn" id="uploadDeviceCalc" type="button" ${token&&diffs.length?'':'disabled'}>העלה את הגדרות החישוב של המכשיר הזה ל-Gist</button></div>
+    ${token?'':'<p class="dim mt">צריך token עם הרשאת gist כדי להעלות.</p>'}`;
+  const btn=$('#uploadDeviceCalc');if(btn&&!btn.disabled)btn.onclick=()=>uploadDeviceCalc();
+}
+function renderSnapHist(){
+  const el=$('#snapHistCard');if(!el)return;
+  if(DEMO||SRC==='example'){el.hidden=true;return;}
+  el.hidden=false;
+  const rows=stripDemoSnaps(SNAPS).slice().sort((a,b)=>String(b.d).localeCompare(String(a.d)));
+  el.innerHTML=`<h3>נקודות היסטוריה</h3>
+    <p class="dim" style="font-size:12.5px">תמונות שווי שנכנסות לתשואה לפי תקופה. מחיקה מסירה את הנקודה במכשיר הזה וב-Gist.</p>
+    ${DEMO_DROPPED?`<p class="mt">בטעינה הזו זוהו נקודות של ספר ההדגמה (${DEMO_DROPPED}) והן לא נשמרו ולא הועלו.</p>`:''}
+    <div class="tbl-wrap mt" style="max-height:320px;overflow:auto"><table id="tblSnaps"><tr><th>תאריך</th><th class="n">שווי</th><th>מקור</th><th></th></tr>
+    ${rows.length?rows.map(s=>`<tr><td class="num">${esc(s.d)}</td><td class="n">${ils(s.v)}</td><td>${esc(SNAP_ORIGIN[s.d]||'מכשיר זה')}</td><td><button type="button" class="btn ghost sm" data-snap-del="${esc(s.d)}">מחק</button></td></tr>`).join(''):'<tr><td colspan="4" class="dim">אין נקודות שמורות.</td></tr>'}
+    </table></div>`;
+  el.querySelectorAll('[data-snap-del]').forEach(b=>{b.onclick=()=>deleteSnapPoint(b.dataset.snapDel);});
+}
 function renderSettings(){
   const nSn=SNAPS.length;
   const ha=v2raw().histAssets;
@@ -3610,6 +3757,7 @@ function renderSettings(){
    :`<div class="chip ex">נתוני דוגמה ${SRC_NOTE}</div><p class="mt">הנתונים סינתטיים, באותו מבנה של FinBoard (tracks / investments / loans / slog / set) + שדות חדשים אופציונליים: <span class="num">costBasis</span>, <span class="num">feePct</span>, <span class="num">principal</span>, <span class="num">principalNote</span>, <span class="num">principalAsOf</span>, <span class="num">pulledAt</span>, <span class="num">openedAt</span>, <span class="num">liquidAt</span>, <span class="num">taxKind</span>, <span class="num">taxableShare</span>. בהלוואה גם <span class="num">group</span>, <span class="num">loanNo</span>, <span class="num">startDate</span>, <span class="num">endDate</span>, <span class="num">linkage</span>, <span class="num">balAsOf</span>.</p><p class="dim">כדי לראות נתונים אמיתיים: פתח באותו דפדפן שבו האתר המקורי מחובר, או הזן Gist ID למטה. <span class="num">?demo=1</span> מכריח נתוני דוגמה.</p>`;
   }
   if($('#setSrc'))$('#setSrc').insertAdjacentHTML('beforeend',syncOriginHtml());
+  renderCalcSync();renderSnapHist();
   renderGistCard();renderBackups();
   const bind=(id,k,parse=Number)=>{const el=$('#'+id);el.value=P[k]??'';el.oninput=()=>{P[k]=el.value===''?null:parse(el.value);savePrefs();};};
   bind('sExp','monthlyExpenses');bind('sEmMonths','emMonths');bind('sConc','concPct');bind('sDrift','driftPct');bind('sFee','feeHigh');
@@ -3632,7 +3780,7 @@ function renderSettings(){
     return rows;};
   $('#tblLook').innerHTML=`<tr><th>מסלול</th><th>סוג נכס</th><th>מטבע</th><th class="hide-m">גאוגרפיה</th><th>מקור</th><th class="n">תשואה ב-v1</th></tr>`+lookRows().map(r=>{const tr=S.tracks.find(x=>x.name===r.t);const who=rowWho(r.hs);
     return `<tr style="${r.unused?'opacity:.55':''}"><td><b>${esc(r.t)}</b>${r.unused?' <span class="faint">(לא בשימוש)</span>':''}${who?`<div class="faint" style="font-size:11px">${esc(who)}${r.hs.length>1?` · ${r.hs.length} אחזקות`:''}</div>`:''}</td><td>${fmtMix(r.L.cls)}</td><td>${fmtMix(r.L.ccy)}</td><td class="hide-m">${fmtMix(r.L.geo)}</td><td>${srcTag(r.L)}</td><td class="n m ${tr&&tr.rate>15?'warn':''}">${tr?tr.rate+'%':'—'}</td></tr>`;}).join('');
-  $('#resetPrefs').onclick=()=>{if(confirm('לאפס את הגדרות FinBoard 2.0? (פרטי ה-Gist של v2 נשמרים). איפוס עם token מעדכן גם את settings.json כדי ששאר המכשירים יראו אותן ברירות מחדל.')){const v=v2raw();const keep={};V2_META.forEach(k=>{if(v[k]!==undefined)keep[k]=v[k];});writeV2(keep);loadPrefs();savePrefs();applyTheme();show(CUR);}};
+  $('#resetPrefs').onclick=()=>{if(confirm('לאפס את הגדרות FinBoard 2.0 במכשיר הזה? (פרטי ה-Gist נשמרים). settings.json ב-Gist לא משתנה עד שלוחצים «העלה את הגדרות החישוב של המכשיר הזה ל-Gist».')){const v=v2raw();const keep={};V2_META.forEach(k=>{if(v[k]!==undefined)keep[k]=v[k];});writeV2(keep);loadPrefs();savePrefs();applyTheme();show(CUR);}};
 }
 const RENDER={update:renderUpdate,overview:renderOverview,alloc:renderAlloc,perf:renderPerf,forecast:()=>renderForecast(true),recs:renderRecs,loans:renderLoans,savings:renderSavings,tzofik:renderTzofik,settings:renderSettings};
 
@@ -3689,9 +3837,14 @@ function applyBalance(inv,newBal,date,extra={}){
   if(isCurrent){const raw=newBal-inv.bal;inv.lastChange=Math.abs(raw)<100?0:raw;inv.lastChangePct=inv.bal?((raw/inv.bal)*100):0;inv.bal=newBal;}
   return true;
 }
-function updateSnapshot(){ // same shape/rules as v1 bootApp auto-snapshot: {d:'YYYY-MM-DD', v: liquid+kupa}, max 400
-  try{const snaps=SNAPS.slice();const today=iso(TODAY);const v=totals().fin;
-    const last=snaps[snaps.length-1];if(last&&last.d===today)last.v=v;else snaps.push({d:today,v});
+function updateSnapshot(){ // recorded only while the real book is open — demo/example never snapshot
+  if(DEMO||SRC==='example')return;
+  try{const snaps=stripDemoSnaps(SNAPS.slice());const today=iso(TODAY);const v=Math.round(totals().fin);
+    if(window.FinDemoGuard&&FinDemoGuard.isDemoPoint(today,v))return;
+    v2patch(x=>{x.trustedSnaps=[...new Set([...(x.trustedSnaps||[]),today])];});
+    const last=snaps[snaps.length-1];
+    const row={d:today,v,real:1};
+    if(last&&last.d===today)snaps[snaps.length-1]=row;else snaps.push(row);
     persistSnaps(snaps);}catch(e){console.warn('snapshot',e);}
 }
 async function patchGist(c,data){ // identical request to v1 gistSave()
@@ -4498,7 +4651,8 @@ async function boot(){
       }
       if (v.syncBackup && v.syncBackup.snaps && !v.syncBackup.enc) {
         const at = v.syncBackup.at;
-        v.syncBackup = { at: at, enc: await FC.seal({ snaps: v.syncBackup.snaps, settings: v.syncBackup.settings || {} }) };
+        const snaps = stripDemoSnaps(v.syncBackup.snaps);
+        v.syncBackup = { at: at, enc: await FC.seal({ snaps: snaps, settings: v.syncBackup.settings || {} }) };
       }
       if (gen !== v2Gen) return;
       localStorage.setItem(KEY_V2, JSON.stringify(v));
@@ -4626,7 +4780,8 @@ async function boot(){
     const sealed = await FC.seal(fin);
     localStorage.setItem(KEY_STATE, JSON.stringify(sealed));
     if (Array.isArray(backup.files.fin26_snaps)) {
-      localStorage.setItem(KEY_SNAPS, JSON.stringify(await FC.seal(backup.files.fin26_snaps)));
+      const cleanSnaps = stripDemoSnaps(normalizeSnaps(backup.files.fin26_snaps));
+      localStorage.setItem(KEY_SNAPS, JSON.stringify(await FC.seal(cleanSnaps)));
     }
     const c = getCreds();
     if (!c || !c.token) return { gist: false };
@@ -4634,7 +4789,7 @@ async function boot(){
     map['finance_data.json'] = JSON.stringify(sealed, null, 2);
     if (backup.files['tasks.json']) map['tasks.json'] = JSON.stringify(await FC.seal(backup.files['tasks.json']), null, 2);
     if (Array.isArray(backup.files.fin26_snaps) && backup.files.fin26_snaps.length) {
-      const rows = realSnaps(backup.files.fin26_snaps);
+      const rows = stripDemoSnaps(realSnaps(backup.files.fin26_snaps)).map(s => ({ d: s.d, v: s.v }));
       if (rows.length) map['snaps.json'] = JSON.stringify(await FC.seal({ v: 1, snaps: rows }), null, 2);
     }
     await patchFiles(c, map);
@@ -4649,7 +4804,7 @@ async function boot(){
     } catch (e) {}
     try {
       const snaps = JSON.parse(localStorage.getItem(KEY_SNAPS) || 'null');
-      if (Array.isArray(snaps)) localStorage.setItem(KEY_SNAPS, JSON.stringify(await FC.seal(snaps)));
+      if (Array.isArray(snaps)) localStorage.setItem(KEY_SNAPS, JSON.stringify(await FC.seal(stripDemoSnaps(snaps))));
     } catch (e) {}
   }
 
@@ -4772,8 +4927,8 @@ async function boot(){
         }
       } catch (e) { toast('הגיבוי מהמכשיר. קבצי Gist נוספים לא נטענו: ' + e.message, 'warn', 7000); }
     }
-    if (Array.isArray(SNAPS) && SNAPS.length) files.fin26_snaps = SNAPS;
-    try { files['snaps.json'] = { v: 1, snaps: realSnaps(SNAPS) }; } catch (e) {}
+    if (Array.isArray(SNAPS) && SNAPS.length) files.fin26_snaps = stripDemoSnaps(SNAPS);
+    try { files['snaps.json'] = { v: 1, snaps: stripDemoSnaps(realSnaps(SNAPS)).map(s => ({ d: s.d, v: s.v })) }; } catch (e) {}
     try { files['settings.json'] = settingsDoc(calcSlice(P)); } catch (e) {}
     FC.downloadJson(FC.datedName('finboard-backup'), { finboardBackup: 1, exportedAt: new Date().toISOString(), files: files });
     toast('הגיבוי ירד למחשב', 'ok');
@@ -4798,7 +4953,7 @@ async function boot(){
     if (Array.isArray(snaps)) persistSnaps(snaps, { skipPush: true });
     const cred = getCreds();
     if (cred && cred.token && snapFile && typeof snapFile === 'object' && !Array.isArray(snapFile)) {
-      try { await patchSharedFile(cred, SNAPS_FILE, { v: 1, snaps: realSnaps(snapFile.snaps || []) }); } catch (e) {}
+      try { await patchSharedFile(cred, SNAPS_FILE, { v: 1, snaps: stripDemoSnaps(realSnaps(snapFile.snaps || [])).map(s => ({ d: s.d, v: s.v })) }); } catch (e) {}
     }
     if (obj.files && obj.files['settings.json'] && typeof obj.files['settings.json'] === 'object') {
       applyCalcToP(calcSlice(obj.files['settings.json']));

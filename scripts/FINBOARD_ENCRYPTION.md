@@ -70,7 +70,11 @@ Daily total-financial-assets points used by period returns (`תשואה לפי �
 
 `d` is `YYYY-MM-DD`. `v` is the rounded financial total. On load, devices union by date: a date that exists only on one side is kept; the same date keeps the value already in the Gist. The first merge on a device also stores the previous local points in `fin26_v2.syncBackup` (sealed once a vault is open). Points that were only filled from the baked-in history seed stay on the device (`seed: 1` in `fin26_snaps`) and are not uploaded, so a fresh browser does not overwrite a richer history that has not been uploaded yet.
 
-The original site (`index.html`) still writes `localStorage['fin26_snaps']` only. The next v2 open on that browser unions those points into `snaps.json`.
+Demo and example mode never write `fin26_snaps` or any other real key. `?demo=1` and `/v2/demo/` replace `localStorage` / `sessionStorage` methods (Safari keeps `setItem` as an own property, so a prototype patch is not enough) and refuse GitHub requests. `assets/finboard-demo-guard.js` is also loaded by the original site. On every page it strips a `fin26_snaps` array before `setItem`: exact date+value pairs from the fictional monthly series, and any point equal to the demo total 3,494,650. The same filter runs again before a union. Matching points are removed from `fin26_snaps` and from `syncBackup`.
+
+A device may upload non-demo local history once, on the first successful Gist sync. `fin26_v2.snapGate` is set only after that upload, or when there was nothing new to send. After the gate, the only local points eligible to upload are ones recorded while the real book was open (`real: 1` from v2 or from the original site). A later demo leak cannot be bulk-unioned. Dates the user deleted in Settings (`deletedSnaps`) stay out of the union, and the cleaned file is written back when it differs from the Gist.
+
+The original site (`index.html`) still writes `localStorage['fin26_snaps']` only. It drops demo points on read and on write, and marks the snapshot it records while unlocked with `real: 1`, so the next v2 open can union that real point.
 
 ### `settings.json` (plaintext inside the envelope)
 
@@ -97,7 +101,7 @@ Calculation inputs that change the forecast, tax line, allocation drift, and cha
 }
 ```
 
-Keys absent from the file stay at the site's built-in default. On the first merge, a key that already exists in the Gist wins; a key that exists only on the device is uploaded. Later edits on an unlocked device with a token overwrite `settings.json`.
+Keys absent from the file stay at the site's built-in default. `settings.json` is never written automatically: the first device to sync must not replace another device's forecast, tax, or allocation settings. If this browser has stored calculation keys that differ from the Gist, v2 keeps the device copy on screen and Settings lists the difference. The button «העלה את הגדרות החישוב של המכשיר הזה ל-Gist» is the only publish path. A browser with no stored calculation keys shows the Gist copy in memory and does not write it back until that button is used.
 
 Not in this file (they stay in `localStorage` on that browser only): `theme`, blur/`privacy`, `hideDoneTasks`, the open tab (URL hash), Gist id/token, backups, and the Gemini key.
 
