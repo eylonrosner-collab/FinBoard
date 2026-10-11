@@ -42,7 +42,8 @@ body.privacy:not(.tz-recipient) .big-result .m,
 body.privacy:not(.tz-recipient) .ov-fc-val .m,
 body.privacy:not(.tz-recipient) .ov-fee-kpi .val .m,
 body.privacy:not(.tz-recipient) .tz-val .m,
-body.privacy:not(.tz-recipient) .period .p-v .m{filter:blur(22px);-webkit-filter:blur(22px)}
+body.privacy:not(.tz-recipient) .period .p-v .m,
+body.privacy:not(.tz-recipient) .loan-sum .val .m{filter:blur(22px);-webkit-filter:blur(22px)}
 body.privacy:not(.tz-recipient) .chart,
 body.privacy:not(.tz-recipient) .hold-chart{filter:blur(10px);-webkit-filter:blur(10px)}
 body.privacy:not(.tz-recipient) .uin input,
@@ -50,7 +51,10 @@ body.privacy:not(.tz-recipient) .pg-amt input,
 body.privacy:not(.tz-recipient) .pg-dep input,
 body.privacy:not(.tz-recipient) #fMonthly,
 body.privacy:not(.tz-recipient) #fGoal,
-body.privacy:not(.tz-recipient) #sExp{color:transparent;text-shadow:0 0 8px var(--text);caret-color:var(--text)}
+body.privacy:not(.tz-recipient) #sExp,
+body.privacy:not(.tz-recipient) #ppExtra,
+body.privacy:not(.tz-recipient) #ppLump,
+body.privacy:not(.tz-recipient) #ppFee{color:transparent;text-shadow:0 0 8px var(--text);caret-color:var(--text)}
 body.tz-shotting .m,body.tz-shotting .chart,body.tz-shotting .hold-chart{filter:none!important;-webkit-filter:none!important}
 /* layout */
 .app{display:grid;grid-template-columns:232px 1fr;min-height:100vh}
@@ -113,6 +117,18 @@ body:not(.privacy) #privBtn .ico-show{display:block}
 .seg button{border:0;background:none;color:var(--dim);font:inherit;font-size:12px;padding:4px 10px;border-radius:7px;cursor:pointer}
 .seg button.on{background:var(--pri);color:#fff}
 .chart{position:relative;height:280px}.chart.sm{height:220px}.chart.lg{height:360px}
+.loan-sum{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px 12px;margin:2px 0 10px}
+.loan-sum .lbl{font-size:11px;color:var(--dim)}
+.loan-sum .val{font-size:18px;font-weight:750;line-height:1.25}
+.loan-sum .foot{font-size:11px;color:var(--dim);margin-top:2px;line-height:1.35}
+.loan-steps{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.loan-step{font-size:13px;padding:6px 10px;border-radius:10px;background:var(--card2);border:1px solid var(--line)}
+.loan-seg{flex-wrap:wrap}
+.loan-seg button{white-space:normal;line-height:1.25}
+.loan-mo td{font-size:12px;background:var(--card2)}
+.loan-cpi{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.loan-cpi input{width:72px;height:32px;border-radius:8px;border:1px solid var(--line2);background:var(--card2);color:var(--text);padding:0 8px;font:inherit;direction:ltr}
+.loan-sim{grid-template-columns:1fr 1fr}
 /* tables */
 .tbl-wrap{overflow-x:auto;margin:0 -4px;max-width:100%;-webkit-overflow-scrolling:touch}
 table{width:100%;border-collapse:collapse;font-size:13px}
@@ -285,6 +301,12 @@ pre.json{max-height:320px;overflow:auto;direction:ltr;text-align:left;font-size:
   .btn{min-height:44px}
   .seg button{min-height:40px;padding:8px 12px}
   .qchip{min-height:40px;padding:8px 12px}
+  .loan-sum{grid-template-columns:1fr 1fr}
+  .loan-sum .val{font-size:16px}
+  .loan-cpi{width:100%}
+  .loan-cpi input{height:44px;width:88px}
+  #p-loans .card-head .tools,#loanSchedCard .tools{width:100%}
+  #p-loans .loan-sim{grid-template-columns:1fr}
   .ov-bottom{grid-template-columns:1fr}.ov-tasks{grid-column:auto}
   .ov-fc-val{font-size:24px}
   .task-add input,.task-text{font-size:16px}
@@ -708,17 +730,41 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
     <!-- LOANS -->
     <section class="page" id="p-loans">
       <div class="grid g4" id="loanKpis"></div>
+      <div id="loanGroups"></div>
       <div class="card mt"><div class="card-head"><h3>הלוואות פעילות</h3><div class="tools"><button class="btn sm" data-edit-loan="">+ הלוואה</button></div></div><div class="tbl-wrap"><table id="tblLoans"></table></div></div>
       <div class="grid g-2-1 mt">
-        <div class="card"><h3>לוח סילוק — יתרה לאורך זמן</h3><div class="chart lg"><canvas id="cLoans"></canvas></div></div>
+        <div class="card">
+          <div class="card-head">
+            <h3 id="loanChartTitle">יתרה לאורך השנים</h3>
+            <div class="tools"><div class="seg loan-seg" id="loanChartMode"><button type="button" data-m="bal" class="on">יתרה לאורך השנים</button><button type="button" data-m="pay">החזר חודשי לאורך השנים</button></div></div>
+          </div>
+          <div class="chart lg"><canvas id="cLoans"></canvas></div>
+          <div class="dim" id="loanChartNote" style="font-size:12px;margin-top:8px"></div>
+        </div>
         <div class="card"><h3>סימולטור פירעון מוקדם</h3>
-          <div class="form" style="grid-template-columns:1fr 1fr">
-            <div class="field" style="grid-column:1/-1"><label>הלוואה</label><select id="ppLoan"></select></div>
+          <div class="form loan-sim">
+            <div class="field" style="grid-column:1/-1"><label>הלוואה או משכנתא</label><select id="ppLoan"></select></div>
+            <div class="field" style="grid-column:1/-1"><label>מה עושים עם הפירעון</label>
+              <div class="seg" id="ppMode"><button type="button" data-m="term" class="on">קיצור תקופה</button><button type="button" data-m="pay">הקטנת החזר</button></div>
+              <div class="hint">קיצור תקופה שומר על ההחזר ומקדים את הסיום, והתוספת החודשית יורדת מהקרן. הקטנת החזר שומרת על תאריך הסיום ומורידה את התשלום; התוספת החודשית מושקעת ולא נשלחת להלוואה.</div>
+            </div>
             <div class="field"><label>תוספת חודשית (₪)</label><input type="number" id="ppExtra" value="1000" step="250"></div>
-            <div class="field"><label>פירעון חד-פעמי (₪)</label><input type="number" id="ppLump" value="0" step="5000"></div>
+            <div class="field"><label>פירעון חד-פעמי (₪)</label><input type="number" id="ppLump" value="0" step="5000"><div class="chips-row"><button type="button" class="qchip" id="ppAll">כל היתרה</button></div></div>
+            <div class="field" style="grid-column:1/-1"><label>עמלת פירעון מוקדם (₪, אופציונלי)</label><input type="number" id="ppFee" value="0" step="100"><div class="hint">משולמת עכשיו ואינה מקטינה את הקרן. אפשר להשאיר 0.</div></div>
           </div>
           <div id="ppOut" class="mt"></div>
         </div>
+      </div>
+      <div class="card mt" id="loanSchedCard">
+        <div class="card-head">
+          <h3>לוח סילוקין</h3>
+          <div class="tools">
+            <div class="seg loan-seg" id="loanSchedScope"></div>
+            <div class="loan-cpi"><label for="loanCpi">הנחת מדד שנתית</label><input id="loanCpi" type="number" min="0" max="20" step="0.1" value="0" aria-label="הנחת מדד שנתית באחוזים"><span class="dim">%</span><button type="button" class="qchip" data-cpi="0">0%</button><button type="button" class="qchip" data-cpi="2.5">2.5%</button></div>
+          </div>
+        </div>
+        <div class="dim" id="loanSchedNote" style="font-size:12px;margin-bottom:8px"></div>
+        <div class="tbl-wrap"><table id="tblSched"></table></div>
       </div>
       <div class="card mt"><h3>הלוואות שנסגרו</h3><div class="tbl-wrap"><table id="tblClosed"></table></div></div>
     </section>
@@ -857,6 +903,9 @@ const D=x=>(typeof x==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(x))?new Date(+x.slic
 const iso=d=>{const x=D(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');};
 const heDate=d=>D(d).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',year:'numeric'});
 const heMonth=d=>D(d).toLocaleDateString('he-IL',{month:'short',year:'numeric'});
+const HE_MON=['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+function heMonY(d){const x=D(d);return HE_MON[x.getMonth()]+' '+x.getFullYear();}
+function heFromMon(d){const x=D(d);return 'מ'+HE_MON[x.getMonth()]+' '+x.getFullYear();}
 const addMonths=(d,m)=>{const x=D(d);x.setMonth(x.getMonth()+m);return x;};
 const monthsBetween=(a,b)=>{a=D(a);b=D(b);return (b.getFullYear()-a.getFullYear())*12+(b.getMonth()-a.getMonth())+(b.getDate()>=a.getDate()?0:-1);};
 const daysBetween=(a,b)=>(D(b)-D(a))/864e5;
@@ -926,7 +975,11 @@ function makeExample(){
     return o;});
   investments.push({id:'e99',cat:'realestate',name:'דירת מגורים (דוגמה)',inst:'',track:'נדל"ן',owner:'',accNum:'',bal:2850000,notes:''});
   const loans=[
-    {id:'xl1',name:'משכנתא (דוגמה)',inst:'בנק (דוגמה)',bal:742000,origBal:1000000,monthlyPay:5900,annualPay:70800,rate:4.6,notes:'',closed:false},
+    {id:'xm1',name:'פריים',inst:'בנק לאומי (דוגמה)',group:'משכנתא לאומי',loanNo:'…0170',bal:120000,origBal:200000,monthlyPay:1276,annualPay:15312,rate:4.16,linkage:'לא צמוד',startDate:'2016-03-10',endDate:'2036-02-10',balAsOf:'2026-08-10',pulledAt:'2026-08-11',notes:'חמישה מסלולים (דוגמה)',closed:false},
+    {id:'xm2',name:'קבועה צמודת מדד',inst:'בנק לאומי (דוגמה)',group:'משכנתא לאומי',loanNo:'…0171',bal:65000,origBal:150000,monthlyPay:3709,annualPay:44508,rate:3.40,linkage:'צמוד מדד',startDate:'2018-03-10',endDate:'2028-02-10',balAsOf:'2026-08-10',pulledAt:'2026-08-11',notes:'',closed:false},
+    {id:'xm3',name:'פריים − 0.35%',inst:'בנק לאומי (דוגמה)',group:'משכנתא לאומי',loanNo:'…0172',bal:85000,origBal:140000,monthlyPay:934,annualPay:11208,rate:4.90,linkage:'לא צמוד',startDate:'2016-03-10',endDate:'2036-02-10',balAsOf:'2026-08-10',pulledAt:'2026-08-11',notes:'',closed:false},
+    {id:'xm4',name:'קבועה צמודת מדד',inst:'בנק לאומי (דוגמה)',group:'משכנתא לאומי',loanNo:'…0173',bal:64000,origBal:120000,monthlyPay:1996,annualPay:23952,rate:2.05,linkage:'צמוד מדד',startDate:'2019-06-10',endDate:'2029-05-10',balAsOf:'2026-08-10',pulledAt:'2026-08-11',notes:'',closed:false},
+    {id:'xm5',name:'קבועה לא צמודה',inst:'בנק לאומי (דוגמה)',group:'משכנתא לאומי',loanNo:'…0174',bal:55000,origBal:100000,monthlyPay:1285,annualPay:15420,rate:2.65,linkage:'לא צמוד',startDate:'2020-06-10',endDate:'2030-05-10',balAsOf:'2026-08-10',pulledAt:'2026-08-11',notes:'',closed:false},
     {id:'xl2',name:'הלוואת רכב (דוגמה)',inst:'חברת מימון (דוגמה)',bal:48000,origBal:90000,monthlyPay:2100,annualPay:25200,rate:8.9,notes:'',closed:false},
     {id:'xl3',name:'הלוואה ע"ח קופה (דוגמה)',inst:'בית השקעות ב',bal:15000,origBal:40000,monthlyPay:1000,annualPay:12000,rate:4.2,notes:'',closed:false},
     {id:'xl4',name:'הלוואה ישנה (דוגמה)',inst:'',bal:0,origBal:120000,monthlyPay:0,annualPay:0,rate:5.5,notes:'נסגרה 2024',closed:true}];
@@ -1294,7 +1347,7 @@ function totals(){
   const finH=S.investments.filter(isFin);
   const fin=sum(finH,i=>i.bal), liq=sum(finH.filter(isLiq),i=>i.bal), locked=sum(finH.filter(i=>!isLiq(i)),i=>i.bal);
   const re=sum(S.investments.filter(i=>i.cat==='realestate'),i=>i.bal); // re kept in storage; ignored in v2
-  const debt=sum(S.loans.filter(l=>!l.closed),l=>+l.bal||0);
+  const debt=sum(S.loans.filter(l=>!l.closed),l=>loanBal(l));
   return {fin,liq,locked,re,debt,net:fin-debt}; // RE excluded from net worth in v2
 }
 let PUB={funds:[],sources:[],generatedAt:null,live:false};
@@ -1602,16 +1655,581 @@ function updateDateHtml(i){
 }
 function avgMonthlyContrib(months=12){const from=iso(addMonths(TODAY,-months));return contribBetween(from,iso(TODAY))/months;}
 
-/* loans */
+/* loans — multi-track mortgages, roll-forward estimate, Spitzer schedule.
+   The estimated balance is display-only and is never written back to the Gist. */
+const LOAN_PAL=['#f05252','#f5a524','#8b6cff','#38bdf8','#22c55e','#f472b6','#94a3b8','#fb923c'];
+const PP_TAX=0.25;
+let loanChartMode='bal', loanSchedScope='all', loanSchedOpen=new Set(), ppMode='term';
 function loanPay(l){return +l.monthlyPay||Math.round((+l.annualPay||0)/12);}
-function amort(l,extra=0,lump=0){
-  const r=(+l.rate||0)/100/12,pay=loanPay(l)+extra;let b=Math.max(0,(+l.bal||0)-lump),m=0,int=0;const series=[b];
-  if(b<=0)return{ok:true,months:0,interest:0,series:[0],pay};
-  if(pay<=b*r)return{ok:false,months:Infinity,interest:Infinity,series,pay};
-  while(b>0.5&&m<720){const i=b*r;int+=i;b=Math.max(0,b+i-pay);series.push(b);m++;}
-  return{ok:true,months:m,interest:int,series,pay};
+function loanIso(v){const s=String(v||'').trim().slice(0,10);return /^\d{4}-\d{2}-\d{2}$/.test(s)?s:'';}
+function loanBankBal(l){return Math.max(0,+l?.bal||0);}
+function loanPayDay(l){
+  const s=loanIso(l&&l.startDate);
+  if(!s) return 1;
+  const d=+s.slice(8,10);
+  return d>=1&&d<=31?d:1;
 }
-
+function isCpiLinked(l){
+  const s=String(l&&l.linkage||'').trim();
+  if(!s||/לא\s*צמוד/.test(s)) return false;
+  return /צמוד/.test(s);
+}
+function loanCpiPct(){
+  const n=P&&+P.loanCpi;
+  return isFinite(n)?Math.max(0,n):0;
+}
+function loanIdx(l){
+  if(!isCpiLinked(l)) return 1;
+  const c=loanCpiPct();
+  if(!c) return 1;
+  return Math.pow(1+c/100,1/12);
+}
+function payDate(y,m,day){
+  const last=new Date(y,m+1,0).getDate();
+  return new Date(y,m,Math.max(1,Math.min(day||1,last)),12,0,0,0);
+}
+function upcomingPayDates(after, day, endIso, maxN){
+  const out=[];
+  const start=D(after);
+  const end=endIso?D(endIso):null;
+  const cap=maxN||720;
+  let y=start.getFullYear(), m=start.getMonth();
+  for(let g=0;g<cap+80 && out.length<cap;g++){
+    const dt=payDate(y,m,day);
+    if(dt>start){
+      if(end && dt>end) break;
+      out.push(dt);
+    }
+    m++; if(m>11){m=0;y++;}
+    if(y>start.getFullYear()+80) break;
+  }
+  return out;
+}
+function applyLoanMonth(bal, annualRate, payBase, idx, k){
+  const r=(+annualRate||0)/100/12;
+  const growth=Math.pow(idx||1, k);
+  const b=bal*(idx||1);
+  const interest=b*r;
+  const due=b+interest;
+  let pay=Math.max(0,(+payBase||0)*growth);
+  if(pay>due) pay=due;
+  return {bal:Math.max(0,due-pay), interest, principal:pay-interest, pay};
+}
+function spitzerPayment(bal, annualRate, n){
+  if(!(bal>0)||!(n>0)) return 0;
+  const r=(+annualRate||0)/100/12;
+  if(Math.abs(r)<1e-12) return bal/n;
+  const f=Math.pow(1+r,n);
+  if(!isFinite(f)||Math.abs(f-1)<1e-12) return bal/n;
+  return bal*r*f/(f-1);
+}
+function loanCanRoll(l){
+  if(!l||l.closed) return false;
+  if(!(loanBankBal(l)>0)) return false;
+  if(!loanIso(l.balAsOf)) return false;
+  if(!isFinite(+l.rate)) return false;
+  if(!(loanPay(l)>0)) return false;
+  return true;
+}
+function rollLoan(l, until){
+  const bank=loanBankBal(l);
+  if(!loanCanRoll(l)) return {bal:bank, months:0, interest:0, rolled:false};
+  const untilIso=iso(until||TODAY);
+  const asOf=loanIso(l.balAsOf);
+  if(untilIso<=asOf) return {bal:bank, months:0, interest:0, rolled:false};
+  const dates=upcomingPayDates(asOf, loanPayDay(l), untilIso, 720);
+  let bal=bank, interest=0, n=0;
+  const idx=loanIdx(l), pay=loanPay(l);
+  for(let i=0;i<dates.length;i++){
+    if(bal<=0.5){bal=0;break;}
+    n++;
+    const step=applyLoanMonth(bal, +l.rate||0, pay, idx, n);
+    interest+=step.interest;
+    bal=step.bal;
+    if(bal<=0.5){bal=0;break;}
+  }
+  return {bal, months:n, interest, rolled:n>0};
+}
+function loanBalInfo(l){
+  const bank=loanBankBal(l);
+  const asOf=loanIso(l&&l.balAsOf);
+  if(!l||l.closed) return {bank, est:bank, asOf, rolled:false, months:0};
+  const roll=rollLoan(l, TODAY);
+  return {bank, est:roll.bal, asOf, rolled:!!(roll.rolled && asOf && asOf<iso(TODAY)), months:roll.months};
+}
+function loanBal(l){return loanBalInfo(l).est;}
+function bankLoans(){return (S.loans||[]).filter(l=>!l.closed && loanBankBal(l)>0.5);}
+function liveLoans(){return bankLoans().filter(l=>loanBal(l)>0.5);}
+function loanGroupsOf(loans){
+  const map=new Map();
+  loans.forEach(l=>{
+    const g=String(l.group||'').trim();
+    if(!g) return;
+    if(!map.has(g)) map.set(g,[]);
+    map.get(g).push(l);
+  });
+  return [...map.entries()].map(([name,ls])=>({name, loans:ls}));
+}
+function buildSchedule(l, {extra=0, lump=0, useEnd=true}={}){
+  const info=loanBalInfo(l);
+  const bal0=Math.max(0, info.est-(+lump||0));
+  const idx=loanIdx(l);
+  const stored=loanPay(l);
+  const end=useEnd?loanIso(l.endDate):'';
+  const rate=+l.rate||0;
+  const r=rate/100/12;
+  const empty={ok:true, months:0, interest:0, series:[0], pay:stored, contractual:stored, rows:[], bal0:0, differs:false, idx};
+  if(bal0<=0.5) return empty;
+  let dates=upcomingPayDates(TODAY, loanPayDay(l), end||null, 720);
+  if(end && !dates.length) dates=[D(TODAY)];
+  let payBase=stored+(+extra||0);
+  if(end && !(extra||lump)) payBase=spitzerPayment(bal0, rate, dates.length);
+  const firstNominal=payBase*(idx||1);
+  const differs=!!(end && !(extra||lump) && stored>0 && Math.abs(firstNominal-stored)>Math.max(15, Math.abs(stored)*0.015));
+  if(!end && r>0 && firstNominal<=bal0*idx*r+0.5){
+    return {ok:false, months:Infinity, interest:Infinity, series:[bal0], pay:stored, contractual:firstNominal, rows:[], bal0, differs, idx};
+  }
+  let bal=bal0, interest=0;
+  const rows=[], series=[bal0];
+  for(let i=0;i<dates.length && bal>0.5;i++){
+    const step=applyLoanMonth(bal, rate, payBase, idx, i+1);
+    if(!end && step.pay<=step.interest+0.5 && step.bal>=bal-0.01){
+      return {ok:false, months:Infinity, interest:Infinity, series, pay:stored, contractual:firstNominal, rows, bal0, differs, idx};
+    }
+    interest+=step.interest;
+    bal=step.bal;
+    rows.push({date:iso(dates[i]), pay:step.pay, interest:step.interest, principal:step.principal, bal});
+    series.push(bal);
+    if(bal<=0.5){bal=0; rows[rows.length-1].bal=0; break;}
+  }
+  return {ok:bal<=0.5, months:rows.length, interest, series, pay:stored, contractual:rows.length?rows[0].pay:firstNominal, rows, bal0, differs, idx};
+}
+function amort(l, extra=0, lump=0){
+  extra=+extra||0; lump=+lump||0;
+  return buildSchedule(l, {extra, lump, useEnd:extra===0&&lump===0});
+}
+function mergedSchedule(loans){
+  const am=loans.map(l=>({l, a:amort(l)}));
+  const yms=new Set();
+  am.forEach(({a})=>a.rows.forEach(r=>yms.add(r.date.slice(0,7))));
+  const keys=[...yms].sort();
+  const rows=[];
+  if(keys.length){
+    let d=D(keys[0]+'-01');
+    const end=keys[keys.length-1];
+    while(iso(d).slice(0,7)<=end && rows.length<780){
+      const ym=iso(d).slice(0,7);
+      let pay=0, interest=0, principal=0, bal=0;
+      am.forEach(({a})=>{
+        const row=a.rows.find(r=>r.date.slice(0,7)===ym);
+        if(row){pay+=row.pay; interest+=row.interest; principal+=row.principal;}
+        let b=a.bal0;
+        for(const r of a.rows){ if(r.date.slice(0,7)<=ym) b=r.bal; else break; }
+        bal+=b;
+      });
+      rows.push({ym, pay, interest, principal, bal});
+      d=addMonths(d,1);
+    }
+  }
+  return {am, rows, ok:am.every(x=>x.a.ok || x.a.bal0<=0.5)};
+}
+function paymentSteps(rows){
+  const steps=[];
+  let prev=null;
+  rows.forEach(r=>{
+    if(prev==null){prev=r.pay; return;}
+    if(prev-r.pay>20){steps.push({ym:r.ym, pay:r.pay}); prev=r.pay;}
+    else if(r.pay>prev+20) prev=r.pay;
+  });
+  return steps;
+}
+function yearBuckets(monthRows){
+  if(!monthRows.length) return [];
+  const by=new Map(monthRows.map(r=>[r.ym,r]));
+  const first=monthRows[0], last=monthRows[monthRows.length-1];
+  const firstY=+first.ym.slice(0,4), lastY=+last.ym.slice(0,4);
+  const years=[];
+  for(let y=firstY;y<=lastY;y++){
+    const m0=y===firstY?+first.ym.slice(5,7):1;
+    const months=[];
+    for(let m=m0;m<=12;m++){
+      const ym=y+'-'+String(m).padStart(2,'0');
+      if(by.has(ym)) months.push(by.get(ym));
+      else if(ym>last.ym) months.push({ym, pay:0, interest:0, principal:0, bal:last.bal});
+    }
+    const tail=months[months.length-1];
+    years.push({
+      y, months,
+      pay:sum(months,x=>x.pay),
+      principal:sum(months,x=>x.principal),
+      interest:sum(months,x=>x.interest),
+      bal:tail?tail.bal:0,
+      payEnd:tail?tail.pay:0
+    });
+  }
+  return years;
+}
+function investPath(initial, contribs, annR, feePct){
+  const i=Math.pow(1+((+annR||0)-(+feePct||0))/100, 1/12)-1;
+  let v=+initial||0, put=v;
+  for(let m=0;m<contribs.length;m++){
+    const c=+contribs[m]||0;
+    v=v*(1+i)+c;
+    put+=c;
+  }
+  const gain=v-put, tax=Math.max(0,gain)*PP_TAX;
+  return {end:v-tax, gross:v, tax, contrib:put, gainAfterTax:(v-tax)-put};
+}
+/* Apples-to-apples prepay vs invest over the ORIGINAL remaining horizon.
+   A: lump (and, in shorten mode, extra) goes to the loan; after it ends, the
+      payment that would have been made is invested until the original end.
+   B: the same lump and extra are invested for the whole original horizon. */
+function prepayCompare(loans, opt){
+  const lump=Math.max(0,+opt.lump||0), extra=Math.max(0,+opt.extra||0), fee=Math.max(0,+opt.fee||0);
+  const mode=opt.mode==='pay'?'pay':'term';
+  const base=mergedSchedule(loans);
+  if(!base.rows.length || base.am.some(x=>!x.a.ok && x.a.bal0>0.5)) return {ok:false, reason:'cover'};
+  const H=base.rows.length;
+  const interest0=sum(base.rows, r=>r.interest);
+  const tracks=base.am.map(({l,a})=>({
+    rate:+l.rate||0,
+    bal:a.bal0,
+    pay:a.rows.length?a.rows[0].pay:loanPay(l),
+    n:Math.max(a.rows.length,1),
+    left:Math.max(a.rows.length,1),
+    sched:new Map(a.rows.map(r=>[r.date.slice(0,7), r.pay]))
+  }));
+  let leftL=lump;
+  const byRate=()=>tracks.filter(t=>t.bal>0.5).sort((a,b)=>b.rate-a.rate||b.bal-a.bal);
+  for(const t of byRate()){
+    if(leftL<=0) break;
+    const cut=Math.min(t.bal, leftL);
+    t.bal-=cut; leftL-=cut;
+    if(t.bal<1){leftL+=t.bal; t.bal=0;}
+  }
+  if(mode==='pay'){
+    tracks.forEach(t=>{
+      if(t.bal<=0.5){t.pay=0; t.left=0; return;}
+      t.pay=spitzerPayment(t.bal, t.rate, t.n);
+      t.left=t.n;
+    });
+  }
+  const newMonthly=sum(tracks, t=>t.bal>0.5?t.pay:0);
+  let interest1=0;
+  let months1=tracks.some(t=>t.bal>0.5)?null:0;
+  const freed=new Array(H).fill(0);
+  for(let m=0;m<H;m++){
+    if(!tracks.some(t=>t.bal>0.5)){
+      freed[m]=base.rows[m].pay+(mode==='term'?extra:extra);
+      if(months1==null) months1=m;
+      continue;
+    }
+    tracks.forEach(t=>{
+      t._open=t.bal>0.5;
+      t._i=0; t._p=0;
+      if(!t._open) return;
+      if(mode==='pay' && t.left<=0) return;
+      const r=t.rate/100/12, i=t.bal*r, due=t.bal+i;
+      t._i=i; t._p=Math.min(t.pay, due);
+    });
+    if(mode==='term' && extra>0){
+      let ex=extra;
+      for(const t of byRate()){
+        if(ex<=0) break;
+        const room=Math.max(0, t.bal+t._i-t._p);
+        const add=Math.min(room, ex);
+        t._p+=add; ex-=add;
+      }
+    }
+    let actual=0;
+    tracks.forEach(t=>{
+      if(!(t._p>0)) return;
+      interest1+=t._i;
+      actual+=t._p;
+      t.bal=Math.max(0, t.bal+t._i-t._p);
+      if(t.bal<0.5) t.bal=0;
+      if(mode==='pay') t.left--;
+    });
+    if(!tracks.some(t=>t.bal>0.5)){
+      if(months1==null) months1=m+1;
+      freed[m]=0;
+    }else if(mode==='pay'){
+      freed[m]=Math.max(0, base.rows[m].pay-actual)+extra;
+    }else{
+      let freedPay=0;
+      tracks.forEach(t=>{
+        if(t._open) return;
+        const p=t.sched.get(base.rows[m].ym);
+        if(p) freedPay+=p;
+      });
+      freed[m]=freedPay;
+    }
+  }
+  if(months1==null) months1=H;
+  const R=assumedReturn('fin');
+  const feePct=weightedFee('fin');
+  const feeR=feePct==null?0.5:feePct;
+  const wealthB=investPath(lump, Array(H).fill(extra), R, feeR);
+  const wealthA0=investPath(leftL, freed, R, feeR);
+  const feeDrag=fee>0?investPath(fee, Array(H).fill(0), R, feeR).end:0;
+  return {
+    ok:true, mode, H, interest0, interest1, months1, fee, feeDrag,
+    pay0:base.rows[0].pay, newMonthly, endYm:base.rows[H-1].ym,
+    endYm1:months1>0?base.rows[Math.min(H,months1)-1].ym:null,
+    wealthA:wealthA0.end-feeDrag, wealthB:wealthB.end,
+    gainB:wealthB.gainAfterTax, R, feeR, applied:lump-leftL
+  };
+}
+function debtOutlook(m){
+  const target=m?addMonths(TODAY, m):TODAY;
+  const ym=iso(target).slice(0,7);
+  let bal=0, pay=0;
+  liveLoans().forEach(l=>{
+    const a=amort(l);
+    if(!m){bal+=a.bal0; pay+=loanPay(l); return;}
+    let b=a.bal0, p=0;
+    for(const row of a.rows){
+      if(D(row.date)<=target){b=row.bal; if(row.date.slice(0,7)===ym) p=row.pay;}
+    }
+    if(!p && b>0.5){
+      const nxt=a.rows.find(r=>D(r.date)>target);
+      if(nxt) p=nxt.pay;
+    }
+    bal+=b; pay+=p;
+  });
+  return {bal, pay};
+}
+function loanBalHtml(l){
+  const info=loanBalInfo(l);
+  if(!info.rolled) return `${ils(info.bank)}${info.asOf?`<div class="faint" style="font-size:10px">נכון ל־${heDate(info.asOf)}</div>`:''}`;
+  return `${ils(info.est)}<div class="faint" style="font-size:10px">מוערכת להיום</div><div class="faint" style="font-size:10px">בבנק ${ils(info.bank)} · ${heDate(info.asOf)}</div>`;
+}
+function loansForScope(scope){
+  const act=bankLoans();
+  if(!scope||scope==='all') return act;
+  if(scope.startsWith('grp:')){
+    const name=decodeURIComponent(scope.slice(4));
+    return act.filter(l=>String(l.group||'').trim()===name);
+  }
+  return act;
+}
+function paintLoanChart(act){
+  const am=(act||[]).map(l=>({l,a:amort(l)}));
+  $$('#loanChartMode button').forEach(b=>b.classList.toggle('on', b.dataset.m===loanChartMode));
+  const title=$('#loanChartTitle');
+  if(title) title.textContent=loanChartMode==='pay'?'החזר חודשי לאורך השנים':'יתרה לאורך השנים';
+  const note=$('#loanChartNote');
+  const todayYm=iso(TODAY).slice(0,7);
+  let last=todayYm;
+  am.forEach(({a})=>a.rows.forEach(r=>{if(r.date.slice(0,7)>last) last=r.date.slice(0,7);}));
+  const after=iso(addMonths(last+'-01',1)).slice(0,7);
+  const yms=[];
+  let d=D(todayYm+'-01');
+  while(iso(d).slice(0,7)<=after && yms.length<780){yms.push(iso(d).slice(0,7)); d=addMonths(d,1);}
+  const val=(a,ym)=>{
+    if(loanChartMode==='pay'){
+      if(!a.rows.length||ym>a.rows[a.rows.length-1].date.slice(0,7)) return 0;
+      let p=a.rows[0].pay;
+      for(const r of a.rows){ if(r.date.slice(0,7)<=ym) p=r.pay; }
+      return p;
+    }
+    let b=a.bal0;
+    for(const r of a.rows){ if(r.date.slice(0,7)<=ym) b=r.bal; else break; }
+    return b;
+  };
+  if(!am.length){if(charts.cLoans){charts.cLoans.destroy(); delete charts.cLoans;} if(note) note.textContent=''; return;}
+  mk('cLoans',{type:'line',data:{datasets:am.map(({l,a},k)=>({
+    label:(l.group?l.group+' · ':'')+l.name,
+    data:yms.map(ym=>({x:ym+'-01', y:Math.round(val(a,ym))})),
+    borderColor:LOAN_PAL[k%LOAN_PAL.length], backgroundColor:LOAN_PAL[k%LOAN_PAL.length]+'66',
+    fill:true, pointRadius:0, borderWidth:1.6, stack:'s',
+    stepped:loanChartMode==='pay'?'after':false
+  }))},
+  options:{interaction:{mode:'index',intersect:false},
+    scales:{x:xTime('year'), y:{...yMoney, stacked:true}},
+    plugins:{tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${ilsT(c.raw.y)}`}}}}});
+  if(note) note.textContent=loanChartMode==='pay'
+    ?'החזר חודשי כולל מהיום והלאה, מוערם לפי מסלול. הקו יורד בחודש שאחרי התשלום האחרון של כל מסלול.'
+    :'יתרה מוערכת להיום ולאורך לוח הסילוקין, מוערמת לפי מסלול.';
+}
+function paintSchedule(loans){
+  const sched=mergedSchedule(loans);
+  const years=yearBuckets(sched.rows);
+  const linked=loans.some(isCpiLinked);
+  const cpi=loanCpiPct();
+  const note=$('#loanSchedNote');
+  if(note){
+    note.innerHTML=linked
+      ?`מסלול צמוד מדד מחושב ${cpi?`עם הנחת מדד ${cpi}% בשנה (היתרה וההחזר מוצמדים כל חודש)`:'<b>בלי מדד עתידי</b> — לוח נומינלי. אפשר להזין הנחת מדד (למשל 2.5%) והלוח יתעדכן.'}`
+      :'אין במבחר מסלול צמוד מדד. לוח שפיצר לפי הריבית והתאריך של כל הלוואה.';
+  }
+  const head=`<tr><th>שנה</th><th class="n">שולם</th><th class="n">קרן</th><th class="n">ריבית</th><th class="n">יתרה בסוף השנה</th><th class="n">החזר בסוף השנה</th></tr>`;
+  if(!years.length){$('#tblSched').innerHTML=head+'<tr><td class="empty" colspan="6">אין לוח להצגה</td></tr>'; return;}
+  $('#tblSched').innerHTML=head+years.map(y=>{
+    const open=loanSchedOpen.has(String(y.y));
+    const months=y.months.map(r=>`<tr class="loan-mo" data-mo="${y.y}" ${open?'':'hidden'}><td>${esc(heMonY(r.ym+'-01'))}</td><td class="n">${ils(r.pay)}</td><td class="n">${ils(r.principal)}</td><td class="n">${ils(r.interest)}</td><td class="n">${ils(r.bal)}</td><td class="n">${ils(r.pay)}</td></tr>`).join('');
+    return `<tr><td><button type="button" class="qchip" data-loan-year="${y.y}" aria-expanded="${open?'true':'false'}">${open?'▾':'▸'} ${y.y}</button></td><td class="n">${ils(y.pay)}</td><td class="n">${ils(y.principal)}</td><td class="n">${ils(y.interest)}</td><td class="n"><b>${ils(y.bal)}</b></td><td class="n">${ils(y.payEnd)}</td></tr>`+months;
+  }).join('');
+  $$('#tblSched [data-loan-year]').forEach(b=>b.onclick=()=>{
+    const y=b.dataset.loanYear;
+    if(loanSchedOpen.has(y)) loanSchedOpen.delete(y); else loanSchedOpen.add(y);
+    const on=loanSchedOpen.has(y);
+    b.setAttribute('aria-expanded', on?'true':'false');
+    b.textContent=(on?'▾':'▸')+' '+y;
+    $$('#tblSched tr[data-mo="'+y+'"]').forEach(tr=>{tr.hidden=!on;});
+  });
+}
+function renderGroupCards(groups){
+  const el=$('#loanGroups'); if(!el) return;
+  if(!groups.length){el.innerHTML=''; return;}
+  el.innerHTML=groups.map(g=>{
+    const infos=g.loans.map(loanBalInfo);
+    const est=sum(infos,x=>x.est), bank=sum(infos,x=>x.bank);
+    const pay=sum(g.loans, loanPay);
+    const am=g.loans.map(l=>({l,a:amort(l)}));
+    const interest=sum(am.filter(x=>x.a.ok), x=>x.a.interest);
+    const sched=mergedSchedule(g.loans);
+    const last=sched.rows.length?sched.rows[sched.rows.length-1].ym+'-01':null;
+    const steps=paymentSteps(sched.rows);
+    const dates=[...new Set(infos.map(x=>x.asOf).filter(Boolean))].sort();
+    const asOf=dates.length===1?heDate(dates[0]):'';
+    const rolled=infos.some(x=>x.rolled);
+    const anyDiff=am.some(x=>x.a.differs);
+    const stepsHtml=steps.length?`<div class="loan-steps">`+steps.map(s=>`<div class="loan-step">${esc(heFromMon(s.ym+'-01'))} ההחזר יורד ל־${ils(s.pay)}</div>`).join('')+`</div>`
+      :'<div class="faint" style="font-size:12px;margin-top:6px">אין ירידת מדרגה — המסלולים מסתיימים יחד.</div>';
+    const rows=am.map(({l,a})=>{
+      const link=l.linkage?`<span class="tag">${esc(l.linkage)}</span>`:'';
+      const gap=a.differs?`<div class="warn" style="font-size:10px">לסילוק: ${ils(a.contractual)}</div>`:'';
+      return `<tr><td><b>${esc(l.name)}</b> ${link}<div class="faint" style="font-size:11px">${esc(l.loanNo||'')} ${l.endDate?'עד '+heMonY(l.endDate):''}</div></td><td class="n">${loanBalHtml(l)}</td><td class="n m">${(+l.rate).toFixed(2)}%</td><td class="n">${ils(loanPay(l))}${gap}</td><td class="n">${a.ok&&a.rows.length?esc(heMonY(a.rows[a.rows.length-1].date)):'—'}</td></tr>`;
+    }).join('');
+    return `<div class="card mt"><div class="card-head"><h3>${esc(g.name)}</h3><span class="tag">${g.loans.length} מסלולים</span></div>
+      <div class="loan-sum">
+        <div><div class="lbl">יתרה לתשלום</div><div class="val neg">${ils(est)}</div><div class="foot">${rolled?`מוערכת להיום · בבנק ${ils(bank)}${asOf?' נכון ל־'+asOf:''}`:(asOf?`נכון ל־${asOf}`:'יתרת הבנק')}</div></div>
+        <div><div class="lbl">החזר חודשי נוכחי</div><div class="val">${ils(pay)}</div><div class="foot">${ils(pay*12)} בשנה${anyDiff?' · חלק מהמסלולים לא תואמים את ההחזר לסילוק':''}</div></div>
+        <div><div class="lbl">סיום אחרון</div><div class="val" style="font-size:16px">${last?esc(heMonY(last)):'—'}</div><div class="foot">${last?'המסלול הארוך ביותר':''}</div></div>
+        <div><div class="lbl">ריבית שנותרה</div><div class="val warn">${ils(interest)}</div><div class="foot">${loanCpiPct()&&g.loans.some(isCpiLinked)?`כולל הנחת מדד ${loanCpiPct()}%`:'נומינלי, בלי מדד עתידי'}</div></div>
+      </div>
+      ${stepsHtml}
+      <div class="tbl-wrap mt"><table><tr><th>מסלול</th><th class="n">יתרה</th><th class="n">ריבית</th><th class="n">החזר רשום</th><th class="n">סיום</th></tr>${rows}</table></div>
+    </div>`;
+  }).join('');
+}
+function selectedPrepayLoans(){
+  const v=($('#ppLoan')&&$('#ppLoan').value)||'';
+  const act=liveLoans();
+  if(v.startsWith('grp:')){
+    const name=decodeURIComponent(v.slice(4));
+    return act.filter(l=>String(l.group||'').trim()===name);
+  }
+  const one=act.find(l=>l.id===v);
+  return one?[one]:[];
+}
+function renderPrepay(act, groups){
+  const sel=$('#ppLoan'); if(!sel) return;
+  const prev=sel.value;
+  const opts=[];
+  const hideMoney=!!(P&&P.privacy&&!document.body.classList.contains('tz-recipient'));
+  groups.forEach(g=>{
+    const est=sum(g.loans, loanBal);
+    opts.push(`<option value="grp:${encodeURIComponent(g.name)}">${esc(g.name)} · כל המסלולים${hideMoney?'':` (${ilsT(est)})`}</option>`);
+  });
+  act.slice().sort((a,b)=>String(a.group||'').localeCompare(String(b.group||''),'he')||b.rate-a.rate).forEach(l=>{
+    opts.push(`<option value="${esc(l.id)}">${esc(l.group?l.group+' · ':'')}${esc(l.name)}${hideMoney?'':` (${(+l.rate).toFixed(2)}%)`}</option>`);
+  });
+  sel.innerHTML=opts.join('')||'<option value="">אין הלוואות</option>';
+  if(prev && [...sel.options].some(o=>o.value===prev)) sel.value=prev;
+  $$('#ppMode button').forEach(b=>{
+    b.classList.toggle('on', b.dataset.m===ppMode);
+    b.onclick=()=>{ppMode=b.dataset.m==='pay'?'pay':'term'; $$('#ppMode button').forEach(x=>x.classList.toggle('on', x.dataset.m===ppMode)); runPrepay();};
+  });
+  const runPrepay=()=>{
+    const loans=selectedPrepayLoans();
+    if(!loans.length){$('#ppOut').innerHTML='<div class="empty">אין הלוואות פעילות</div>'; return;}
+    const ex=Math.max(0,+$('#ppExtra').value||0), lu=Math.max(0,+$('#ppLump').value||0), fee=Math.max(0,+$('#ppFee').value||0);
+    const cmp=prepayCompare(loans, {lump:lu, extra:ex, fee, mode:ppMode});
+    if(!cmp.ok){$('#ppOut').innerHTML='<div class="neg">ההחזר הנוכחי אינו מכסה את הריבית, אז אין אופק מקורי להשוואה.</div>'; return;}
+    const net=cmp.wealthA-cmp.wealthB;
+    const end1=cmp.months1<=0?'נפרע מיד':heMonY(cmp.endYm1+'-01');
+    const savedM=cmp.H-cmp.months1;
+    const modeTxt=cmp.mode==='pay'?'הקטנת החזר — התקופה המקורית נשמרת, וההפרש בהחזר מושקע כל חודש.':'קיצור תקופה — אחרי הסיום המוקדם, ההחזר שהיה משולם (והתוספת) מושקעים עד סוף התקופה המקורית.';
+    $('#ppOut').innerHTML=`<table>
+      <tr><td>תקופת ההשוואה</td><td class="n"><b>${cmp.H} חודשים</b> <span class="faint">עד ${esc(heMonY(cmp.endYm+'-01'))}</span></td></tr>
+      <tr><td>סיום אם פורעים</td><td class="n"><b>${end1}</b>${savedM?` <span class="pos">${savedM} חודשים פחות</span>`:''}</td></tr>
+      ${cmp.mode==='pay'?`<tr><td>החזר חודשי חדש</td><td class="n">${ils(cmp.newMonthly)} <span class="faint">במקום ${ils(cmp.pay0)}</span></td></tr>`:''}
+      <tr><td>חיסכון בריבית</td><td class="n pos">${ils(cmp.interest0-cmp.interest1)}</td></tr>
+      <tr><td>עמלת פירעון מוקדם</td><td class="n">${fee?ils(fee):ils(0)}${fee?`<div class="faint" style="font-size:10px">שווה בסוף התקופה ${ils(cmp.feeDrag)} אחרי מס</div>`:''}</td></tr>
+      <tr><td>רווח נקי אם משקיעים את הסכום במקום לפרוע</td><td class="n">${ils(cmp.gainB)}</td></tr>
+      <tr><td>שווי בסוף — פירעון, ואז השקעת מה שהתפנה</td><td class="n"><b>${ils(cmp.wealthA)}</b></td></tr>
+      <tr><td>שווי בסוף — השקעת הסכום והמשך ההלוואה</td><td class="n"><b>${ils(cmp.wealthB)}</b></td></tr>
+      <tr><td>הפרש נטו</td><td class="n ${net>=0?'pos':'warn'}"><b>${net>=0?'פירעון מוקדם עדיף':'השקעה עדיפה'} ב־${ils(Math.abs(net))}</b></td></tr>
+    </table>
+    <div class="faint mt" style="font-size:11px">${modeTxt} תשואה צפויה ${cmp.R.toFixed(1)}% פחות דמי ניהול ${cmp.feeR.toFixed(2)}%. מס ${PP_TAX*100}% על רווח ההשקעה בלבד. ההפרש הוא שווי ההשקעה בסוף התקופה המקורית (פירעון פחות השקעה) — חיסכון הריבית כבר יושב בכסף שהתפנה, ולא נוסף שוב. פירעון הוא ודאי; תשואת ההשקעה לא.</div>`;
+  };
+  sel.onchange=runPrepay;
+  ['ppExtra','ppLump','ppFee'].forEach(id=>{const el=$('#'+id); if(el) el.oninput=runPrepay;});
+  const all=$('#ppAll');
+  if(all) all.onclick=()=>{
+    const v=Math.ceil(sum(selectedPrepayLoans(), loanBal)-1e-6);
+    $('#ppLump').value=String(Math.max(0,v));
+    runPrepay();
+  };
+  runPrepay();
+}
+function bindLoanCpi(){
+  const el=$('#loanCpi'); if(!el||el.dataset.bound==='1') return;
+  el.dataset.bound='1';
+  el.value=String(loanCpiPct()||0);
+  const apply=n=>{P.loanCpi=Math.max(0,Math.min(20,+n||0)); savePrefs(); if($('#loanCpi')) $('#loanCpi').value=String(P.loanCpi); renderLoans();};
+  el.onchange=()=>apply(el.value);
+  $$('[data-cpi]').forEach(b=>b.onclick=()=>apply(b.dataset.cpi));
+}
+function renderLoans(){
+  bindLoanCpi();
+  const shown=bankLoans(), act=liveLoans(), T=totals();
+  const am=shown.map(l=>({l,a:amort(l)}));
+  const pay=sum(act, loanPay);
+  const intLeft=sum(am.filter(x=>x.a.ok), x=>x.a.interest);
+  const wr=sum(act, l=>loanBal(l)*l.rate)/(T.debt||1);
+  const ends=am.filter(x=>x.a.ok&&x.a.rows.length).map(x=>x.a.rows[x.a.rows.length-1].date).sort();
+  const last=ends.length?ends[ends.length-1]:null;
+  const expAT=assumedReturn('fin')*(1-(S.set.tax||25)/100);
+  const rolled=shown.some(l=>loanBalInfo(l).rolled);
+  $('#loanKpis').innerHTML=`<div class="card kpi"><div class="lbl">יתרת חוב</div><div class="val neg">${ils(T.debt)}</div><div class="foot"><span class="m">${(T.debt/(T.fin||1)*100).toFixed(0)}%</span> מההון הפיננסי${rolled?' · מוערכת להיום':''}</div></div>
+    <div class="card kpi"><div class="lbl">החזר חודשי</div><div class="val">${ils(pay)}</div><div class="foot">${ils(pay*12)} בשנה</div></div>
+    <div class="card kpi"><div class="lbl">ריבית שנותרה לשלם</div><div class="val warn">${ils(intLeft)}</div><div class="foot">ריבית משוקללת <span class="m">${isFinite(wr)?wr.toFixed(2):'0.00'}%</span>${loanCpiPct()?` · מדד ${loanCpiPct()}%`:''}</div></div>
+    <div class="card kpi"><div class="lbl">חופשי מחובות</div><div class="val" style="font-size:18px">${last?esc(heMonY(last)):'—'}</div><div class="foot">${last?`תשלום אחרון ${heDate(last)}`:''}</div></div>`;
+  const groups=loanGroupsOf(shown);
+  renderGroupCards(groups);
+  $('#tblLoans').innerHTML=`<tr><th>הלוואה</th><th class="n">יתרה</th><th class="n">ריבית</th><th class="n">החזר</th><th class="n">סיום</th><th class="n hide-m">ריבית שנותרה</th><th class="bar-cell hide-m">שולם</th><th>מול השקעה</th><th></th></tr>`+
+    am.slice().sort((a,b)=>String(a.l.group||'תת').localeCompare(String(b.l.group||'תת'),'he')||b.l.rate-a.l.rate).map(({l,a})=>{
+      const base=loanBankBal(l);
+      const paid=l.origBal?1-base/l.origBal:0;
+      const v=l.rate>expAT+0.5?'<span class="tag neg">עדיף לפרוע</span>':l.rate<expAT-1?'<span class="tag pos">השקעה עדיפה*</span>':'<span class="tag">ניטרלי</span>';
+      const sub=[l.group,l.inst,l.linkage,l.loanNo].filter(Boolean).join(' · ');
+      const gap=a.differs?`<div class="warn" style="font-size:10px">לסילוק עד הסיום: ${ils(a.contractual)}</div>`:'';
+      return `<tr><td><b>${esc(l.name)}</b><div class="faint" style="font-size:11px">${esc(sub)}</div></td><td class="n">${loanBalHtml(l)}</td><td class="n m">${(+l.rate||0).toFixed(2)}%</td><td class="n">${ils(loanPay(l))}${gap}</td>
+      <td class="n">${a.ok&&a.rows.length?esc(heMonY(a.rows[a.rows.length-1].date)):(a.ok?'—':'<span class="neg">ההחזר לא מכסה ריבית</span>')}</td><td class="n hide-m">${a.ok?ils(a.interest):'—'}</td>
+      <td class="bar-cell hide-m"><div class="mini-bar"><div style="width:${Math.max(0,paid)*100}%;background:var(--pos)"></div></div><div class="faint m" style="font-size:10px">${(Math.max(0,paid)*100).toFixed(0)}%</div></td><td>${v}</td><td><button class="edit-ic" data-edit-loan="${esc(l.id)}" title="עריכה">✏️</button></td></tr>`;
+    }).join('')+
+    `<tr><td colspan="9" class="faint" style="font-size:11px">* השוואה לתשואה צפויה אחרי מס ≈ ${expAT.toFixed(1)}%. יתרה עם תאריך „נכון ל־” מגולגלת להיום לפי יום החיוב (1 בחודש, או יום תאריך ההתחלה), הריבית וההחזר הרשומים — הערכה לתצוגה, לא נשמרת. כשיש תאריך סיום, לוח הסילוקין הוא שפיצר שמאפס את היתרה המוערכת עד התאריך; ההחזר הרשום מוצג בנפרד, עם הערה אם הוא שונה מהותית.</td></tr>`;
+  $$('#loanChartMode button').forEach(b=>b.onclick=()=>{loanChartMode=b.dataset.m==='pay'?'pay':'bal'; paintLoanChart(act);});
+  paintLoanChart(act);
+  const scopeEl=$('#loanSchedScope');
+  if(scopeEl){
+    const opts=[{id:'all', n:'כל ההלוואות'}].concat(groups.map(g=>({id:'grp:'+encodeURIComponent(g.name), n:g.name})));
+    if(!opts.some(o=>o.id===loanSchedScope)) loanSchedScope='all';
+    scopeEl.innerHTML=opts.map(o=>`<button type="button" data-loan-scope="${esc(o.id)}" class="${o.id===loanSchedScope?'on':''}">${esc(o.n)}</button>`).join('');
+    $$('#loanSchedScope button').forEach(b=>b.onclick=()=>{
+      loanSchedScope=b.dataset.loanScope;
+      $$('#loanSchedScope button').forEach(x=>x.classList.toggle('on', x.dataset.loanScope===loanSchedScope));
+      paintSchedule(loansForScope(loanSchedScope));
+    });
+  }
+  paintSchedule(loansForScope(loanSchedScope));
+  renderPrepay(act, groups);
+  const cl=(S.loans||[]).filter(l=>l.closed||!(loanBankBal(l)>0));
+  $('#tblClosed').innerHTML=cl.length?`<tr><th>שם</th><th class="n">סכום מקורי</th><th>הערות</th></tr>`+cl.map(l=>`<tr><td>${esc(l.name)}</td><td class="n">${ils(l.origBal||0)}</td><td class="dim">${esc(l.notes||'')} <span class="tag pos">נסגרה ✓</span> <button class="edit-ic" data-edit-loan="${esc(l.id)}" title="עריכה">✏️</button></td></tr>`).join(''):'<tr><td class="empty">אין</td></tr>';
+}
 /* ---------------- FORECAST ENGINE ---------------- */
 /* Monthly compounding. i = (1+R-fee)^(1/12)-1 ; contribution at end of each month, grows yearly by g.
    Closed form when g=0: FV = P(1+i)^n + C*((1+i)^n-1)/i                                              */
@@ -1679,10 +2297,10 @@ function rules(){
     else add('em-ok','good','🛟',`קרן חירום תקינה: ${months.toFixed(1)} חודשים`,`מזומן נזיל ${ilsT(cashLiq)} מול הוצאות ${ilsT(P.monthlyExpenses)}/חודש.`,'אין צורך בפעולה.','3–12 חודשים = תקין.');}
   // 2. high-interest loans vs investing
   const afterTax=expR*(1-taxR)*100;
-  S.loans.filter(l=>!l.closed&&l.bal>0).sort((a,b)=>b.rate-a.rate).forEach(l=>{
+  S.loans.filter(l=>!l.closed&&loanBal(l)>0.5).sort((a,b)=>b.rate-a.rate).forEach(l=>{
     const a=amort(l);
-    if(l.rate>afterTax+0.5)add('loan-high:'+l.id,l.rate>afterTax+3?'high':'med','💳',`${l.name}: ריבית ${l.rate}% גבוהה מהתשואה הצפויה נטו`,`תשואה צפויה של התיק ≈ ${(expR*100).toFixed(1)}%, אחרי מס רווח הון ${(taxR*100).toFixed(0)}% ≈ ${afterTax.toFixed(1)}%. כל שקל שמחזיר את ההלוואה "מרוויח" ${l.rate}% ללא סיכון. ריבית שנותרה לשלם: ${a.ok?ilsT(a.interest):'—'}.`,`שקול פירעון מוקדם (מזומן עודף קודם). בדוק עמלת פירעון מוקדם. ראה סימולטור בעמוד ההלוואות.`,'ריבית > תשואה צפויה אחרי מס + 0.5 נק׳.');
-    else if(l.rate<afterTax-1)add('loan-low:'+l.id,'info','🏦',`${l.name}: ריבית ${l.rate}% — אין דחיפות לפירעון מוקדם`,`נמוכה מהתשואה הצפויה נטו (${afterTax.toFixed(1)}%). אבל השקעה כרוכה בסיכון ופירעון — לא.`,'אפשר להמשיך בהחזר הרגיל ולהשקיע את העודף, בהתאם לסבילות הסיכון.','ריבית < תשואה נטו − 1 נק׳.');
+    if(l.rate>afterTax+0.5)add('loan-high:'+l.id,l.rate>afterTax+3?'high':'med','💳',`${l.group?l.group+' — ':''}${l.name}: ריבית ${l.rate}% גבוהה מהתשואה הצפויה נטו`,`תשואה צפויה של התיק ≈ ${(expR*100).toFixed(1)}%, אחרי מס רווח הון ${(taxR*100).toFixed(0)}% ≈ ${afterTax.toFixed(1)}%. כל שקל שמחזיר את ההלוואה "מרוויח" ${l.rate}% ללא סיכון. ריבית שנותרה לשלם: ${a.ok?ilsT(a.interest):'—'}.`,`שקול פירעון מוקדם (מזומן עודף קודם). בדוק עמלת פירעון מוקדם. ראה סימולטור בעמוד ההלוואות.`,'ריבית > תשואה צפויה אחרי מס + 0.5 נק׳.');
+    else if(l.rate<afterTax-1)add('loan-low:'+l.id,'info','🏦',`${l.group?l.group+' — ':''}${l.name}: ריבית ${l.rate}% — אין דחיפות לפירעון מוקדם`,`נמוכה מהתשואה הצפויה נטו (${afterTax.toFixed(1)}%). אבל השקעה כרוכה בסיכון ופירעון — לא.`,'אפשר להמשיך בהחזר הרגיל ולהשקיע את העודף, בהתאם לסבילות הסיכון.','ריבית < תשואה נטו − 1 נק׳.');
   });
   // 3. rebalancing
   const drift=Object.keys(CLASSES).map(k=>({k,cur:(eF.cls[k]||0)/eF.tot*100,tgt:+P.targets[k]||0})).map(x=>({...x,d:x.cur-x.tgt}));
@@ -1778,8 +2396,9 @@ function renderOverview(){
   if(all){$('#ovGain').innerHTML=`<span class="${all.gain>=0?'pos':'neg'}">${ilsSigned(all.gain)}</span>`;
     $('#ovGainFoot').innerHTML=`${pct(all.r)} מצטבר${all.ann!=null?` · ${pct(all.ann)} לשנה`:''} · מ-${heDate(all.from)} · הפקדות נטו ${ils(all.C)}`;}
   else{$('#ovGain').textContent='—';$('#ovGainFoot').textContent='אין מספיק היסטוריה';}
-  const pay=sum(S.loans.filter(l=>!l.closed),loanPay);
-  $('#ovDebt').innerHTML=ils(T.debt);$('#ovDebtFoot').innerHTML=`החזר חודשי ${ils(pay)} · <span class="m">${(T.debt/(T.fin||1)*100).toFixed(0)}%</span> מההון הפיננסי`;
+  const pay=sum(S.loans.filter(l=>!l.closed&&loanBal(l)>0.5),loanPay);
+  const rolled=S.loans.some(l=>!l.closed&&loanBalInfo(l).rolled);
+  $('#ovDebt').innerHTML=ils(T.debt);$('#ovDebtFoot').innerHTML=`החזר חודשי ${ils(pay)} · <span class="m">${(T.debt/(T.fin||1)*100).toFixed(0)}%</span> מההון הפיננסי${rolled?' · יתרה מוערכת להיום':''}`;
   renderAnnualFees();
   const yr=TODAY.getFullYear();
   const per=[['חודש',addMonths(TODAY,-1)],['3 חודשים',addMonths(TODAY,-3)],['מתחילת השנה',new Date(yr-1,11,31)],['שנה',addMonths(TODAY,-12)],['מההתחלה',new Date(1900,0,1)]];
@@ -1812,7 +2431,7 @@ function renderOverview(){
     <div class="ov-fc-val" title="שווי צפוי ברוטו, אותו חישוב כמו בעמוד התחזית">${ils(res.exp)}</div>
     <div class="ov-fc-net">נטו אחרי מס <span class="pos">${ils(res.exp-(ovTax?ovTax.tax:0))}</span> <span class="faint">· מס ${ils(ovTax?ovTax.tax:0)}</span></div>
     <div class="ov-fc-range"><span>שמרני ${ils(res.cons)}</span><span>אופטימי ${ils(res.opt)}</span></div>
-    <div class="ov-fc-meta dim">ריאלי ברוטו ${ils(res.real)} · ריאלי נטו ${ils((res.exp-(ovTax?ovTax.tax:0))/ (res.deflate(res.n)||1))} · הפקדה ${ils(res.monthly)}/חודש${stressed?` <span class="warn">(${Math.round(f.depStress)}% מ־${ils(f.monthly)})</span>`:''} · תשואה ${f.ret}% − דמי ניהול ${f.fee}%</div>`;
+    <div class="ov-fc-meta dim">ריאלי ברוטו ${ils(res.real)} · ריאלי נטו ${ils((res.exp-(ovTax?ovTax.tax:0))/ (res.deflate(res.n)||1))} · הפקדה ${ils(res.monthly)}/חודש${stressed?` <span class="warn">(${Math.round(f.depStress)}% מ־${ils(f.monthly)})</span>`:''} · תשואה ${f.ret}% − דמי ניהול ${f.fee}%${(function(){const d0=debtOutlook(0); if(!(d0.bal>0)) return ''; const d1=debtOutlook(res.n); return ` · חוב אז ${ils(d1.bal)} · החזר ${ils(d1.pay)}/חודש`;})()}</div>`;
   bindOverviewTasks();
   renderPgSummary();
 }
@@ -2218,12 +2837,14 @@ function renderForecast(rebind=true){
       <div style="border-color:var(--pri)"><div class="s-l">סיכוי להגיע ליעד — בהפקדה ${stressed?Math.round(f.depStress)+'%':'הנוכחית'}</div><div class="s-v">${(mc.prob*100).toFixed(0)}%</div><div class="faint" style="font-size:11px">מונטה-קרלו, σ=${(vol*100).toFixed(1)}%</div></div>
       <div><div class="s-l">סיכוי — בהפקדה הנדרשת</div><div class="s-v">${mcReq!=null?(mcReq*100).toFixed(0)+'%':'—'}</div><div class="faint" style="font-size:11px">"צפוי" ≈ חציון ⇒ סביב 50%</div></div></div>${stressGoal}`;
   }
+  const dNow=debtOutlook(0), dEnd=debtOutlook(n);
+  if(dNow.bal>0) main+=`<div class="dim mt">חוב בתאריך היעד <b>${ils(dEnd.bal)}</b> (היום ${ils(dNow.bal)}${S.loans.some(l=>loanBalInfo(l).rolled)?' · מוערכת להיום':''}). החזר חודשי אז ${ils(dEnd.pay)} מול ${ils(dNow.pay)} היום — לפי לוח הסילוקין, יורד כשמסלול נגמר. השווי למעלה הוא של הנכסים, בלי קיזוז החוב.</div>`;
   $('#fcResult').innerHTML=main;
   const mcEnd=mc.p10.length-1;
   $('#fcSide').innerHTML=`<h3>טווח הסתברותי (מונטה-קרלו)</h3>
     <table><tr><td>תרחיש רע (10%)</td><td class="n">${ils(mc.p10[mcEnd])}</td></tr><tr><td>חציון (50%)</td><td class="n"><b>${ils(mc.p50[mcEnd])}</b></td></tr><tr><td>תרחיש טוב (90%)</td><td class="n">${ils(mc.p90[mcEnd])}</td></tr></table>
     <div class="faint" style="font-size:11px;margin-top:8px">תנודתיות שנתית משוערת <span class="m">${(vol*100).toFixed(1)}%</span> לפי הקצאת התיק. 10% מהמסלולים מסתיימים מתחת לתרחיש הרע.${stressed?` מחושב עם הפקדה לחוצה ${ils(r.monthly)}/חודש.`:''}</div>
-    <h3 class="mt">הנחות</h3><div style="font-size:12px" class="dim">הון התחלתי ${ils(r.P0)} (${f.scope==='liq'?'נזיל':'נזיל + קופות'}) · הפקדה ${ils(r.monthly)}/חודש${stressed?` <span class="warn">(${Math.round(f.depStress)}% מ־${ils(f.monthly)})</span>`:''}${f.growth?` (+${f.growth}%/שנה)`:''} · תשואה ${f.ret}% − דמי ניהול ${f.fee}% = נטו ${(f.ret-f.fee).toFixed(2)}% · ריבית דריבית חודשית. המס לפי סוג אחזקה (לא 25% אחיד). רצועת מונטה-קרלו היא ברוטו. לא כולל פנסיה חובה/נדל"ן/הלוואות.</div>`;
+    <h3 class="mt">הנחות</h3><div style="font-size:12px" class="dim">הון התחלתי ${ils(r.P0)} (${f.scope==='liq'?'נזיל':'נזיל + קופות'}) · הפקדה ${ils(r.monthly)}/חודש${stressed?` <span class="warn">(${Math.round(f.depStress)}% מ־${ils(f.monthly)})</span>`:''}${f.growth?` (+${f.growth}%/שנה)`:''} · תשואה ${f.ret}% − דמי ניהול ${f.fee}% = נטו ${(f.ret-f.fee).toFixed(2)}% · ריבית דריבית חודשית. המס לפי סוג אחזקה (לא 25% אחיד). רצועת מונטה-קרלו היא ברוטו. החוב מוצג בנפרד לפי לוח הסילוקין (ההחזר יורד כשמסלול נגמר) ואינו מקוזז משווי הנכסים. לא כולל פנסיה חובה ונדל"ן.</div>`;
   const taxCard=$('#fcTaxCard');if(taxCard)taxCard.innerHTML=`<div class="card-head"><h3>מס רווח הון משוער · ${heDate(f.date)}</h3><span class="sub">מס ${ils(tx.tax)} · נטו ${ils(net)}</span></div>${fcMode==='goal'?'<div class="dim" style="font-size:12px;margin-bottom:8px">המס כאן הוא על השווי הצפוי בהפקדה הנוכחית, לא על סכום היעד.</div>':''}${taxTableHtml(tx)}`;
   // chart
   const step=Math.max(1,Math.ceil(n/120));const xs=[];for(let m=0;m<=n;m+=step)xs.push(m);if(xs[xs.length-1]!==n)xs.push(n);
@@ -2241,8 +2862,8 @@ function renderForecast(rebind=true){
     plugins:{legend:{rtl:true,labels:{boxWidth:10,filter:i=>i.text!=='P10'}},tooltip:{filter:i=>i.dataset.label!=='P10',callbacks:{label:c=>` ${c.dataset.label}: ${ilsT(c.raw.y)}`}}}}});
   // milestones
   const ms=[];for(let m=12;m<n;m+=12)ms.push(m);ms.push(n);
-  $('#tblFc').innerHTML=`<tr><th>תאריך</th><th class="n">סך הפקדות (כולל הון היום)</th><th class="n">שמרני</th><th class="n">צפוי ברוטו</th><th class="n">נטו אחרי מס</th><th class="n hide-m">אופטימי</th><th class="n hide-m">צפוי ריאלי</th></tr>`+
-    ms.map(m=>{const tm=book.at(m).tax;return `<tr><td>${heDate(addMonths(TODAY,m))}</td><td class="n">${ils(r.E[m].c)}</td><td class="n">${ils(r.C[m].v)}</td><td class="n"><b>${ils(r.E[m].v)}</b></td><td class="n">${ils(r.E[m].v-tm)}</td><td class="n hide-m">${ils(r.O[m].v)}</td><td class="n hide-m">${ils(r.E[m].v/r.deflate(m))}</td></tr>`;}).join('');
+  $('#tblFc').innerHTML=`<tr><th>תאריך</th><th class="n">סך הפקדות (כולל הון היום)</th><th class="n">שמרני</th><th class="n">צפוי ברוטו</th><th class="n">נטו אחרי מס</th><th class="n">יתרת חוב</th><th class="n">החזר חוב</th><th class="n hide-m">אופטימי</th><th class="n hide-m">צפוי ריאלי</th></tr>`+
+    ms.map(m=>{const tm=book.at(m).tax;const d=debtOutlook(m);return `<tr><td>${heDate(addMonths(TODAY,m))}</td><td class="n">${ils(r.E[m].c)}</td><td class="n">${ils(r.C[m].v)}</td><td class="n"><b>${ils(r.E[m].v)}</b></td><td class="n">${ils(r.E[m].v-tm)}</td><td class="n">${ils(d.bal)}</td><td class="n">${ils(d.pay)}</td><td class="n hide-m">${ils(r.O[m].v)}</td><td class="n hide-m">${ils(r.E[m].v/r.deflate(m))}</td></tr>`;}).join('');
   $('#fcMath').innerHTML=`<div class="formula">i = (1 + R − fee)^(1/12) − 1          // monthly net rate
 FV(n) = P·(1+i)^n + C·((1+i)^n − 1)/i      // n months, deposit C at end of month
 Real(n) = FV(n) / (1+π)^(n/12)             // today's money
@@ -2262,7 +2883,7 @@ function aiSummary(){
     currencyPct:Object.fromEntries(Object.entries(e.ccy).map(([k,v])=>[k,+(v/e.tot*100).toFixed(1)])),
     estVolatilityPct:+(portVol('fin')*100).toFixed(1),assumptions:P.assume,
     holdings:S.investments.filter(isFin).sort((a,b)=>b.bal-a.bal).map(i=>{const p=holdingPerf(i);return {name:i.name,category:i.cat,track:i.track,weightPct:+(i.bal/T.fin*100).toFixed(1),returnPct:p?+(p.r*100).toFixed(1):null,feePct:isFinite(i.feePct)?i.feePct:null};}),
-    loans:S.loans.filter(l=>!l.closed).map(l=>{const a=amort(l);return {name:l.name,balance:Math.round(l.bal),ratePct:l.rate,monthlyPayment:loanPay(l),monthsLeft:a.ok?a.months:null,remainingInterest:a.ok?Math.round(a.interest):null};}),
+    loans:S.loans.filter(l=>!l.closed).map(l=>{const a=amort(l);const info=loanBalInfo(l);return {name:l.name,group:l.group||null,balance:Math.round(info.est),bankBalance:Math.round(info.bank),balanceAsOf:info.asOf||null,estimated:!!info.rolled,ratePct:l.rate,monthlyPayment:loanPay(l),payoffPayment:a.ok?Math.round(a.contractual):null,monthsLeft:a.ok?a.months:null,remainingInterest:a.ok?Math.round(a.interest):null,endDate:l.endDate||null,linkage:l.linkage||null};}),
     savings:{avgMonthlyLast12m:Math.round(avgMonthlyContrib()),monthlyExpenses:P.monthlyExpenses},
     forecast:{targetDate:f.date,monthlyContribution:f.monthly,expectedReturnPct:f.ret,feePct:f.fee,inflationPct:f.infl,expected:Math.round(r.exp),conservative:Math.round(r.cons),optimistic:Math.round(r.opt),realExpected:Math.round(r.real),estimatedCapitalGainsTaxILS:Math.round(buildTaxBook(f,f.ret).at(r.n).tax),note:'Tax is an estimate by holding type, not advice. Net = expected − tax.'},
     ruleFindings:rules().map(x=>({severity:x.sev,title:x.title,reason:x.why}))};
@@ -2290,45 +2911,6 @@ function renderRecs(){
       const d=await resp.json();const t=d.candidates?.[0]?.content?.parts?.[0]?.text||JSON.stringify(d.error||d);
       $('#aiOut').innerHTML=esc(t).replace(/^### (.*)$/gm,'<h3>$1</h3>').replace(/^## (.*)$/gm,'<h2>$1</h2>').replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>');}
     catch(e){$('#aiOut').textContent='שגיאה: '+e.message;}finally{$('#aiRun').disabled=false;}};
-}
-
-/* LOANS */
-function renderLoans(){
-  const act=S.loans.filter(l=>!l.closed&&l.bal>0),T=totals();
-  const am=act.map(l=>({l,a:amort(l)}));const pay=sum(act,loanPay);const intLeft=sum(am.filter(x=>x.a.ok),x=>x.a.interest);
-  const wr=sum(act,l=>l.bal*l.rate)/(T.debt||1);const maxM=Math.max(0,...am.filter(x=>x.a.ok).map(x=>x.a.months));
-  const expAT=assumedReturn('fin')*(1-(S.set.tax||25)/100);
-  $('#loanKpis').innerHTML=`<div class="card kpi"><div class="lbl">יתרת חוב</div><div class="val neg">${ils(T.debt)}</div><div class="foot">${(T.debt/(T.fin||1)*100).toFixed(0)}% מההון הפיננסי</div></div>
-    <div class="card kpi"><div class="lbl">החזר חודשי</div><div class="val">${ils(pay)}</div><div class="foot">${ils(pay*12)} בשנה</div></div>
-    <div class="card kpi"><div class="lbl">ריבית שנותרה לשלם</div><div class="val warn">${ils(intLeft)}</div><div class="foot">ריבית משוקללת <span class="m">${wr.toFixed(2)}%</span></div></div>
-    <div class="card kpi"><div class="lbl">חופשי מחובות</div><div class="val">${maxM?heMonth(addMonths(TODAY,maxM)):'—'}</div><div class="foot">${maxM?`בעוד ${(maxM/12).toFixed(1)} שנים`:''}</div></div>`;
-  $('#tblLoans').innerHTML=`<tr><th>הלוואה</th><th class="n">יתרה</th><th class="n">ריבית</th><th class="n">החזר</th><th class="n">סיום צפוי</th><th class="n hide-m">ריבית שנותרה</th><th class="bar-cell hide-m">שולם</th><th>מול השקעה</th><th></th></tr>`+
-    am.sort((a,b)=>b.l.rate-a.l.rate).map(({l,a})=>{const paid=l.origBal?1-l.bal/l.origBal:0;const v=l.rate>expAT+0.5?'<span class="tag neg">עדיף לפרוע</span>':l.rate<expAT-1?'<span class="tag pos">השקעה עדיפה*</span>':'<span class="tag">ניטרלי</span>';
-      return `<tr><td><b>${esc(l.name)}</b><div class="faint" style="font-size:11px">${esc(l.inst||'')}</div></td><td class="n">${ils(l.bal)}</td><td class="n m">${(+l.rate).toFixed(2)}%</td><td class="n">${ils(loanPay(l))}</td>
-      <td class="n">${a.ok?heMonth(addMonths(TODAY,a.months)):'<span class="neg">ההחזר לא מכסה ריבית</span>'}</td><td class="n hide-m">${a.ok?ils(a.interest):'—'}</td>
-      <td class="bar-cell hide-m"><div class="mini-bar"><div style="width:${paid*100}%;background:var(--pos)"></div></div><div class="faint m" style="font-size:10px">${(paid*100).toFixed(0)}%</div></td><td>${v}</td><td><button class="edit-ic" data-edit-loan="${esc(l.id)}" title="עריכה">✏️</button></td></tr>`;}).join('')+
-    `<tr><td colspan="8" class="faint" style="font-size:11px">* השוואה לתשואה צפויה אחרי מס ≈ ${expAT.toFixed(1)}%. פירעון הלוואה = תשואה ודאית; השקעה = צפויה ולא מובטחת. לוח סילוק מחושב בשיטת שפיצר לפי ההחזר החודשי הנוכחי (במקום "קיטון יומי" קבוע).</td></tr>`;
-  const months=Math.min(maxM||12,360);const pal=['#f05252','#f5a524','#8b6cff','#38bdf8','#22c55e'];
-  const grid=[];for(let m=0;m<=months;m+=3)grid.push(m);if(grid[grid.length-1]!==months)grid.push(months);
-  mk('cLoans',{type:'line',data:{datasets:am.map(({l,a},k)=>({label:l.name,data:grid.map(m=>({x:iso(addMonths(TODAY,m)),y:a.series[m]??0})),
-    borderColor:pal[k%5],backgroundColor:pal[k%5]+'55',fill:k?'-1':'origin',pointRadius:0,borderWidth:1.5,stack:'s'}))},
-    options:{interaction:{mode:'index',intersect:false},scales:{x:xTime('year'),y:{...yMoney,stacked:true}},plugins:{tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${ilsT(c.raw.y)}`}}}}});
-  const sel=$('#ppLoan');const prev=sel.value;sel.innerHTML=act.map(l=>`<option value="${l.id}">${esc(l.name)} (${l.rate}%)</option>`).join('');if(prev)sel.value=prev;
-  const sim=()=>{const l=act.find(x=>x.id===sel.value);if(!l){$('#ppOut').innerHTML='<div class="empty">אין הלוואות פעילות</div>';return;}
-    const ex=+$('#ppExtra').value||0,lu=+$('#ppLump').value||0;const a0=amort(l),a1=amort(l,ex,lu);
-    if(!a0.ok||!a1.ok){$('#ppOut').innerHTML='<div class="neg">ההחזר אינו מכסה את הריבית</div>';return;}
-    const saveM=a0.months-a1.months,saveI=a0.interest-a1.interest;
-    // alternative: invest the same cash flows instead for a0.months
-    const R=assumedReturn('fin');const inv=project(lu,ex,R,weightedFee('fin')??0.5,0,a1.months)[a1.months].v;
-    const after=project(0,a0.pay,R,weightedFee('fin')??0.5,0,a0.months-a1.months).slice(-1)[0].v; // after early payoff, invest freed payment
-    const gainInv=inv-(lu+ex*a1.months);const taxInv=Math.max(0,gainInv)*.25;
-    $('#ppOut').innerHTML=`<table><tr><td>סיום חדש</td><td class="n"><b>${heMonth(addMonths(TODAY,a1.months))}</b> <span class="faint">(במקום ${heMonth(addMonths(TODAY,a0.months))})</span></td></tr>
-      <tr><td>חודשים שנחסכו</td><td class="n m pos">${saveM}</td></tr><tr><td>חיסכון בריבית</td><td class="n pos">${ils(saveI)}</td></tr>
-      <tr><td class="dim">חלופה: להשקיע אותו כסף (${R.toFixed(1)}%, אחרי מס) לאותה תקופה</td><td class="n dim">רווח ≈ ${ils(gainInv-taxInv)}</td></tr></table>
-      <div class="faint mt" style="font-size:11px">אם חיסכון הריבית גבוה מרווח ההשקעה החלופי — הפירעון עדיף (וגם ללא סיכון). בדוק עמלת פירעון מוקדם מול הבנק.</div>`;};
-  sel.onchange=sim;$('#ppExtra').oninput=sim;$('#ppLump').oninput=sim;sim();
-  const cl=S.loans.filter(l=>l.closed||!(l.bal>0));
-  $('#tblClosed').innerHTML=cl.length?`<tr><th>שם</th><th class="n">סכום מקורי</th><th>הערות</th></tr>`+cl.map(l=>`<tr><td>${esc(l.name)}</td><td class="n">${ils(l.origBal||0)}</td><td class="dim">${esc(l.notes||'')} <span class="tag pos">נסגרה ✓</span> <button class="edit-ic" data-edit-loan="${esc(l.id)}" title="עריכה">✏️</button></td></tr>`).join(''):'<tr><td class="empty">אין</td></tr>';
 }
 
 /* SAVINGS */
@@ -2683,7 +3265,7 @@ function renderTzofik(){
     <div class="tz-card tz-fc"><div class="tz-lbl">תחזית על בסיס כספים נזילים · ל־${heDate(fc.date)}</div>
       <div class="tz-val">${ils(fc.exp)}</div>
       <div class="tz-sub">הון נזיל ${ils(fcP0)} · הפקדה ${ils(fc.monthly)}/ח׳ · תשואה <span class="m">${(+fc.ret).toFixed(1)}%</span> · ${fc.n} ח׳ · לחץ 50% <span class="tz-fc-detail"><br><b>תרחיש לחוץ על נזילים בלבד</b></span></div></div>
-    <div class="tz-card tz-debt"><div class="tz-lbl">סה״כ התחייבויות</div><div class="tz-val">${ils(T.debt)}</div></div>
+    <div class="tz-card tz-debt"><div class="tz-lbl">סה״כ התחייבויות</div><div class="tz-val">${ils(T.debt)}</div>${snap?'':`<div class="tz-sub">החזר ${ils(sum(liveLoans(),loanPay))}/חודש${S.loans.some(l=>loanBalInfo(l).rolled)?' · מוערכת להיום':''}</div>`}</div>
     <div class="tz-actions" data-html2canvas-ignore="1">
       <button class="btn" id="tzWa" title="פותח וואטסאפ עם קישור קצר לתצלום">שלח קישור בוואטסאפ</button>
       <button class="btn tz-shot" id="tzShot" title="שומר PNG לשליחה בוואטסאפ (או שיתוף מובנה בטלפון)">צלם לשליחה</button>
@@ -2719,7 +3301,7 @@ function renderSettings(){
   $('#setSrc').innerHTML=SRC==='gist'?`<div class="chip gist">☁ Gist (live)</div><p class="mt">נטען עכשיו מ-GitHub Gist (<span class="num">${GIST_FILENAME}</span>, עודכן ב-GitHub: ${GIST_META&&GIST_META.gistUpdated?heDate(GIST_META.gistUpdated):'—'}). ${cnt}</p>${ro}`
    :SRC==='gistCache'?`<div class="chip gist">☁ Gist (עותק שמור)</div><p class="mt">${cnt}</p>${ro}`
    :SRC==='local'?`<div class="chip real">💾 נתוני דפדפן מקומיים</div><p class="mt">נקרא מ-<span class="num">localStorage['fin26']</span>: ${cnt}</p>${ro}`
-   :`<div class="chip ex">נתוני דוגמה ${SRC_NOTE}</div><p class="mt">הנתונים סינתטיים, באותו מבנה של FinBoard (tracks / investments / loans / slog / set) + שדות חדשים אופציונליים: <span class="num">costBasis</span>, <span class="num">feePct</span>, <span class="num">principal</span>, <span class="num">principalNote</span>, <span class="num">principalAsOf</span>, <span class="num">pulledAt</span>, <span class="num">openedAt</span>, <span class="num">liquidAt</span>, <span class="num">taxKind</span>, <span class="num">taxableShare</span>.</p><p class="dim">כדי לראות נתונים אמיתיים: פתח באותו דפדפן שבו האתר המקורי מחובר, או הזן Gist ID למטה. <span class="num">?demo=1</span> מכריח נתוני דוגמה.</p>`;
+   :`<div class="chip ex">נתוני דוגמה ${SRC_NOTE}</div><p class="mt">הנתונים סינתטיים, באותו מבנה של FinBoard (tracks / investments / loans / slog / set) + שדות חדשים אופציונליים: <span class="num">costBasis</span>, <span class="num">feePct</span>, <span class="num">principal</span>, <span class="num">principalNote</span>, <span class="num">principalAsOf</span>, <span class="num">pulledAt</span>, <span class="num">openedAt</span>, <span class="num">liquidAt</span>, <span class="num">taxKind</span>, <span class="num">taxableShare</span>. בהלוואה גם <span class="num">group</span>, <span class="num">loanNo</span>, <span class="num">startDate</span>, <span class="num">endDate</span>, <span class="num">linkage</span>, <span class="num">balAsOf</span>.</p><p class="dim">כדי לראות נתונים אמיתיים: פתח באותו דפדפן שבו האתר המקורי מחובר, או הזן Gist ID למטה. <span class="num">?demo=1</span> מכריח נתוני דוגמה.</p>`;
   renderGistCard();renderBackups();
   const bind=(id,k,parse=Number)=>{const el=$('#'+id);el.value=P[k]??'';el.oninput=()=>{P[k]=el.value===''?null:parse(el.value);savePrefs();};};
   bind('sExp','monthlyExpenses');bind('sEmMonths','emMonths');bind('sConc','concPct');bind('sDrift','driftPct');bind('sFee','feeHigh');
@@ -3039,21 +3621,43 @@ function saveHolding(id){
     if(mgr)inv.managerUrl=mgr;else delete inv.managerUrl; // additive; original site ignores
   },id?`עריכת ${name}`:`הוספת ${name}`);
 }
+function applyLoanFields(row, d, opt, isNew){
+  const prevBal=+row.bal||0, prevAsOf=loanIso(row.balAsOf);
+  const balChanged=!isNew&&Math.abs(prevBal-d.bal)>0.49;
+  let asOf=opt.balAsOf||'';
+  if(balChanged&&(!asOf||asOf===prevAsOf)) asOf=iso(TODAY);
+  if(isNew&&!asOf&&d.bal>0) asOf=iso(TODAY);
+  Object.assign(row,d);
+  const set=(k,v)=>{if(v)row[k]=v;else delete row[k];};
+  set('group',opt.group);set('loanNo',opt.loanNo);set('startDate',opt.startDate);set('endDate',opt.endDate);set('linkage',opt.linkage);set('balAsOf',asOf);
+  if(balChanged) row.pulledAt=iso(TODAY);
+  return row;
+}
 function editLoan(id){
   if(!canEdit()){toast('עריכה זמינה רק כשנטענו הנתונים שלך.','err');return;}
   const l=id?S.loans.find(x=>x.id===id):null;
+  const link=l&&(l.linkage==='צמוד מדד'||l.linkage==='לא צמוד')?l.linkage:'';
   openModal(l?`עריכת הלוואה — ${l.name}`:'הלוואה חדשה',`<div class="form" style="grid-template-columns:1fr 1fr">
-    <div class="field" style="grid-column:1/-1"><label>שם הלוואה</label><input id="lName" value="${esc(l?l.name:'')}"></div>
+    <div class="field" style="grid-column:1/-1"><label>שם הלוואה / מסלול</label><input id="lName" value="${esc(l?l.name:'')}"></div>
     <div class="field"><label>גוף מלווה</label><input id="lInst" value="${esc(l?l.inst||'':'')}"></div>
+    <div class="field"><label>קבוצת משכנתא</label><input id="lGroup" value="${esc(l?l.group||'':'')}" placeholder="למשל משכנתא לאומי"><div class="hint">מסלולים עם אותו שם מוצגים כמשכנתא אחת</div></div>
+    <div class="field"><label>מספר הלוואה</label><input id="lNo" value="${esc(l?l.loanNo||'':'')}"></div>
+    <div class="field"><label>הצמדה</label><select id="lLink">${optList([['','ללא'],['לא צמוד','לא צמוד'],['צמוד מדד','צמוד מדד']],link)}</select></div>
     <div class="field"><label>יתרה נוכחית (₪)</label><input id="lBal" inputmode="decimal" value="${l?l.bal:0}" style="direction:ltr"></div>
+    <div class="field"><label>נכון לתאריך</label><input id="lAsOf" type="date" value="${l?loanIso(l.balAsOf):''}"><div class="hint">שינוי היתרה בלי לבחור תאריך אחר מאפס את התאריך להיום</div></div>
     <div class="field"><label>סכום מקורי (₪)</label><input id="lOrig" inputmode="decimal" value="${l?l.origBal||0:0}" style="direction:ltr"></div>
-    <div class="field"><label>החזר חודשי (₪)</label><input id="lPay" inputmode="decimal" value="${l?loanPay(l):0}" style="direction:ltr"><div class="hint">פירעון שנתי מחושב ×12 (כמו במקור)</div></div>
+    <div class="field"><label>החזר חודשי (₪)</label><input id="lPay" inputmode="decimal" value="${l?loanPay(l):0}" style="direction:ltr"><div class="hint">פירעון שנתי מחושב ×12 (כמו במקור). יום החיוב הוא יום תאריך ההתחלה, או ה־1</div></div>
     <div class="field"><label>ריבית שנתית (%)</label><input id="lRate" inputmode="decimal" value="${l?l.rate:3.5}" style="direction:ltr"></div>
+    <div class="field"><label>תאריך התחלה</label><input id="lStart" type="date" value="${l?loanIso(l.startDate):''}"></div>
+    <div class="field"><label>תאריך סיום</label><input id="lEnd" type="date" value="${l?loanIso(l.endDate):''}"><div class="hint">תשלום אחרון. ממנו מחושב לוח שפיצר עד אפס</div></div>
     <div class="field"><label>סטטוס</label><select id="lClosed">${optList([['false','פעיל'],['true','נסגר']],l?String(!!l.closed):'false')}</select></div>
     <div class="field" style="grid-column:1/-1"><label>הערות</label><textarea id="lNotes">${esc(l?l.notes||'':'')}</textarea></div></div>`,[
     {label:'שמור',cls:'btn',id:'lSave',fn:()=>{const n=k=>{const v=parseNum(fv(k));return isFinite(v)?v:0;};const name=fv('lName').trim();if(!name){toast('חובה להזין שם','err');return;}
-      const d={name,inst:fv('lInst'),bal:n('lBal'),origBal:n('lOrig'),monthlyPay:n('lPay'),annualPay:Math.round(n('lPay')*12),rate:n('lRate'),closed:fv('lClosed')==='true',notes:fv('lNotes')}; // same keys as v1
-      closeModal();commit(x=>{const t=id?x.loans.find(q=>q.id===id):null;if(t)Object.assign(t,d);else x.loans.push({id:uid(),...d});},id?`עריכת ${name}`:`הוספת ${name}`);}},
+      const d={name,inst:fv('lInst'),bal:n('lBal'),origBal:n('lOrig'),monthlyPay:n('lPay'),annualPay:Math.round(n('lPay')*12),rate:n('lRate'),closed:fv('lClosed')==='true',notes:fv('lNotes')}; // same keys as v1, plus optional track fields below
+      const opt={group:fv('lGroup').trim(),loanNo:fv('lNo').trim(),startDate:loanIso(fv('lStart')),endDate:loanIso(fv('lEnd')),linkage:fv('lLink').trim(),balAsOf:loanIso(fv('lAsOf'))};
+      closeModal();commit(x=>{const t=id?x.loans.find(q=>q.id===id):null;const row=t||{id:uid()};
+        applyLoanFields(row,d,opt,!t);if(!t)x.loans.push(row);
+      },id?`עריכת ${name}`:`הוספת ${name}`);}},
     {label:'ביטול',cls:'btn ghost',fn:closeModal},
     ...(l?[{label:'מחק הלוואה',cls:'btn danger sp',fn:()=>{if(confirm(`למחוק את "${l.name}"?`)){closeModal();commit(x=>{x.loans=x.loans.filter(q=>q.id!==id);},`מחיקת ${l.name}`);}}}]:[])]);
 }
@@ -3171,8 +3775,8 @@ function renderUpdate(){
   const loans=S.loans.filter(l=>!l.closed);
   const lhead='<div class="uhead urow" style="padding-top:6px;padding-bottom:6px;grid-template-columns:minmax(0,2.2fr) 1fr 1.25fr 1fr 40px"><span>הלוואה</span><span>יתרה נוכחית</span><span>יתרה חדשה</span><span>שינוי</span><span></span></div>';
   html+=`<div class="card ugrp mt"><div class="ugrp-head"><h3>הלוואות</h3><span class="tot" data-gt="__loans"></span><button class="btn ghost sm" data-edit-loan="" ${ed?'':'disabled'}>+ הוסף</button></div>
-    ${loans.length?lhead+loans.map(l=>{const d=DRAFT.loan[l.id];return `<div class="urow ${d&&isFinite(d.v)?'dirty':''}" style="grid-template-columns:minmax(0,2.2fr) 1fr 1.25fr 1fr 40px"><div class="nmw"><div class="nm">${esc(l.name)}</div><div class="meta">${esc(l.inst||'')} · <span class="m">${(+l.rate).toFixed(2)}%</span> · החזר ${ils(loanPay(l))}</div></div>
-      <div class="cur"><span class="lbl dim">נוכחי: </span>${ils(l.bal)}</div><div class="uin"><input data-loan="${esc(l.id)}" inputmode="decimal" autocomplete="off" ${ed?'':'disabled'} placeholder="${Math.round(l.bal)}" value="${d&&isFinite(d.v)?esc(String(d.raw)):''}" aria-label="יתרה חדשה — ${esc(l.name)}"><span class="unit">₪</span></div>
+    ${loans.length?lhead+loans.map(l=>{const d=DRAFT.loan[l.id];const info=loanBalInfo(l);return `<div class="urow ${d&&isFinite(d.v)?'dirty':''}" style="grid-template-columns:minmax(0,2.2fr) 1fr 1.25fr 1fr 40px"><div class="nmw"><div class="nm">${esc(l.name)}</div><div class="meta">${[l.group,l.inst].filter(Boolean).map(esc).join(' · ')}${(l.group||l.inst)?' · ':''}<span class="m">${(+l.rate).toFixed(2)}%</span> · החזר ${ils(loanPay(l))}</div></div>
+      <div class="cur"><span class="lbl dim">בבנק: </span>${ils(l.bal)}${info.asOf?`<div class="faint" style="font-size:11px">נכון ל־${heDate(info.asOf)}</div>`:''}${info.rolled?`<div class="faint" style="font-size:11px">מוערכת להיום ${ils(info.est)}</div>`:''}</div><div class="uin"><input data-loan="${esc(l.id)}" inputmode="decimal" autocomplete="off" ${ed?'':'disabled'} placeholder="${Math.round(l.bal)}" value="${d&&isFinite(d.v)?esc(String(d.raw)):''}" aria-label="יתרה חדשה — ${esc(l.name)}"><span class="unit">₪</span></div>
       <div class="udelta" data-dll="${esc(l.id)}"></div><div class="edw"><button class="edit-ic" data-edit-loan="${esc(l.id)}" ${ed?'':'disabled'}>✏️</button></div></div>`;}).join(''):'<div class="empty" style="padding:14px">אין הלוואות פעילות</div>'}</div>`;
   const last=S.slog.slice(-5).reverse();const accs=[...new Set(S.slog.map(x=>x.acc).filter(Boolean))];
   html+=`<div class="card mt"><div class="card-head"><h3>💰 חיסכון — הוספת הפקדה / משיכה</h3><div class="tools"><a class="qchip" href="#savings">ליומן המלא ←</a></div></div>
@@ -3284,7 +3888,7 @@ async function saveDraft(){
       const extra=it.u.kind==='fx'?{foreignAmt:it.v}:it.u.kind==='crypto'?{cryptoAmt:it.v}:{};applyBalance(inv,it.nb,date,extra);
       inv.pulledAt=iso(TODAY);});
     metas.forEach(i=>{const inv=x.investments.find(q=>q.id===i.id);const d=DRAFT.inv[i.id];if(inv&&d)applyPrincipalDraft(inv,d,date);});
-    lns.forEach(([id,d])=>{const l=x.loans.find(q=>q.id===id);if(l)l.bal=d.v;});
+    lns.forEach(([id,d])=>{const l=x.loans.find(q=>q.id===id);if(l){l.bal=d.v;l.balAsOf=date;l.pulledAt=iso(TODAY);}});
   },`עדכון ${items.length+metas.length+lns.length} יתרות`);
   if(ok){DRAFT={inv:{},loan:{}};if(CUR==='update')renderUpdate();}
 }
