@@ -286,7 +286,8 @@ tr.dr:hover td{background:var(--surface2)}
       <input class="setup-input" id="setupToken" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
       <div class="setup-err" id="setupErr1"></div>
       <button class="setup-btn" onclick="setupVerifyToken()">אמת Token ←</button>
-      <div class="setup-hint">ה-token נשמר ב-localStorage של הדפדפן בלבד.</div>
+      <button class="setup-btn" id="setupSkipToken" type="button" style="margin-top:8px;background:var(--surface2);color:var(--text);border:1px solid var(--border)">המשך בלי token — קריאה בלבד</button>
+      <div class="setup-hint">קריאה: Gist (גם סודי) נפתח לפי ה-ID בלי token. token עם הרשאת gist נדרש רק כדי לשמור שינויים. ה-token נשמר ב-localStorage של הדפדפן בלבד.</div>
     </div>
     <div class="setup-step" id="setupStep2">
       <div class="setup-title">✅ Token אומת!</div>
@@ -495,6 +496,7 @@ tr.dr:hover td{background:var(--surface2)}
           <input type="password" id="setToken" placeholder="ghp_..." style="flex:1;font-family:Arial,sans-serif;font-size:12px">
           <button class="btn btn-primary" onclick="saveTokenSetting()" style="white-space:nowrap">שמור Token</button>
         </div>
+        <div class="hint" style="margin-top:6px">קריאה של Gist (גם סודי) אפשרית לפי ה-ID בלי token. token עם הרשאת gist נדרש רק לשמירה.</div>
         <div class="hint" id="tokenStatus" style="margin-top:6px"></div>
       </div>
       <div class="mg full">
@@ -815,20 +817,31 @@ function setSyncStatus(state,msg){
 
 function defaultState(){return {tracks:clone(DEF_TRACKS),investments:clone(DEF_INV),loans:clone(DEF_LOANS),slog:clone(DEF_SLOG),set:clone(DEF_SET)};}
 
+function gistHeaders(){
+  const headers={Accept:'application/vnd.github+json'};
+  const token=getToken();
+  if(token)headers.Authorization='Bearer '+token;
+  return headers;
+}
 async function gistLoad(){
-  const token=getToken(),gistId=getGistId();
-  if(!token||!gistId)return false;
+  const gistId=getGistId();
+  if(!gistId)return false;
   try{
     setSyncStatus('syncing','☁ טוען...');
-    const r=await fetch(`https://api.github.com/gists/${gistId}`,{
-      headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json'},cache:'no-store'});
+    const r=await fetch(`https://api.github.com/gists/${gistId}`,{headers:gistHeaders(),cache:'no-store'});
     if(!r.ok)throw new Error(r.status);
     const d=await r.json();
-    const content=d.files[GIST_FILENAME]?.content;
+    const content=await fileText(d.files&&d.files[GIST_FILENAME]);
     if(!content)return false;
     const p=JSON.parse(content);
     if(window.FinCrypto&&FinCrypto.isEnvelope(p)){
-      if(!FinCrypto.unlocked()){setSyncStatus('err','☁ נעול');return false;}
+      if(!FinCrypto.unlocked()){
+        setSyncStatus('syncing','☁ ממתין לסיסמה');
+        ROOT_PROBE={finance:p,local:ROOT_PROBE&&ROOT_PROBE.local||null,tasks:ROOT_PROBE&&ROOT_PROBE.tasks||null,vault:FinCrypto.readVault(),mode:'unlock'};
+        ROOT_AFTER='boot';
+        showLock('unlock','FinBoard נעול','הנתונים ב-Gist מוצפנים. הזינו את סיסמת ההצפנה, או הדביקו את מפתח השחזור. המפתח נשמר רק בזיכרון של הלשונית הזו.');
+        return false;
+      }
       const opened=await FinCrypto.open(p);
       if(opened&&opened.investments){S=opened;setSyncStatus('ok','☁ מסונכרן');return true;}
       return false;
@@ -934,11 +947,13 @@ async function setupFinish(){
   const token=getToken();
   const existingId=document.getElementById('setupGistId').value.trim();
   const errEl=document.getElementById('setupErr2');
+  if(!existingId&&!token){errEl.textContent='כדי ליצור Gist חדש צריך token עם הרשאת gist. לקריאה של Gist קיים הזינו את ה-ID — בלי token.';return;}
   errEl.textContent='...';
   try{
     if(existingId){
-      const r=await fetch(`https://api.github.com/gists/${existingId}`,{
-        headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json'},cache:'no-store'});
+      const headers={Accept:'application/vnd.github+json'};
+      if(token)headers.Authorization='Bearer '+token;
+      const r=await fetch(`https://api.github.com/gists/${existingId}`,{headers,cache:'no-store'});
       if(!r.ok)throw new Error('Gist לא נמצא — בדוק את ה-ID');
       localStorage.setItem('fin26_gist',existingId);
     } else {
@@ -950,6 +965,11 @@ async function setupFinish(){
     await startRoot();
   }catch(e){errEl.textContent='❌ '+e.message;}
 }
+document.getElementById('setupSkipToken').onclick=()=>{
+  document.getElementById('setupErr1').textContent='';
+  document.getElementById('setupStep1').classList.remove('active');
+  document.getElementById('setupStep2').classList.add('active');
+};
 
 // ===================== HELPERS =====================
 const fmt=n=>'₪'+Math.round(n).toLocaleString('he-IL');
@@ -2292,7 +2312,7 @@ async function debugMarketFetch(){
 
 async function initMarketTicker(){
   // Show cached data immediately while fetching live
-  const hasCached = loadMarketCache();
+  const hasCached = typeof loadMarketCache === 'function' ? loadMarketCache() : false;
   if(hasCached) renderTicker();
 
   const ok = await fetchMarketData();
@@ -2544,14 +2564,13 @@ function saveGistSetting(){
 
 async function testConnection(){
   const token=getToken(),gistId=getGistId();
-  if(!token){alert('אין Token — הכנס token בשדה למעלה');return;}
   if(!gistId){alert('אין Gist ID — הכנס Gist ID');return;}
   setSyncStatus('syncing','בודק...');
   try{
-    const r=await fetch(`https://api.github.com/gists/${gistId}`,{headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json'}});
+    const r=await fetch(`https://api.github.com/gists/${gistId}`,{headers:gistHeaders()});
     if(!r.ok)throw new Error('שגיאה '+r.status);
     setSyncStatus('ok','☁ חיבור תקין');
-    alert('✅ חיבור לGist תקין!');
+    alert(token?'✅ חיבור לGist תקין!':'✅ הקריאה לפי ID הצליחה. לשמירה ל-Gist צריך token עם הרשאת gist.');
   }catch(e){
     setSyncStatus('err','☁ שגיאת חיבור');
     alert('❌ שגיאת חיבור: '+e.message);
@@ -2624,17 +2643,15 @@ async function probeRoot(){
   try{local=JSON.parse(localStorage.getItem('fin26')||'null');}catch(e){}
   const vault=window.FinCrypto?FinCrypto.readVault():null;
   let finance=null,tasks=null;
-  const token=getToken(),gistId=getGistId();
-  if(token&&gistId){
+  const gistId=getGistId();
+  if(gistId){
     const r=await fetch('https://api.github.com/gists/'+encodeURIComponent(gistId),{
-      headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json'},cache:'no-store'});
+      headers:gistHeaders(),cache:'no-store'});
     if(!r.ok)throw new Error('Gist '+r.status);
     const d=await r.json();
     const files=d.files||{};
-    if(files.finance_data||files['finance_data.json']){
-      const raw=await fileText(files['finance_data.json']);
-      finance=parseMaybe(raw);
-    }
+    const finFile=files['finance_data.json']||files.finance_data;
+    if(finFile)finance=parseMaybe(await fileText(finFile));
     if(files['tasks.json'])tasks=parseMaybe(await fileText(files['tasks.json']));
   }
   const mode=FinCrypto.planGate({vault,local,finance,tasks});
@@ -2658,7 +2675,7 @@ function buildPlainBackup(){
 async function startRoot(){
   stripAccessHash();
   if(!window.FinCrypto){await bootApp();return;}
-  if(!getToken()){
+  if(!getToken()&&!getGistId()){
     document.getElementById('setupOverlay').classList.remove('hidden');
     return;
   }
@@ -2836,13 +2853,14 @@ document.getElementById('lockSaved').addEventListener('change',()=>{document.get
 document.getElementById('lockGoBtn').disabled=true;
 
 async function bootApp(){
-  if(!getToken()){
+  if(!getToken()&&!getGistId()){
     document.getElementById('setupOverlay').classList.remove('hidden');
     return;
   }
   if(!S||!Array.isArray(S.investments)||!S.investments.length){
     const had=await loadState();
     const loaded=await gistLoad();
+    if(!document.getElementById('pinOverlay').classList.contains('hidden')&&window.FinCrypto&&!FinCrypto.unlocked())return;
     if(!loaded&&!had)await loadState();
     if(window.FinCrypto&&FinCrypto.isPersonalFinance(S)&&!FinCrypto.unlocked()&&(FinCrypto.readVault()||ROOT_PROBE&&ROOT_PROBE.mode!=='open')){
       return;

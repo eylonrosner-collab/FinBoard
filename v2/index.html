@@ -813,7 +813,7 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
         <div id="gistStatus" style="font-size:13px;margin-bottom:10px"></div>
         <div class="form">
           <div class="field"><label>Gist ID</label><input id="gId" autocomplete="off" spellcheck="false" placeholder="a1b2c3d4…" style="direction:ltr"></div>
-          <div class="field"><label>GitHub token (אופציונלי)</label><input id="gTok" type="password" autocomplete="off" placeholder="ghp_… / github_pat_…" style="direction:ltr"><div class="hint">לקריאה אפשר בלי token (Gist סודי נגיש לפי ID). <b>לשמירה ל-Gist</b> נדרש token עם הרשאת <span class="num">gist</span>.</div></div>
+          <div class="field"><label>GitHub token (אופציונלי לקריאה)</label><input id="gTok" type="password" autocomplete="off" placeholder="ghp_… / github_pat_…" style="direction:ltr"><div class="hint">קריאה: מספיק Gist ID — גם Gist סודי נפתח בלי token. <b>שמירה ל-Gist</b>: חובה token עם הרשאת <span class="num">gist</span>.</div></div>
           <div class="field"><label>&nbsp;</label><button class="btn" id="gSave">בדוק וטען</button></div>
         </div>
         <div class="chips-row" style="margin-top:10px"><button class="btn ghost" id="gReload">טען מחדש מה-Gist</button><button class="btn ghost" id="gForget">שכח פרטי Gist של v2</button></div>
@@ -1130,7 +1130,8 @@ async function loadData(){
   let gistPack=null;
   if(!forceDemo){
     const local=await readLocal(),c=getCreds();let g=null,err='';
-    if(c){try{g=await fetchGist(c);}catch(e){err=e.message;console.warn('Gist load (read-only):',e.message);}}
+    let gistLock=null;
+    if(c){try{g=await fetchGist(c);}catch(e){err=e.message;if(e&&e.code==='LOCKED')gistLock=e;console.warn('Gist load (read-only):',e.message);}}
     gistPack=g;
     if(g){
       if(g.plaintext&&window.FinCrypto&&!FinCrypto.unlocked())PENDING_PLAIN={finance:g.S,tasks:g.tasks,local};
@@ -1141,7 +1142,9 @@ async function loadData(){
     else if(c){const cache=v2raw().cache;
       if(cache&&cache.S&&Array.isArray(cache.S.investments)){S=cache.S;SRC='gistCache';SRC_MSG=`⚠️ טעינה מה-Gist נכשלה: ${err}. מוצג עותק שמור של ה-Gist מ-${heDate(cache.at)}.`;SRC_MSG_KIND='err';}
       else{SRC_MSG=`⚠️ טעינה מה-Gist נכשלה: ${err}. מוצגים נתוני דוגמה.`;SRC_MSG_KIND='err';}}
+    if(gistLock){SRC_MSG='הנתונים ב-Gist מוצפנים. הזינו סיסמה או מפתח שחזור כדי לטעון אותם.';SRC_MSG_KIND='info';}
     if(S){try{SNAPS=await readSnaps();}catch(e){SNAPS=[];}}
+    if(gistLock&&!DEMO){const wraps=gistLock.wraps;setTimeout(()=>{if(window.finboardOnLocked)window.finboardOnLocked(wraps);},0);}
   }
   if(!S){const ex=makeExample();S=ex.S;SNAPS=ex.snaps;SRC='example';SRC_NOTE=forceDemo?'(מצב ?demo=1)':'(לא נמצאו נתונים)';}
   else S=JSON.parse(JSON.stringify(S)); // work on a private copy — never mutate stored objects
@@ -3356,9 +3359,11 @@ function renderTzofik(){
   if(needData){$('#tzGistLoad').onclick=async()=>{const gist=$('#tzGistId').value.trim();
     if(!/^[0-9a-fA-F]{8,64}$/.test(gist)){$('#tzGistMsg').innerHTML='<span class="neg">Gist ID לא תקין</span>';return;}
     $('#tzGistMsg').textContent='טוען…';
-    try{await fetchGist({gist,token:''});v2patch(v=>{v.auth={gist,token:'',savedAt:new Date().toISOString(),via:'tzofik'};});
+    try{await fetchGist({gist,token:''});rememberGistAuth(gist,'','tzofik');
       await reloadData();location.hash=TZ_SHARE_HASH;}
-    catch(e){$('#tzGistMsg').innerHTML=`<span class="neg">${esc(e.message)}</span>`;}};}
+    catch(e){
+      if(e&&e.code==='LOCKED'){rememberGistAuth(gist,'','tzofik');$('#tzGistMsg').textContent='הפרטים נשמרו. הנתונים מוצפנים — הזינו סיסמה או מפתח שחזור.';if(window.finboardOnLocked)window.finboardOnLocked(e.wraps);return;}
+      $('#tzGistMsg').innerHTML=`<span class="neg">${esc(e.message)}</span>`;}};}
 }
 
 /* SETTINGS */
@@ -4060,18 +4065,31 @@ function initPrivIdle(){
   });
   window.addEventListener('pageshow',ev=>{if(ev.persisted)reblurValues();});
 }
+function rememberGistAuth(gist,token,via){
+  v2patch(v=>{v.auth={gist,token:token||'',savedAt:new Date().toISOString(),via:via||'settings'};});
+}
 function renderGistCard(){
   const c=getCreds();const mask=x=>x?x.slice(0,6)+'…'+x.slice(-3):'';
   $('#gistStatus').innerHTML=!c?'<span class="dim">לא מוגדר חיבור Gist בדפדפן הזה.</span>'
-    :`מקור הפרטים: <b>${c.from==='original'?'האתר המקורי (fin26_gist / fin26_token)':'FinBoard 2.0 (fin26_v2)'}</b> · Gist <span class="num">${esc(mask(c.gist))}</span> · token: ${c.token?'<span class="num">••••</span> מוגדר':'ללא'}`;
+    :`מקור הפרטים: <b>${c.from==='original'?'האתר המקורי (fin26_gist / fin26_token)':'FinBoard 2.0 (fin26_v2)'}</b> · Gist <span class="num">${esc(mask(c.gist))}</span> · token: ${c.token?'<span class="num">••••</span> מוגדר':'ללא — קריאה בלבד'}`;
   const busy=on=>{['gSave','gReload','gForget'].forEach(id=>$('#'+id).disabled=on);};
   const msg=(t,cls='')=>{$('#gMsg').innerHTML=`<span class="${cls}">${t}</span>`;};
   $('#gSave').onclick=async()=>{const gist=$('#gId').value.trim(),token=$('#gTok').value.trim();
     if(!/^[0-9a-fA-F]{8,64}$/.test(gist)){msg('הזן Gist ID תקין (מחרוזת hex).','neg');return;}
     busy(true);msg('בודק…','dim');
-    try{await fetchGist({gist,token});v2patch(v=>{v.auth={gist,token,savedAt:new Date().toISOString(),via:'settings'};});
-      $('#gTok').value='';msg('✓ החיבור תקין. הפרטים נשמרו ב-fin26_v2 בלבד.','pos');await reloadData();}
-    catch(e){msg('❌ '+esc(e.message)+' — הפרטים לא נשמרו.','neg');}finally{busy(false);}};
+    const readNote=token?'':' קריאה לא דורשת token; שמירה ל-Gist כן.';
+    try{await fetchGist({gist,token});rememberGistAuth(gist,token,'settings');
+      $('#gTok').value='';msg('✓ החיבור תקין. הפרטים נשמרו ב-fin26_v2 בלבד.'+readNote,'pos');await reloadData();}
+    catch(e){
+      if(e&&e.code==='LOCKED'){
+        rememberGistAuth(gist,token,'settings');
+        $('#gTok').value='';
+        msg('הפרטים נשמרו. הנתונים מוצפנים — הזינו סיסמה או מפתח שחזור.'+readNote,'pos');
+        if(window.finboardOnLocked)window.finboardOnLocked(e.wraps);
+        return;
+      }
+      msg('❌ '+esc(e.message)+' — הפרטים לא נשמרו.','neg');
+    }finally{busy(false);}};
   $('#gReload').onclick=async()=>{busy(true);msg('טוען…','dim');await reloadData();busy(false);};
   $('#gForget').onclick=async()=>{v2patch(v=>{delete v.auth;delete v.cache;});msg('פרטי ה-Gist של v2 נמחקו (מפתחות האתר המקורי לא נגעו).','dim');await reloadData();};
   $('#gReload').style.display=c?'':'none';$('#gForget').style.display=(v2raw().auth||v2raw().cache)?'':'none';
@@ -4293,6 +4311,20 @@ async function boot(){
     if (focus) setTimeout(() => { const el = byId(focus); if (el) el.focus(); }, 40);
   }
   function hideGate() { byId('lockGate').hidden = true; }
+  window.finboardOnLocked = function (wraps) {
+    if (DEMO || FC.unlocked()) return;
+    const gate = byId('lockGate');
+    const prompting = gate && !gate.hidden && byId('lockUnlock') && !byId('lockUnlock').hidden;
+    if (!prompting) {
+      V2_AFTER = 'reload';
+      showPanel('unlock', 'FinBoard נעול', 'הנתונים ב-Gist מוצפנים. הזינו את סיסמת ההצפנה, או הדביקו את מפתח השחזור. המפתח נשמר רק בזיכרון של הלשונית הזו, ולא נשמר במכשיר.');
+    }
+    if (wraps && !(V2_PROBE && (FC.wrapsOf(V2_PROBE.finance) || FC.wrapsOf(V2_PROBE.local) || FC.wrapsOf(V2_PROBE.tasks) || V2_PROBE.vault || FC.readVault()))) {
+      V2_PROBE = { vault: FC.readVault(), finance: wraps, local: null, tasks: null, mode: 'unlock' };
+    } else if (!V2_PROBE) {
+      V2_PROBE = { vault: FC.readVault(), finance: wraps || null, local: null, tasks: null, mode: 'unlock' };
+    }
+  };
 
   async function probeV2() {
     let local = null;
@@ -4423,6 +4455,10 @@ async function boot(){
       byId('lockSecret').value = '';
       if (V2_AFTER === 'migrate') {
         showPanel('migrate', 'נמצאו נתונים גלויים', 'לפני שהם יוצפנו ב-Gist יורד גיבוי למחשב. קישורי צופיק לא מוצפנים.');
+      } else if (V2_AFTER === 'reload') {
+        hideGate();
+        await hydrateV2();
+        await reloadData();
       } else await bootMain();
     } catch (e) {
       FC.clearSession();
