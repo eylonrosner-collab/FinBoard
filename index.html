@@ -2674,7 +2674,17 @@ function buildPlainBackup(){
   return {finboardBackup:1,exportedAt:new Date().toISOString(),plaintext:true,files:{'finance_data.json':fin,'tasks.json':tasks},fin26_snaps:snaps};
 }
 
+function scrubPlainSnaps(){
+  if(!window.FinDemoGuard)return;
+  try{
+    const raw=JSON.parse(localStorage.getItem('fin26_snaps')||'null');
+    if(!Array.isArray(raw))return;
+    const clean=FinDemoGuard.strip(raw);
+    if(clean.length!==raw.length)localStorage.setItem('fin26_snaps',JSON.stringify(clean));
+  }catch(e){}
+}
 async function startRoot(){
+  scrubPlainSnaps();
   stripAccessHash();
   if(!window.FinCrypto){await bootApp();return;}
   if(!getToken()&&!getGistId()){

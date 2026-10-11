@@ -3737,7 +3737,7 @@ function renderSnapHist(){
     <p class="dim" style="font-size:12.5px">תמונות שווי שנכנסות לתשואה לפי תקופה. מחיקה מסירה את הנקודה במכשיר הזה וב-Gist.</p>
     ${DEMO_DROPPED?`<p class="mt">בטעינה הזו זוהו נקודות של ספר ההדגמה (${DEMO_DROPPED}) והן לא נשמרו ולא הועלו.</p>`:''}
     <div class="tbl-wrap mt" style="max-height:320px;overflow:auto"><table id="tblSnaps"><tr><th>תאריך</th><th class="n">שווי</th><th>מקור</th><th></th></tr>
-    ${rows.length?rows.map(s=>`<tr><td class="num">${esc(s.d)}</td><td class="n">${ils(s.v)}</td><td>${esc(SNAP_ORIGIN[s.d]||'מכשיר זה')}</td><td><button type="button" class="btn ghost sm" data-snap-del="${esc(s.d)}">מחק</button></td></tr>`).join(''):'<tr><td colspan="4" class="dim">אין נקודות שמורות.</td></tr>'}
+    ${rows.length?rows.map(s=>{const src=s.seed?'ייבוא מקומי, לא ב-Gist':(SNAP_ORIGIN[s.d]||'מכשיר זה');return `<tr><td class="num">${esc(s.d)}</td><td class="n">${ils(s.v)}</td><td>${esc(src)}</td><td><button type="button" class="btn ghost sm" data-snap-del="${esc(s.d)}">מחק</button></td></tr>`;}).join(''):'<tr><td colspan="4" class="dim">אין נקודות שמורות.</td></tr>'}
     </table></div>`;
   el.querySelectorAll('[data-snap-del]').forEach(b=>{b.onclick=()=>deleteSnapPoint(b.dataset.snapDel);});
 }
