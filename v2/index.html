@@ -3018,12 +3018,20 @@ let TZ_LINK_MSG='';
 let TZ_LAST_URL='';
 let TZ_BUSY=false;
 function partyOfSlog(s){
-  /* Match slog.acc (and note / attributed holding.owner) to שרון / אילון — same name fields used in the original site. */
+  /* Match slog.acc (and note / attributed holding.owner) to the two owners.
+     Normal data uses שרון / אילון. Demo uses דני / מיכל and reuses the same two slots. */
   const blob=(String(s.acc||'')+' '+String(s.note||'')).toLowerCase();
+  const ownerOf=()=>{if(!s.invId)return '';const inv=S.investments.find(i=>i.id===s.invId);return inv?String(inv.owner||'').toLowerCase():'';};
+  if(DEMO){
+    if(/דני/.test(blob)||/דני/.test(ownerOf()))return 'sharon';
+    if(/מיכל/.test(blob)||/מיכל/.test(ownerOf()))return 'eylon';
+    return 'other';
+  }
   if(/שרון|sharon/.test(blob))return 'sharon';
   if(/אילון|איילון|eylon|eilon/.test(blob))return 'eylon';
-  if(s.invId){const inv=S.investments.find(i=>i.id===s.invId);if(inv){const o=String(inv.owner||'').toLowerCase();
-    if(/שרון|sharon/.test(o))return 'sharon';if(/אילון|איילון|eylon|eilon/.test(o))return 'eylon';}}
+  const o=ownerOf();
+  if(/שרון|sharon/.test(o))return 'sharon';
+  if(/אילון|איילון|eylon|eilon/.test(o))return 'eylon';
   return 'other';
 }
 function yearNetSavings(yr){
@@ -3282,8 +3290,9 @@ function renderTzofik(){
     updated=S.lastUpdated?String(S.lastUpdated).slice(0,10):null;
     prior=tzPriorFin();
   }
-  const splitTxt=`שרון <span class="m">${(+y.pctSharon||0).toFixed(0)}%</span> · אילון <span class="m">${(+y.pctEylon||0).toFixed(0)}%</span>`+(y.pctOther>0.5?` · אחר <span class="m">${(+y.pctOther||0).toFixed(0)}%</span>`:'');
-  const needData=SRC==='example'&&!snap;
+  const who=DEMO?['דני','מיכל']:['שרון','אילון'];
+  const splitTxt=`${who[0]} <span class="m">${(+y.pctSharon||0).toFixed(0)}%</span> · ${who[1]} <span class="m">${(+y.pctEylon||0).toFixed(0)}%</span>`+(y.pctOther>0.5?` · אחר <span class="m">${(+y.pctOther||0).toFixed(0)}%</span>`:'');
+  const needData=!DEMO&&SRC==='example'&&!snap;
   const gistBox=needData?`<div class="tz-card warn-tz"><div class="tz-lbl">אין נתונים אמיתיים בדפדפן הזה</div>
     <div class="tz-sub">בקשי קישור <b>עם נתונים</b> (תצלום ב־URL), או הזיני Gist ID ציבורי לקריאה בלבד. קישור עם token לא נתמך.</div>
     <div class="tz-gist"><input id="tzGistId" placeholder="Gist ID (hex)" autocomplete="off">
