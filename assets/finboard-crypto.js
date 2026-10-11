@@ -137,6 +137,7 @@
     var wraps = { iter: ITER, saltP: p.salt, ivP: p.iv, wrapP: p.ct, saltR: r.salt, ivR: r.iv, wrapR: r.ct };
     session = { dataKey: dataKey, wraps: wraps };
     persistVault(wraps);
+    invalidateBio(true);
     return { recoveryText: formatRecovery(recovery), wraps: wraps };
   }
 
@@ -178,7 +179,138 @@
       saltR: session.wraps.saltR, ivR: session.wraps.ivR, wrapR: session.wraps.wrapR
     };
     persistVault(session.wraps);
+    invalidateBio(true);
     return session.wraps;
+  }
+
+  /* Device biometric wrap. The passphrase is never an input and is never stored.
+     A platform passkey's PRF output (32 bytes) is the HKDF IKM. The derived
+     AES-GCM key wraps the raw data key. Only credId, the PRF salt, and that
+     wrap live in localStorage['fin26_bio'] — per device, real book only. */
+  var BIO_LS = 'fin26_bio';
+  var BIO_HKDF_SALT = new TextEncoder().encode('finboard-bio-hkdf-v1');
+  var BIO_HKDF_INFO = new TextEncoder().encode('finboard-data-key-wrap');
+
+  function readBioStore() {
+    try {
+      if (typeof localStorage === 'undefined') return null;
+      var o = JSON.parse(localStorage.getItem(BIO_LS) || 'null');
+      if (!o || o.v !== 1 || typeof o !== 'object') return null;
+      return o;
+    } catch (e) { return null; }
+  }
+  function writeBioStore(o) {
+    try {
+      if (typeof localStorage === 'undefined') return;
+      if (!o) localStorage.removeItem(BIO_LS);
+      else localStorage.setItem(BIO_LS, JSON.stringify(o));
+    } catch (e) {}
+  }
+  function bioRecord() {
+    var o = readBioStore();
+    if (!o) return null;
+    if (typeof o.credId !== 'string' || typeof o.salt !== 'string' || typeof o.iv !== 'string' || typeof o.ct !== 'string' || typeof o.fp !== 'string') return null;
+    if (!o.credId || !o.salt || !o.iv || !o.ct || !o.fp) return null;
+    return { credId: o.credId, salt: o.salt, fp: o.fp };
+  }
+  function bioPrompt() {
+    var o = readBioStore() || {};
+    return { ask: !!o.ask, dismissedFp: typeof o.dismissedFp === 'string' ? o.dismissedFp : '' };
+  }
+  function invalidateBio(ask) {
+    var prev = readBioStore();
+    var had = !!(prev && typeof prev.credId === 'string' && prev.credId);
+    if (!had) return;
+    if (ask) writeBioStore({ v: 1, ask: true });
+    else writeBioStore(null);
+  }
+  async function wrapsFingerprint(wraps) {
+    var w = wrapsOf(wraps);
+    if (!w) return '';
+    var text = [w.saltP, w.ivP, w.wrapP, w.saltR, w.ivR, w.wrapR].join('\n');
+    var dig = await subtle().digest('SHA-256', new TextEncoder().encode(text));
+    return b64e(new Uint8Array(dig));
+  }
+  async function prfKek(prfBytes) {
+    if (!(prfBytes instanceof Uint8Array) || prfBytes.length !== 32) {
+      throw Object.assign(new Error('BAD_BIO'), { code: 'BAD_BIO' });
+    }
+    var ikm = await subtle().importKey('raw', prfBytes, 'HKDF', false, ['deriveKey']);
+    return subtle().deriveKey(
+      { name: 'HKDF', hash: 'SHA-256', salt: BIO_HKDF_SALT, info: BIO_HKDF_INFO },
+      ikm,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['encrypt', 'decrypt']
+    );
+  }
+  async function enrollBio(prfBytes, credId, salt) {
+    if (!session) throw Object.assign(new Error('LOCKED'), { code: 'LOCKED' });
+    if (typeof credId !== 'string' || !credId || typeof salt !== 'string' || !salt) {
+      throw Object.assign(new Error('BAD_BIO'), { code: 'BAD_BIO' });
+    }
+    var raw = new Uint8Array(await subtle().exportKey('raw', session.dataKey));
+    try {
+      var kek = await prfKek(prfBytes);
+      var iv = g.crypto.getRandomValues(new Uint8Array(12));
+      var ct = new Uint8Array(await subtle().encrypt({ name: 'AES-GCM', iv: iv }, kek, raw));
+      var fp = await wrapsFingerprint(session.wraps);
+      writeBioStore({ v: 1, credId: credId, salt: salt, iv: b64e(iv), ct: b64e(ct), fp: fp });
+    } finally {
+      raw.fill(0);
+    }
+  }
+  async function unlockRaw(raw, wraps) {
+    var w = wrapsOf(wraps);
+    if (!w) throw Object.assign(new Error('NO_WRAPS'), { code: 'NO_WRAPS' });
+    if (!(raw instanceof Uint8Array) || raw.length !== 32) {
+      throw Object.assign(new Error('BAD_BIO'), { code: 'BAD_BIO' });
+    }
+    var dataKey = await subtle().importKey('raw', raw, { name: 'AES-GCM' }, true, ['encrypt', 'decrypt']);
+    session = { dataKey: dataKey, wraps: w };
+    persistVault(w);
+    return dataKey;
+  }
+  async function unlockFromBio(prfBytes, wraps) {
+    var rec = readBioStore();
+    if (!rec || !rec.credId || !rec.iv || !rec.ct || !rec.fp) {
+      throw Object.assign(new Error('NO_BIO'), { code: 'NO_BIO' });
+    }
+    var fp = await wrapsFingerprint(wraps);
+    if (!fp || fp !== rec.fp) {
+      invalidateBio(true);
+      throw Object.assign(new Error('STALE_BIO'), { code: 'STALE_BIO' });
+    }
+    var raw;
+    try {
+      var kek = await prfKek(prfBytes);
+      raw = new Uint8Array(await subtle().decrypt({ name: 'AES-GCM', iv: b64d(rec.iv) }, kek, b64d(rec.ct)));
+    } catch (e) {
+      invalidateBio(true);
+      throw Object.assign(new Error('BAD_BIO'), { code: 'BAD_BIO' });
+    }
+    try {
+      await unlockRaw(raw, wraps);
+    } finally {
+      if (raw) raw.fill(0);
+    }
+  }
+  async function bioReady(wraps) {
+    var rec = bioRecord();
+    if (!rec) return false;
+    var fp = await wrapsFingerprint(wraps);
+    if (!fp || fp !== rec.fp) {
+      invalidateBio(true);
+      return false;
+    }
+    return true;
+  }
+  async function forgetBio(wrapsOrFp) {
+    var fp = '';
+    if (typeof wrapsOrFp === 'string') fp = wrapsOrFp;
+    else if (wrapsOrFp) fp = await wrapsFingerprint(wrapsOrFp);
+    if (fp) writeBioStore({ v: 1, dismissedFp: fp });
+    else writeBioStore(null);
   }
 
   function applyWraps(envelope, wraps) {
@@ -225,6 +357,7 @@
   var api = {
     ITER: ITER,
     VAULT_LS: VAULT_LS,
+    BIO_LS: BIO_LS,
     CLEARTEXT_FILES: CLEARTEXT_FILES,
     isEnvelope: isEnvelope,
     isWraps: isWraps,
@@ -244,6 +377,14 @@
     changePassphrase: changePassphrase,
     applyWraps: applyWraps,
     clearSession: clearSession,
+    wrapsFingerprint: wrapsFingerprint,
+    bioRecord: bioRecord,
+    bioPrompt: bioPrompt,
+    bioReady: bioReady,
+    enrollBio: enrollBio,
+    unlockFromBio: unlockFromBio,
+    forgetBio: forgetBio,
+    dropBio: invalidateBio,
     unlocked: unlocked,
     wraps: currentWraps,
     planGate: planGate,
