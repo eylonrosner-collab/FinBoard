@@ -83,6 +83,7 @@ body:not(.privacy) #privBtn .ico-hide{display:none}
 body:not(.privacy) #privBtn .ico-show{display:block}
 .icon-btn:hover{border-color:var(--pri)}
 .banner{border:1px dashed color-mix(in srgb,var(--warn) 60%,transparent);background:color-mix(in srgb,var(--warn) 8%,transparent);color:var(--text);border-radius:12px;padding:10px 14px;margin-bottom:16px;font-size:13px}
+.demo-banner{font-size:12px;line-height:1.35;padding:6px 12px;margin-bottom:12px;text-align:center;border-style:solid}
 .banner b{color:var(--warn)}
 .banner.info{border-color:color-mix(in srgb,var(--info) 55%,transparent);background:color-mix(in srgb,var(--info) 8%,transparent)}
 .banner.err{border-color:color-mix(in srgb,var(--neg) 55%,transparent);background:color-mix(in srgb,var(--neg) 8%,transparent)}
@@ -513,6 +514,7 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
 </style>
 </head>
 <body class="privacy">
+<script>if(/[?&]demo=1(?:&|$)/.test(location.search))document.body.classList.remove('privacy');</script>
 <div id="lockGate" class="lock-gate" hidden>
   <div class="lock-card">
     <div class="brand-logo" style="width:42px;height:42px">F</div>
@@ -561,6 +563,7 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
     </div>
     <div id="srcMsg" class="banner info" style="display:none"></div>
     <div id="syncBar" class="banner err syncbar"><span id="syncTxt"></span><button class="btn sm" id="syncRetry">סנכרן ל-Gist עכשיו</button></div>
+    <div id="demoBanner" class="banner demo-banner" hidden>מצב הדגמה — נתונים בדויים</div>
     <div id="exBanner" class="banner" style="display:none"><b>נתוני דוגמה.</b> כל המספרים במסך זה הם נתונים לדוגמה בלבד (לא הנתונים האמיתיים שלך). כדי לראות את הנתונים שלך: פתח את הדף באותו דפדפן שבו האתר המקורי מחובר, או הזן Gist ID בעמוד <a href="#settings">הגדרות</a>.</div>
 
     <!-- OVERVIEW -->
@@ -846,6 +849,26 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
 <div class="modal-bg" id="modal"><div class="modal-box" role="dialog" aria-modal="true"><div class="modal-head"><b id="mdTitle"></b><button id="mdX" aria-label="סגור">✕</button></div><div class="modal-body" id="mdBody"></div><div class="modal-foot" id="mdFoot"></div></div></div>
 <div class="toast" id="toast"></div>
 <script src="lookthrough.js"></script>
+<script>
+/* Demo mode must be sealed before crypto or the app read localStorage. */
+(function(){
+  if(!/[?&]demo=1(?:&|$)/.test(location.search)) return;
+  document.documentElement.classList.add('demo');
+  var blocked={fin26:1,fin26_snaps:1,fin26_gemini:1,fin26_v2:1,fin26_token:1,fin26_gist:1,fin26_vault:1};
+  var proto=Storage.prototype;
+  var get=proto.getItem, set=proto.setItem, rem=proto.removeItem;
+  proto.getItem=function(k){ if(this===localStorage && blocked[String(k)]) return null; return get.call(this,k); };
+  proto.setItem=function(k,v){ if(this===localStorage && blocked[String(k)]) return; return set.call(this,k,v); };
+  proto.removeItem=function(k){ if(this===localStorage && blocked[String(k)]) return; return rem.call(this,k); };
+  var orig=window.fetch;
+  if(orig) window.fetch=function(input, init){
+    var url='';
+    try{ url=typeof input==='string'?input:(input&&input.url)||''; }catch(e){}
+    if(/\/\/api\.github\.com\/|gist\.githubusercontent\.com/i.test(String(url))) return Promise.reject(new TypeError('demo'));
+    return orig.apply(this, arguments);
+  };
+})();
+</script>
 <script src="../assets/finboard-crypto.js"></script>
 <script>
 'use strict';
@@ -859,6 +882,7 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
    exists, in the same Gist as tasks.json. v1 only reads finance_data.json.
    ===================================================================== */
 const KEY_STATE='fin26', KEY_SNAPS='fin26_snaps', KEY_GEMINI='fin26_gemini', KEY_V2='fin26_v2';
+const DEMO=/[?&]demo=1(?:&|$)/.test(location.search);
 /* Sanitized historical total-assets ({d,v} only — no names/accounts). Merged into fin26_snaps when missing. */
 const HIST_ASSETS_SEED=[{"d":"2021-03-03","v":1874094},{"d":"2021-04-19","v":2322700},{"d":"2021-05-21","v":2503105},{"d":"2021-06-16","v":2503837},{"d":"2021-07-26","v":2600825},{"d":"2021-09-04","v":2620038},{"d":"2021-10-12","v":2609376},{"d":"2021-11-18","v":2711865},{"d":"2022-01-03","v":2732161},{"d":"2022-04-03","v":2827800},{"d":"2022-05-28","v":2821720},{"d":"2022-08-12","v":2940593},{"d":"2022-09-26","v":2894643},{"d":"2022-11-01","v":2228223},{"d":"2022-12-29","v":2069782},{"d":"2023-02-25","v":1777480},{"d":"2023-04-16","v":1846249},{"d":"2023-05-02","v":1901751},{"d":"2023-08-17","v":2236798},{"d":"2023-10-06","v":2310518},{"d":"2023-11-07","v":2402398},{"d":"2023-12-18","v":2445840},{"d":"2024-01-21","v":2522538},{"d":"2024-02-12","v":2548365},{"d":"2024-03-12","v":2718985},{"d":"2024-04-15","v":2885158},{"d":"2024-06-16","v":3034121},{"d":"2024-08-07","v":3090608},{"d":"2024-08-25","v":3139931},{"d":"2024-10-05","v":3290608},{"d":"2024-12-15","v":3599527},{"d":"2025-02-08","v":3685127},{"d":"2025-05-29","v":3629830},{"d":"2025-07-02","v":3834031},{"d":"2025-08-06","v":3996395},{"d":"2025-09-13","v":4089904},{"d":"2025-12-15","v":4393438},{"d":"2026-10-07","v":4421972}];
 const HIST_ASSETS_META={n:38,from:'2021-03-03',to:'2026-10-07',src:'xlsx-import'};
@@ -920,9 +944,9 @@ function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.i
 function gauss(r){let u=0,v=0;while(!u)u=r();while(!v)v=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
 const TODAY=new Date(); TODAY.setHours(12,0,0,0);
 
-/* ---------------- EXAMPLE DATA (clearly synthetic, same shapes as v1) ---------------- */
+/* ---------------- EXAMPLE DATA (fully fictional demo book) ---------------- */
 function makeExample(){
-  const R=rng(20261006);
+  const R=rng(20261107);
   const tracks=[
     {id:'sp500',name:'S&P 500',rate:10.5,note:'ממוצע היסטורי 30 שנה'},{id:'intl50',name:'50% מניות + S&P 50%',rate:8.0,note:'ממוצע מעורב'},
     {id:'gen',name:'כללי',rate:7.0,note:'מסלול כללי מגוון'},{id:'bonds',name:'אגח',rate:4.0,note:'אגרות חוב'},
@@ -930,65 +954,79 @@ function makeExample(){
     {id:'nasdaq',name:'SP500,NASDAQ,AI',rate:11.0,note:'מדדי טכנולוגיה'},{id:'ta35',name:'ת"א 35',rate:7.5,note:'מדד ישראלי'},
     {id:'btc',name:'Bitcoin',rate:40.0,note:'תנודתיות גבוהה מאוד'},{id:'eth',name:'Ethereum',rate:35.0,note:'תנודתיות גבוהה מאוד'},
     {id:'usd',name:'USD',rate:2.0,note:'מטבע זר'},{id:'re',name:'נדל"ן',rate:6.0,note:''},{id:'other',name:'אחר',rate:5.0,note:''}];
-  // savings log: monthly deposits Jan-2023 .. last month
-  const slog=[];let id=1;
-  for(let d=new Date(2023,0,8);d<new Date(TODAY.getFullYear(),TODAY.getMonth(),1);d=addMonths(d,1)){
-    const base=d.getFullYear()===2023?9000:d.getFullYear()===2024?11000:d.getFullYear()===2025?13000:12000;
-    const amt=Math.round((base+(R()-.5)*6000)/100)*100;
-    slog.push({id:'x'+id++,date:iso(d),acc:R()<.55?'שרון (דוגמה)':'אילון (דוגמה)',amount:amt,total:0,note:'הפקדה (דוגמה)'});
-    if(R()<.12){const w=-Math.round((8000+R()*15000)/100)*100;const d2=new Date(d);d2.setDate(20);
-      slog.push({id:'x'+id++,date:iso(d2),acc:'שרון (דוגמה)',amount:w,total:0,note:'משיכה (דוגמה)'});}
+  const spec=[
+    {id:'e1',cat:'gamel',name:'גמל להשקעה — S&P 500',inst:'מור',track:'S&P 500',owner:'דני',bal:486000,principal:352000,feePct:0.58,openedAt:'2019-04-12',liquid:true,start:0.72},
+    {id:'e2',cat:'gamel',name:'גמל להשקעה — כללי',inst:'ילין לפידות',track:'כללי',owner:'מיכל',bal:214500,principal:189000,feePct:0.64,openedAt:'2021-08-03',liquid:true,start:0.84},
+    {id:'e3',cat:'kupa',name:'קרן השתלמות — מניות',inst:'הראל',track:'מניות',owner:'דני',bal:612000,principal:390000,feePct:0.48,openedAt:'2015-03-01',liquid:true,taxableShare:0.22,principalNote:'כולל העברה מקרן קודמת ב־2019',start:0.66},
+    {id:'e4',cat:'kupa',name:'קרן השתלמות — כללי',inst:'מור',track:'כללי',owner:'מיכל',bal:278400,principal:241000,feePct:0.55,openedAt:'2023-09-01',liquid:false,start:0.86},
+    {id:'e5',cat:'kupa',name:'קרן השתלמות — S&P 500',inst:'ילין לפידות',track:'S&P 500',owner:'דני',bal:195800,principal:160000,feePct:0.70,openedAt:'2024-06-01',liquid:false,start:0.81},
+    {id:'e6',cat:'kupa',name:'קופת גמל — כללי',inst:'כלל',track:'כללי',owner:'מיכל',bal:340000,principal:255000,feePct:0.42,openedAt:'2016-11-01',liquid:false,start:0.74},
+    {id:'e7',cat:'kupa',name:'קופת גמל — אג"ח',inst:'הראל',track:'אגח',owner:'דני',bal:168200,principal:151000,feePct:0.39,openedAt:'2018-02-01',liquid:false,start:0.90},
+    {id:'e8',cat:'kupa',name:'פוליסת חיסכון — מניות',inst:'כלל',track:'מניות',owner:'מיכל',bal:247600,principal:198000,feePct:0.80,openedAt:'2020-01-15',liquid:false,start:0.78},
+    {id:'e9',cat:'forex',name:'ברוקראז׳ ארה"ב — SP500 / NASDAQ / AI',inst:'Schwab',track:'SP500,NASDAQ,AI',owner:'דני',bal:470000,principal:318000,feePct:0.03,currency:'USD',start:0.67},
+    {id:'e10',cat:'forex',name:'תיק מנוהל — מניות',inst:'ילין לפידות',track:'מניות',owner:'מיכל',bal:280000,principal:226000,feePct:0.85,start:0.80},
+    {id:'e11',cat:'cash',name:'קרן כספית',inst:'מור',track:'כספית',owner:'משותף',bal:88000,principal:86000,feePct:0.12,start:0.94},
+    {id:'e12',cat:'cash',name:'פיקדון שקלי',inst:'בנק (דוגמה)',track:'אחר',owner:'משותף',bal:48700,principal:48000,feePct:0,start:0.97},
+    {id:'e13',cat:'cash',name:'עו"ש',inst:'בנק (דוגמה)',track:'אחר',owner:'דני',bal:31400,principal:null,feePct:0,start:0.88},
+    {id:'e14',cat:'crypto',name:'Bitcoin',inst:'ארנק (דוגמה)',track:'Bitcoin',owner:'דני',bal:22800,principal:15400,feePct:0,cryptoSymbol:'BTC',cryptoAmt:0.041,start:0.58},
+    {id:'e15',cat:'crypto',name:'Ethereum',inst:'ארנק (דוגמה)',track:'Ethereum',owner:'מיכל',bal:11250,principal:9800,feePct:0,cryptoSymbol:'ETH',cryptoAmt:0.62,start:1.15}
+  ];
+  const dates=[];
+  for(let k=36;k>=1;k--){const d=addMonths(TODAY,-k);d.setDate(8);dates.push(iso(d));}
+  dates.push(iso(TODAY));
+  const n=dates.length;
+  const investments=spec.map(h=>{
+    const start=Math.round(h.bal*h.start);
+    const history=dates.map((date,i)=>{
+      const t=i/(n-1);
+      const curve=start+(h.bal-start)*(0.15*t+0.85*t*t);
+      const wobble=i===n-1?0:Math.round((R()-.5)*h.bal*0.018);
+      return {date,bal:Math.max(0,Math.round(curve+wobble))};
+    });
+    history[n-1].bal=h.bal;
+    const o={id:h.id,cat:h.cat,name:h.name,inst:h.inst,track:h.track,owner:h.owner,accNum:'',bal:h.bal,
+      notes:'נתוני הדגמה',history,lastChange:0,lastChangePct:0,feePct:h.feePct,costBasis:h.principal==null?undefined:h.principal};
+    if(h.principal!=null){o.principal=h.principal;o.principalAsOf='2026-08-20';}
+    if(h.principalNote)o.principalNote=h.principalNote;
+    if(h.openedAt)o.openedAt=h.openedAt;
+    if(h.taxableShare!=null)o.taxableShare=h.taxableShare;
+    if(typeof h.liquid==='boolean')o.liquid=h.liquid;
+    if(h.currency){o.currency=h.currency;o.foreignAmt=Math.round(h.bal/3.64*100)/100;}
+    if(h.cryptoSymbol){o.cryptoSymbol=h.cryptoSymbol;o.cryptoAmt=h.cryptoAmt;}
+    if(h.id!=='e13'&&h.id!=='e15')o.pulledAt=iso(addMonths(TODAY,-2));
+    return o;
+  });
+  const snaps=dates.map((d,i)=>({d,v:investments.reduce((s,inv)=>s+inv.history[i].bal,0)}));
+  const slog=[];let sid=1;
+  for(let k=36;k>=1;k--){
+    const d=addMonths(TODAY,-k);d.setDate(3);
+    const yr=d.getFullYear();
+    const dani=yr<=2024?4600:yr===2025?5400:6100;
+    const michal=yr<=2024?2900:yr===2025?3600:4100;
+    const a1=Math.round((dani+(R()-.5)*700)/100)*100;
+    const a2=Math.round((michal+(R()-.5)*500)/100)*100;
+    slog.push({id:'s'+sid++,date:iso(d),acc:'דני',amount:a1,total:0,note:'הפקדה חודשית',invId:R()<0.35?'e1':'e9'});
+    const d2=new Date(d);d2.setDate(16);
+    slog.push({id:'s'+sid++,date:iso(d2),acc:'מיכל',amount:a2,total:0,note:'הפקדה חודשית',invId:R()<0.4?'e2':'e4'});
+    if(R()<0.1){const w=-Math.round((5000+R()*7000)/100)*100;const d3=new Date(d);d3.setDate(23);
+      slog.push({id:'s'+sid++,date:iso(d3),acc:'דני',amount:w,total:0,note:'משיכה'});}
   }
-  // monthly total-financial-asset series (synthetic market path)
-  const snaps=[];let V=780000;const start=new Date(2023,0,1);
-  for(let d=new Date(start);d<=TODAY;d=addMonths(d,1)){
-    snaps.push({d:iso(d),v:Math.round(V)});
-    const mk=iso(d).slice(0,7);const c=slog.filter(s=>s.date.slice(0,7)===mk).reduce((a,s)=>a+s.amount,0);
-    V=V*(1+0.0062+gauss(R)*0.022)+c;
-  }
-  const Vnow=V;
-  const H=[ // weight, costBasis gain, fee, days since last update
-    ['gamel','גמל להשקעה — S&P 500','בית השקעות א','S&P 500','בן/בת זוג',.15,.31,.60,12],
-    ['gamel','גמל להשקעה — כללי','בית השקעות א','כללי','ילד/ה',.08,.13,.65,12],
-    ['kupa','קרן השתלמות ותיקה — מניות','בית השקעות ב','מניות','אני',.15,.42,.72,40],
-    ['kupa','קרן השתלמות — כללי','בית השקעות א','כללי','בן/בת זוג',.09,.21,.78,40],
-    ['kupa','קופת גמל — 50/50','בית השקעות ב','50% מניות + S&P 50%','אני',.08,.29,.55,98],
-    ['forex','תיק ברוקר אמריקאי','Broker (דוגמה)','SP500,NASDAQ,AI','משותף',.22,.37,.07,5,'USD'],
-    ['forex','עו"ש דולרי','בנק (דוגמה)','USD','אני',.015,-.03,0,5,'USD'],
-    ['cash','קרן כספית','בנק (דוגמה)','כספית','משותף',.13,.06,.25,5],
-    ['cash','עו"ש','בנק (דוגמה)','אחר','משותף',.03,0,0,5],
-    ['crypto','Bitcoin','ארנק (דוגמה)','Bitcoin','',.025,.85,0,3],
-    ['crypto','Ethereum','ארנק (דוגמה)','Ethereum','',.01,-.18,0,3]];
-  const wsum=H.reduce((a,h)=>a+h[5],0);
-  const investments=H.map((h,i)=>{
-    const bal=Math.round(Vnow*h[5]/wsum);
-    const hist=[];for(let k=18;k>=0;k--){const d=addMonths(TODAY,-k);d.setDate(d.getDate()-h[8]);const p=snaps.find(s=>s.d.slice(0,7)===iso(d).slice(0,7))||snaps[snaps.length-1];
-      hist.push({date:iso(d),bal:Math.round(bal*(k===0?1:p.v/Vnow*(1+(R()-.5)*.04)))});}
-    const o={id:'e'+(i+1),cat:h[0],name:h[1],inst:h[2],track:h[3],owner:h[4],accNum:'',bal,notes:'נתוני דוגמה',
-      history:hist,lastChange:0,lastChangePct:0,costBasis:Math.round(bal/(1+h[6])),feePct:h[7]};
-    if(h[9]){o.currency=h[9];o.foreignAmt=Math.round(bal/3.7);}
-    if(h[0]==='crypto'){o.cryptoSymbol=h[1]==='Bitcoin'?'BTC':'ETH';}
-    /* Demo principal (money in). עו"ש is left unknown so coverage is partial.
-       costBasis stays — same figure here, except the transferred kupa carries a caveat. */
-    if(h[1]!=='עו"ש'){o.principal=o.costBasis;o.principalAsOf='2026-09-01';}
-    if(String(h[1]).includes('ותיקה')){o.principalNote='סכום שהועבר מקופה קודמת ב־2024, כולל רווחים קודמים';o.principalAsOf='2024-06-01';o.openedAt='2016-03-01';o.taxableShare=0.35;}
-    if(h[1]==='קרן השתלמות — כללי')o.openedAt='2026-06-01';
-    /* pulledAt = day the balance was fetched. Differs from the history as-of date on most demo rows.
-       עו"ש and Ethereum omit it so the single as-of date still shows. */
-    if(h[1]!=='עו"ש'&&h[1]!=='Ethereum')o.pulledAt=iso(TODAY);
-    return o;});
-  investments.push({id:'e99',cat:'realestate',name:'דירת מגורים (דוגמה)',inst:'',track:'נדל"ן',owner:'',accNum:'',bal:2850000,notes:''});
+  let run=0;slog.sort((a,b)=>a.date.localeCompare(b.date)).forEach(x=>{run+=x.amount;x.total=run;});
+  const asOf=iso(addMonths(TODAY,-1)).slice(0,8)+'10';
+  const pulled=(()=>{const x=D(asOf);x.setDate(x.getDate()+1);return iso(x);})();
+  const loan=(id,name,bal,orig,pay,rate,linkage,start,end)=>({
+    id,name,inst:'בנק (דוגמה)',group:'משכנתא',bal,origBal:orig,monthlyPay:pay,annualPay:pay*12,
+    rate,linkage,startDate:start,endDate:end,balAsOf:asOf,pulledAt:pulled,notes:'',closed:false
+  });
   const loans=[
-    {id:'xm1',name:'פריים',inst:'בנק לאומי (דוגמה)',group:'משכנתא לאומי',loanNo:'…0170',bal:120000,origBal:200000,monthlyPay:1276,annualPay:15312,rate:4.16,linkage:'לא צמוד',startDate:'2016-03-10',endDate:'2036-02-10',balAsOf:'2026-08-10',pulledAt:'2026-08-11',notes:'חמישה מסלולים (דוגמה)',closed:false},
-    {id:'xm2',name:'קבועה צמודת מדד',inst:'בנק לאומי (דוגמה)',group:'משכנתא לאומי',loanNo:'…0171',bal:65000,origBal:150000,monthlyPay:3709,annualPay:44508,rate:3.40,linkage:'צמוד מדד',startDate:'2018-03-10',endDate:'2028-02-10',balAsOf:'2026-08-10',pulledAt:'2026-08-11',notes:'',closed:false},
-    {id:'xm3',name:'פריים − 0.35%',inst:'בנק לאומי (דוגמה)',group:'משכנתא לאומי',loanNo:'…0172',bal:85000,origBal:140000,monthlyPay:934,annualPay:11208,rate:4.90,linkage:'לא צמוד',startDate:'2016-03-10',endDate:'2036-02-10',balAsOf:'2026-08-10',pulledAt:'2026-08-11',notes:'',closed:false},
-    {id:'xm4',name:'קבועה צמודת מדד',inst:'בנק לאומי (דוגמה)',group:'משכנתא לאומי',loanNo:'…0173',bal:64000,origBal:120000,monthlyPay:1996,annualPay:23952,rate:2.05,linkage:'צמוד מדד',startDate:'2019-06-10',endDate:'2029-05-10',balAsOf:'2026-08-10',pulledAt:'2026-08-11',notes:'',closed:false},
-    {id:'xm5',name:'קבועה לא צמודה',inst:'בנק לאומי (דוגמה)',group:'משכנתא לאומי',loanNo:'…0174',bal:55000,origBal:100000,monthlyPay:1285,annualPay:15420,rate:2.65,linkage:'לא צמוד',startDate:'2020-06-10',endDate:'2030-05-10',balAsOf:'2026-08-10',pulledAt:'2026-08-11',notes:'',closed:false},
-    {id:'xl2',name:'הלוואת רכב (דוגמה)',inst:'חברת מימון (דוגמה)',bal:48000,origBal:90000,monthlyPay:2100,annualPay:25200,rate:8.9,notes:'',closed:false},
-    {id:'xl3',name:'הלוואה ע"ח קופה (דוגמה)',inst:'בית השקעות ב',bal:15000,origBal:40000,monthlyPay:1000,annualPay:12000,rate:4.2,notes:'',closed:false},
-    {id:'xl4',name:'הלוואה ישנה (דוגמה)',inst:'',bal:0,origBal:120000,monthlyPay:0,annualPay:0,rate:5.5,notes:'נסגרה 2024',closed:true}];
-  let r=0;slog.sort((a,b)=>a.date.localeCompare(b.date)).forEach(x=>{r+=x.amount;x.total=r;});
-  return {S:{tracks,investments,loans,slog,set:{retAge:67,birthYear:1982,tax:25,daily:0},lastUpdated:new Date().toISOString()},snaps};
+    loan('xm1','פריים',72400,160000,1020,5.15,'לא צמוד','2017-03-10','2036-03-10'),
+    loan('xm2','פריים − 0.50%',49200,110000,740,4.65,'לא צמוד','2018-06-10','2034-06-10'),
+    loan('xm3','קבועה צמודת מדד',42600,150000,1680,2.35,'צמוד מדד','2016-11-10','2028-11-10'),
+    loan('xm4','קבועה צמודת מדד',65100,140000,1890,1.90,'צמוד מדד','2019-04-10','2031-04-10'),
+    loan('xm5','קבועה לא צמודה',47100,95000,1170,3.10,'לא צמוד','2020-08-10','2030-08-10'),
+    {id:'xl9',name:'הלוואה שנסגרה (דוגמה)',inst:'בנק (דוגמה)',bal:0,origBal:40000,monthlyPay:0,annualPay:0,rate:6.2,notes:'נסגרה ב־2024',closed:true}
+  ];
+  return {S:{tracks,investments,loans,slog,set:{retAge:67,birthYear:1986,tax:25,daily:0},lastUpdated:new Date().toISOString()},snaps};
 }
 
 /* ---------------- LOAD (read-only) ---------------- */
@@ -1008,6 +1046,7 @@ function writeV2(v){ // quota-safe: drop oldest backups, then cache, if storage 
 function v2patch(fn){const v=v2raw();fn(v);writeV2(v);if(P){P.auth=v.auth;}}
 /* Credentials: original site's keys first (read-only), else v2's own copy in fin26_v2.auth */
 function getCreds(){
+  if(DEMO) return null;
   const g=(localStorage.getItem(KEY_GIST)||'').trim(),t=(localStorage.getItem(KEY_TOKEN)||'').trim();
   if(g){const a=v2raw().auth||{};return {gist:g,token:t||(a.gist===g?String(a.token||''):''),from:'original'};}
   const a=v2raw().auth||{};if(a.gist)return {gist:String(a.gist).trim(),token:String(a.token||'').trim(),from:'v2'};
@@ -1031,6 +1070,7 @@ async function gistFileText(file,signal){
 }
 /* GET the gist and parse every file. Does not decrypt. tzofik_shares.json stays as stored. */
 async function fetchGistRaw(c){
+  if(DEMO) throw new Error('מצב הדגמה');
   const ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),12000);
   try{
     const headers={Accept:'application/vnd.github+json'};if(c.token)headers.Authorization='Bearer '+c.token;
@@ -1109,12 +1149,18 @@ async function loadData(){
   S.investments.forEach(i=>{i.bal=+i.bal||0;});
   adoptTasks(gistPack);
   BASE_TS=tsOf(S);DRAFT={inv:{},loan:{}};
-  try{mergeHistAssetsSeed();}catch(e){console.warn('hist merge',e);}
+  if(!DEMO){try{mergeHistAssetsSeed();}catch(e){console.warn('hist merge',e);}}
 }
 const isRealSrc=()=>SRC!=='example';
 /* prefs */
 let P;
 function loadPrefs(opts){
+  if(DEMO){
+    const sessionPrivacy=(opts&&opts.keepPrivacy&&P)?!!P.privacy:false;
+    P={theme:(opts&&opts.keepPrivacy&&P)?P.theme:null,privacy:sessionPrivacy,hideDoneTasks:false,targets:{...DEF_TARGETS},assume:JSON.parse(JSON.stringify(DEF_ASSUME)),
+      monthlyExpenses:24500,emMonths:6,concPct:20,driftPct:5,feeHigh:0.6,fc:{},alScope:'fin',pgScope:'fin',rbNewMoney:false,ovRange:0,loanCpi:0};
+    return;
+  }
   let p={};try{p=JSON.parse(localStorage.getItem(KEY_V2)||'{}')||{};}catch(e){}
   const sessionPrivacy=(opts&&opts.keepPrivacy&&P)?!!P.privacy:true;
   P=Object.assign({theme:null,privacy:true,hideDoneTasks:false,targets:{...DEF_TARGETS},assume:JSON.parse(JSON.stringify(DEF_ASSUME)),
@@ -1126,7 +1172,7 @@ function loadPrefs(opts){
   Object.keys(DEF_ASSUME).forEach(k=>P.assume[k]=Object.assign({...DEF_ASSUME[k]},(P.assume||{})[k]||{}));
   P.privacy=sessionPrivacy; /* every entry starts blurred; reveal lasts only for this visit */
 }
-function savePrefs(){const v=v2raw();const out={...P};delete out.privacy;V2_META.forEach(k=>{if(v[k]!==undefined)out[k]=v[k];else delete out[k];});writeV2(out);}
+function savePrefs(){if(DEMO)return;const v=v2raw();const out={...P};delete out.privacy;V2_META.forEach(k=>{if(v[k]!==undefined)out[k]=v[k];else delete out[k];});writeV2(out);}
 
 /* ---------------- OVERVIEW TASKS ----------------
    Stored outside finance_data.json so the original site (which JSON.parses that
@@ -1173,8 +1219,17 @@ function mergeTaskDocs(base,local,remote){
   }
   return {v:1,updatedAt:new Date().toISOString(),items};
 }
+function demoTaskDoc(){
+  const a='2026-09-02T09:00:00.000Z', b='2026-09-18T09:00:00.000Z', c='2026-08-11T09:00:00.000Z';
+  return normalizeTaskDoc({v:1,updatedAt:b,items:[
+    {id:'demo1',text:'לבדוק דמי ניהול בקרן ההשתלמות של דני',done:false,createdAt:a,updatedAt:a},
+    {id:'demo2',text:'להחליט אם לחדש את הפיקדון השקלי',done:false,createdAt:b,updatedAt:b},
+    {id:'demo3',text:'לצלם סיכום צופיק ולשלוח למיכל',done:true,createdAt:c,updatedAt:c}
+  ]});
+}
 function taskStorageKey(){return SRC==='example'?'demoTasks':'tasks';}
 function saveTasksLocal(){
+  if(DEMO) return true;
   clearTimeout(taskLocalTimer);taskLocalTimer=null;
   const doc=normalizeTaskDoc(TASKS);
   const key=taskStorageKey();
@@ -1209,6 +1264,7 @@ async function readGistTasks(files,ctl){
 function adoptTasks(g){
   const local=normalizeTaskDoc((v2raw()||{})[taskStorageKey()]);
   taskStatusErr='';
+  if(DEMO){TASKS=demoTaskDoc();TASKS_BASE=cloneTaskDoc(TASKS);taskStatusKind='demo';return;}
   if(SRC==='example'||!g){TASKS=local;TASKS_BASE=cloneTaskDoc(local);taskStatusKind=SRC==='example'?'demo':'local';return;}
   if(g.tasksState==='bad'){TASKS=local;TASKS_BASE=cloneTaskDoc(local);taskStatusKind='err';taskStatusErr='tasks.json לא תקין';return;}
   if(g.tasksState==='locked'){TASKS=local;TASKS_BASE=cloneTaskDoc(local);taskStatusKind='local';return;}
@@ -1232,6 +1288,7 @@ function touchTasks(){
 }
 function queueTaskPush(){clearTimeout(taskSaveTimer);taskSaveTimer=setTimeout(()=>pushTasksGist(),400);}
 async function patchGistFile(c,filename,content){
+  if(DEMO) throw new Error('מצב הדגמה');
   const r=await fetch('https://api.github.com/gists/'+encodeURIComponent(c.gist),{method:'PATCH',
     headers:{Authorization:'Bearer '+c.token,Accept:'application/vnd.github+json','Content-Type':'application/json'},
     body:JSON.stringify({files:{[filename]:{content}}})});
@@ -1269,7 +1326,7 @@ function updateTaskStatus(){
   const el=$('#ovTaskNote');if(!el)return;
   const n=TASKS.items.length;
   const count=n?` · ${n} משימות`:'';
-  if(taskStatusKind==='demo')el.textContent='נשמר בדפדפן הזה'+count+' (נתוני דוגמה — לא נכתב ל-Gist).';
+  if(taskStatusKind==='demo')el.textContent=DEMO?'מצב הדגמה — המשימות מתאפסות ברענון.':'נשמר בדפדפן הזה'+count+' (נתוני דוגמה — לא נכתב ל-Gist).';
   else if(taskStatusKind==='saving')el.textContent='שומר…';
   else if(taskStatusKind==='gist')el.textContent='נשמר במכשיר ומסונכרן ל-Gist'+count+'.';
   else if(taskStatusKind==='err')el.textContent='שמירה לא הושלמה'+(taskStatusErr?': '+taskStatusErr:'')+'.';
@@ -3066,7 +3123,7 @@ function ingestTzHash(raw){
   }else TZ_SNAP=null;
   return parsed.page;
 }
-function tzPageUrl(){const u=new URL(location.href);u.search='';return u;}
+function tzPageUrl(){const u=new URL(location.href);u.search='';if(DEMO)u.searchParams.set('demo','1');return u;}
 function tzLegacyShareUrl(snap){
   const u=tzPageUrl();
   u.hash=TZ_SHARE_HASH+'&s='+tzEncodeSnap(snap||(TZ_SNAP||tzBuildSnap()));
@@ -3302,10 +3359,15 @@ function renderSettings(){
   const histTxt=ha?` · יבוא היסטוריה: ${ha.total||0} נק׳ (${ha.from||'—'}→${ha.to||'—'}), נוספו מצטבר ${ha.addedTotal??ha.added??'—'}`:'';
   const cnt=`${S.investments.length} אחזקות, ${S.loans.length} הלוואות, ${S.slog.length} רשומות חיסכון; <span class="num">fin26_snaps</span> (מקומי): ${nSn} נקודות${histTxt}. עדכון אחרון בנתונים: ${S.lastUpdated?heDate(S.lastUpdated):'—'}.`;
   const ro='<p class="dim">עריכה בעמוד "עדכון" נשמרת בפורמט של האתר המקורי ב-<span class="num">fin26</span> (וב-Gist אם יש token), כך ששני האתרים מסונכרנים. העדפות, מטמון וגיבויים של v2 נשמרים ב-<span class="num">fin26_v2</span>.</p>';
+  if(DEMO){
+    $('#setSrc').innerHTML='<div class="chip ex">מצב הדגמה</div><p class="mt">נתונים בדויים בלבד. אין חיבור ל-Gist, ואין קריאה או כתיבה של הנתונים האמיתיים במכשיר הזה. עריכה מתאפסת ברענון.</p>';
+    applyDemoChrome();
+  }else{
   $('#setSrc').innerHTML=SRC==='gist'?`<div class="chip gist">☁ Gist (live)</div><p class="mt">נטען עכשיו מ-GitHub Gist (<span class="num">${GIST_FILENAME}</span>, עודכן ב-GitHub: ${GIST_META&&GIST_META.gistUpdated?heDate(GIST_META.gistUpdated):'—'}). ${cnt}</p>${ro}`
    :SRC==='gistCache'?`<div class="chip gist">☁ Gist (עותק שמור)</div><p class="mt">${cnt}</p>${ro}`
    :SRC==='local'?`<div class="chip real">💾 נתוני דפדפן מקומיים</div><p class="mt">נקרא מ-<span class="num">localStorage['fin26']</span>: ${cnt}</p>${ro}`
    :`<div class="chip ex">נתוני דוגמה ${SRC_NOTE}</div><p class="mt">הנתונים סינתטיים, באותו מבנה של FinBoard (tracks / investments / loans / slog / set) + שדות חדשים אופציונליים: <span class="num">costBasis</span>, <span class="num">feePct</span>, <span class="num">principal</span>, <span class="num">principalNote</span>, <span class="num">principalAsOf</span>, <span class="num">pulledAt</span>, <span class="num">openedAt</span>, <span class="num">liquidAt</span>, <span class="num">taxKind</span>, <span class="num">taxableShare</span>. בהלוואה גם <span class="num">group</span>, <span class="num">loanNo</span>, <span class="num">startDate</span>, <span class="num">endDate</span>, <span class="num">linkage</span>, <span class="num">balAsOf</span>.</p><p class="dim">כדי לראות נתונים אמיתיים: פתח באותו דפדפן שבו האתר המקורי מחובר, או הזן Gist ID למטה. <span class="num">?demo=1</span> מכריח נתוני דוגמה.</p>`;
+  }
   renderGistCard();renderBackups();
   const bind=(id,k,parse=Number)=>{const el=$('#'+id);el.value=P[k]??'';el.oninput=()=>{P[k]=el.value===''?null:parse(el.value);savePrefs();};};
   bind('sExp','monthlyExpenses');bind('sEmMonths','emMonths');bind('sConc','concPct');bind('sDrift','driftPct');bind('sFee','feeHigh');
@@ -3345,7 +3407,7 @@ const FX_FALLBACK={USD:3.62,EUR:3.95,GBP:4.6,CHF:4.1,JPY:0.025,CAD:2.65,AUD:2.35
 const uid=()=>'_'+Math.random().toString(36).substr(2,9); // same id format as v1
 let BASE_TS=0,SESSION_BACKED=false,DRAFT={inv:{},loan:{}},SAVING=false;
 const RATES={fx:{},crypto:{}};
-const canEdit=()=>SRC!=='example';
+const canEdit=()=>DEMO||SRC!=='example';
 const cryptoSym=i=>i.cryptoSymbol||TRACK_TO_CRYPTO[i.track]||null;
 function unitOf(i){
   if(i.cat==='forex'&&i.currency&&i.currency!=='ILS'&&+i.foreignAmt>0)return {kind:'fx',code:i.currency,amt:+i.foreignAmt};
@@ -3391,6 +3453,7 @@ function updateSnapshot(){ // same shape/rules as v1 bootApp auto-snapshot: {d:'
     persistSnaps(snaps);}catch(e){console.warn('snapshot',e);}
 }
 async function patchGist(c,data){ // identical request to v1 gistSave()
+  if(DEMO) throw new Error('מצב הדגמה');
   const r=await fetch(`https://api.github.com/gists/${c.gist}`,{method:'PATCH',
     headers:{Authorization:'Bearer '+c.token,Accept:'application/vnd.github+json','Content-Type':'application/json'},
     body:JSON.stringify({files:{[GIST_FILENAME]:{content:JSON.stringify(data,null,2)}}})});
@@ -3403,6 +3466,17 @@ function pushBackup(data,reason){
 function toast(msg,kind='ok',ms=4500){const t=$('#toast');t.className='toast show '+kind;t.textContent=msg;clearTimeout(toast._t);toast._t=setTimeout(()=>t.className='toast',ms);}
 /* the single write path */
 async function commit(apply,reason,{force=false}={}){
+  if(DEMO){
+    try{
+      const next=JSON.parse(JSON.stringify(S));const repl=apply(next);const out=repl||next;
+      recalcSlogIn(out);out.lastUpdated=new Date().toISOString();
+      S=out;S.investments.forEach(i=>{i.bal=+i.bal||0;});BASE_TS=tsOf(S);
+      const snaps=SNAPS.slice();const today=iso(TODAY);const v=totals().fin;
+      const last=snaps[snaps.length-1];if(last&&last.d===today)last.v=v;else snaps.push({d:today,v});
+      SNAPS=snaps;
+      toast('עודכן במצב הדגמה — יתאפס ברענון','ok',4000);applySource();show(CUR);return true;
+    }catch(e){toast('שגיאה בעדכון: '+e.message,'err',8000);return false;}
+  }
   if(!canEdit()){toast('עריכה זמינה רק כשנטענו הנתונים שלך — לא בנתוני דוגמה.','err');return false;}
   if(SAVING)return false;SAVING=true;
   try{
@@ -3743,10 +3817,16 @@ function pgLiveHtml(i){
 }
 function renderUpdate(){
   const ed=canEdit();
+  if(DEMO){
+    $('#updLock').style.display='none';
+    $('#updWhere').textContent='מצב הדגמה: שינויים נשמרים רק בזיכרון של הטאב הזה ומתאפסים ברענון. אין חיבור ל-Gist ואין גישה לנתונים אמיתיים.';
+  }else{
   $('#updLock').style.display=ed?'none':'';$('#updLock').innerHTML='<b>עריכה מושבתת:</b> מוצגים נתוני דוגמה. כדי לעדכן יתרות, טען את הנתונים שלך (מהאתר המקורי בדפדפן הזה או דרך חיבור Gist ב<a href="#settings">הגדרות</a>).';
   const di=$('#updDate');if(!di.value)di.value=iso(new Date());
   const c=getCreds();
   $('#updWhere').innerHTML=`השמירה נכתבת בפורמט של האתר המקורי ל-<span class="num">localStorage['fin26']</span>${c&&c.token?' <b>וגם ל-Gist</b> (finance_data.json) — האתר המקורי יראה את העדכון':c?' — <span class="warn">ה-Gist לא יתעדכן: אין token עם הרשאת gist</span>':' — אין חיבור Gist (דפדפן זה בלבד)'}. כל אחזקה — גם עדכון ידני (בנק, דולר, ברוקר, קריפטו) — יכולה לקבל קרן או רווח בש״ח. מזינים <b>או</b> קרן <b>או</b> רווח; השני מחושב מהיתרה (קרן = יתרה − רווח) ונשמר ב־<span class="num">principal</span>. עדכון יתרה לבד לא משנה את הקרן. הפקדה לקרן מוסיפה עליה. תאריך היתרה הוא „נכון ל־”; <span class="num">pulledAt</span> („נמשך ב־”) נרשם להיום בשמירת יתרה. למט״ח ולקריפטו מזינים כמות ביתרה; הקרן והרווח תמיד בש״ח.`;
+  }
+  const diDate=$('#updDate');if(diDate&&!diDate.value)diDate.value=iso(new Date());
   const cats=[...Object.keys(FIN_CATS),...new Set(S.investments.filter(isFin).map(i=>i.cat).filter(k=>!FIN_CATS[k]&&k!=='realestate'))];
   const row=i=>{const u=unitOf(i),lu=lastUpdate(i),stale=lu&&daysBetween(lu,TODAY)>60,d=DRAFT.inv[i.id];
     const pr=priceOf(i);const curTxt=u.kind==='ils'?ils(i.bal):`<span class="m">${(+u.amt).toLocaleString('en-US',{maximumFractionDigits:6})} ${esc(u.code)}</span> <span class="faint">≈ ${ils(i.bal)}</span>`;
@@ -3936,7 +4016,7 @@ function applyTheme(){
 var PRIV_IDLE_MS=3*60*1000, privIdleTimer=0, privHiddenAt=0, privHiddenTimer=0, privIdleReady=false;
 function armPrivIdle(){
   clearTimeout(privIdleTimer);
-  if(!P||P.privacy||document.body.classList.contains('tz-recipient'))return;
+  if(DEMO||!P||P.privacy||document.body.classList.contains('tz-recipient'))return;
   privIdleTimer=setTimeout(reblurValues,PRIV_IDLE_MS);
 }
 function syncPrivacyRender(){
@@ -3945,7 +4025,7 @@ function syncPrivacyRender(){
 }
 function reblurValues(){
   clearTimeout(privIdleTimer);clearTimeout(privHiddenTimer);
-  if(!P||document.body.classList.contains('tz-recipient'))return;
+  if(DEMO||!P||document.body.classList.contains('tz-recipient'))return;
   if(!P.privacy){P.privacy=true;applyTheme();syncPrivacyRender();}
 }
 function notePrivActivity(){
@@ -3987,18 +4067,30 @@ function renderGistCard(){
   $('#gForget').onclick=async()=>{v2patch(v=>{delete v.auth;delete v.cache;});msg('פרטי ה-Gist של v2 נמחקו (מפתחות האתר המקורי לא נגעו).','dim');await reloadData();};
   $('#gReload').style.display=c?'':'none';$('#gForget').style.display=(v2raw().auth||v2raw().cache)?'':'none';
 }
+function applyDemoChrome(){
+  if(!DEMO) return;
+  const ban=$('#demoBanner'); if(ban) ban.hidden=false;
+  const top=$('#backupBtn'); if(top) top.hidden=true;
+  ['gistCard','vaultCard'].forEach(id=>{const el=$('#'+id); if(el) el.hidden=true;});
+  const bk=$('#bkNow'); if(bk&&bk.closest('.card')) bk.closest('.card').hidden=true;
+  const rs=$('#resetPrefs'); if(rs&&rs.closest('.card')) rs.closest('.card').hidden=true;
+}
 function applySource(){
   const chip=$('#srcChip');
   if(TZ_SNAP||(TZ_SHARE_ERR&&CUR==='tzofik')){
     chip.className='chip gist';chip.textContent=TZ_SNAP?'📎 תצלום קישור':'📎 קישור לא נטען';chip.title='נתונים מתצלום קישור (קריאה בלבד)';
     chip.style.cursor='default';chip.onclick=null;
+  }else if(DEMO){
+    chip.className='chip ex';chip.textContent='מצב הדגמה';chip.title='נתונים בדויים — אין חיבור לנתונים האמיתיים';chip.style.cursor='default';chip.onclick=null;
   }else{
   const C={gist:['chip gist','☁ Gist (live)'],gistCache:['chip gist','☁ Gist (עותק שמור)'],local:['chip real','💾 נתוני דפדפן מקומיים'],example:['chip ex','נתוני דוגמה']}[SRC];
   chip.className=C[0];chip.textContent=C[1];chip.title='מקור הנתונים — לחץ לפרטים';chip.style.cursor='pointer';chip.onclick=()=>{location.hash='settings';};
   }
-  $('#exBanner').style.display=(SRC==='example'&&!TZ_SNAP)?'':'none';
+  const demoBan=$('#demoBanner'); if(demoBan) demoBan.hidden=!DEMO;
+  $('#exBanner').style.display=(!DEMO&&SRC==='example'&&!TZ_SNAP)?'':'none';
   const m=[ACCESS_MSG,SRC_MSG].filter(Boolean).join(' ');const el=$('#srcMsg');
   el.style.display=m?'':'none';el.className='banner '+(SRC_MSG_KIND==='err'&&SRC_MSG?'err':'info');el.textContent=m;
+  if(DEMO){const sb=$('#syncBar'); if(sb) sb.style.display='none'; applyDemoChrome(); return;}
   const ps=v2raw().pendingSync,c=getCreds(),sb=$('#syncBar');
   if(ps&&c&&SRC!=='example'){sb.style.display='flex';$('#syncTxt').textContent=`⚠️ שינויים מ-${heDate(ps.at)} נשמרו רק בדפדפן הזה ולא ב-Gist (${ps.err}). האתר המקורי טוען מה-Gist ועלול לא לראות אותם עד לסנכרון.`;
     $('#syncRetry').style.display=c.token?'':'none';$('#syncRetry').onclick=()=>commit(()=>{},'סנכרון חוזר ל-Gist');}
@@ -4285,6 +4377,7 @@ async function boot(){
   }
 
   boot = async function () {
+    if (DEMO) { hideGate(); await _boot(); return; }
     const parsed = parseTzHash(location.hash.slice(1));
     if (parsed.page === 'tzofik' && (parsed.snapEnc || parsed.retired)) {
       hideGate();
