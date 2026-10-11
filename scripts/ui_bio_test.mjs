@@ -38,7 +38,7 @@ const server = http.createServer((req, res) => {
 });
 await new Promise(r => server.listen(0, '127.0.0.1', r));
 const port = server.address().port;
-const base = `http://127.0.0.1:${port}`;
+const base = `http://localhost:${port}`;
 
 const browser = await puppeteer.launch({
   executablePath: '/usr/local/bin/google-chrome',
@@ -76,10 +76,10 @@ async function shot(page, name) {
 
 const page = await browser.newPage();
 page.setDefaultTimeout(90000);
-await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2 });
+await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 1 });
 await mockPage(page);
 const client = await page.createCDPSession();
-await client.send('WebAuthn.enable');
+await client.send('WebAuthn.enable', { enableUI: false });
 const added = await client.send('WebAuthn.addVirtualAuthenticator', {
   options: {
     protocol: 'ctap2',
@@ -150,7 +150,7 @@ const support = await page.evaluate(async () => {
   return caps;
 });
 console.log('capabilities', JSON.stringify(support));
-check(support && support.prf === true, 'client reports prf');
+check(support && (support.prf === true || support['extension:prf'] === true), 'client reports prf');
 
 await page.waitForSelector('#bioPrompt:not([hidden])', { timeout: 10000 });
 await shot(page, '01-prompt');
@@ -195,27 +195,55 @@ await page.click('#bioEnable');
 await page.waitForFunction(() => (document.getElementById('bioMsg').textContent || '').includes('הופעלה'), { timeout: 20000 });
 check(true, 'biometric re-enabled after passphrase change');
 
+await page.evaluate(() => { location.hash = 'overview'; });
 await page.reload({ waitUntil: 'domcontentloaded' });
-const first = await Promise.race([
-  page.waitForSelector('#lockBio:not([hidden])', { timeout: 20000 }).then(() => 'button').catch(() => null),
-  page.waitForFunction(() => document.getElementById('lockGate').hidden && document.body.innerText.includes('קופת ביומטרית'), { timeout: 20000 }).then(() => 'open').catch(() => null)
+const openedBy = await Promise.race([
+  page.waitForFunction(() => {
+    const gate = document.getElementById('lockGate');
+    const btn = document.getElementById('lockBioBtn');
+    if (!gate || gate.hidden || !btn || btn.closest('[hidden]')) return false;
+    const r = btn.getBoundingClientRect();
+    return r.width > 20 && r.height > 20;
+  }, { timeout: 15000 }).then(() => 'button').catch(() => null),
+  page.waitForFunction(() => document.getElementById('lockGate').hidden && document.body.innerText.includes('קופת ביומטרית'), { timeout: 15000 }).then(() => 'open').catch(() => null)
 ]);
-console.log('reload unlock state', first);
-if (first === 'button') {
-  await shot(page, '05-unlock-button');
-  const label = await page.$eval('#lockBioBtn', el => el.textContent);
-  check(label.includes('פתיחה עם Face ID / טביעת אצבע'), 'unlock button label');
-  await page.click('#lockBioBtn');
+console.log('reload unlock state', openedBy);
+if (openedBy === 'button') {
+  const still = await page.evaluate(() => {
+    const gate = document.getElementById('lockGate');
+    const btn = document.getElementById('lockBioBtn');
+    if (!gate || gate.hidden || !btn) return null;
+    const r = btn.getBoundingClientRect();
+    if (r.width < 20) return null;
+    return { x: r.x, y: r.y, w: r.width, h: r.height, label: btn.textContent };
+  });
+  if (still) {
+    await shot(page, '05-unlock-button');
+    check(still.label.includes('פתיחה עם Face ID / טביעת אצבע'), 'unlock button label');
+    console.log('bio button box', JSON.stringify(still));
+    await page.mouse.click(still.x + still.w / 2, still.y + still.h / 2);
+  } else console.log('auto unlock finished before the click');
 }
 await page.waitForFunction(() => document.getElementById('lockGate').hidden && document.body.innerText.includes('קופת ביומטרית'), { timeout: 20000 });
-check(true, 'biometric unlock after reload (' + first + ')');
+check(true, 'biometric unlock after reload (' + openedBy + ')');
 await shot(page, '06-unlocked');
 
 await client.send('WebAuthn.setUserVerified', { authenticatorId, isUserVerified: false });
+await page.evaluate(() => { location.hash = 'overview'; });
 await page.reload({ waitUntil: 'domcontentloaded' });
-await page.waitForSelector('#lockBio:not([hidden])', { timeout: 20000 });
+await page.waitForFunction(() => {
+  const gate = document.getElementById('lockGate');
+  const btn = document.getElementById('lockBioBtn');
+  if (!gate || gate.hidden || !btn) return false;
+  const r = btn.getBoundingClientRect();
+  return r.width > 20 && r.height > 20;
+}, { timeout: 20000 });
 await shot(page, '07-unlock-button');
-await page.click('#lockBioBtn');
+const cancelBox = await page.$eval('#lockBioBtn', el => {
+  const r = el.getBoundingClientRect();
+  return { x: r.x, y: r.y, w: r.width, h: r.height };
+});
+await page.mouse.click(cancelBox.x + cancelBox.w / 2, cancelBox.y + cancelBox.h / 2);
 await page.waitForFunction(() => {
   const t = document.getElementById('lockErr').textContent || '';
   return t.includes('בוטלה') || t.includes('נכשלה') || t.includes('שחזור');
@@ -244,6 +272,7 @@ check(await page.$eval('#bioEnable', el => !el.hidden), 'enable still available 
 await page.evaluate(() => document.getElementById('bioBox').scrollIntoView({ block: 'center' }));
 await shot(page, '09-settings-off');
 
+await page.evaluate(() => { location.hash = 'overview'; });
 await page.reload({ waitUntil: 'domcontentloaded' });
 await page.waitForSelector('#lockSecret', { timeout: 20000 });
 const bioHidden = await page.$eval('#lockBio', el => el.hidden);

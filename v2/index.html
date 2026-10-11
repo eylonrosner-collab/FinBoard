@@ -5064,8 +5064,9 @@ async function boot(){
     if (!window.PublicKeyCredential || !navigator.credentials || typeof navigator.credentials.create !== 'function' || typeof navigator.credentials.get !== 'function') return Promise.resolve('no');
     if (typeof PublicKeyCredential.getClientCapabilities !== 'function') return Promise.resolve('maybe');
     return PublicKeyCredential.getClientCapabilities().then(caps => {
-      if (caps && caps.prf === true) return 'yes';
-      if (caps && caps.prf === false) return 'no';
+      if (!caps) return 'maybe';
+      if (caps.prf === true || caps['extension:prf'] === true) return 'yes';
+      if (caps.prf === false || caps['extension:prf'] === false) return 'no';
       return 'maybe';
     }).catch(() => 'maybe');
   }
@@ -5237,6 +5238,7 @@ async function boot(){
       });
     } catch (e) {
       if (e && (e.name === 'NotAllowedError' || e.name === 'AbortError')) say('ההפעלה בוטלה.');
+      else if (e && e.name === 'SecurityError') say('הדפדפן לא מאפשר מפתח כניסה בכתובת הזו.');
       else say('לא הצלחתי להפעיל כניסה ביומטרית.');
       return;
     }
