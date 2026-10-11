@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Decrypt / encrypt a FinBoard Gist payload (finance_data.json, tasks.json).
+ * Decrypt / encrypt a FinBoard Gist payload
+ * (finance_data.json, tasks.json, snaps.json, settings.json).
  *
  * The passphrase or recovery key is read from the environment, never from
  * source code and never from argv:
