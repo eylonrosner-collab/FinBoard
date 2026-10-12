@@ -5527,7 +5527,9 @@ async function boot(){
 })();
 document.addEventListener('DOMContentLoaded',()=>boot());
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('./sw.js').catch(e=>console.warn('sw',e));
+  navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(r=>{r.update().catch(()=>{});document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')r.update().catch(()=>{});});}).catch(e=>console.warn('sw',e));
+  // a new deploy activates a new worker: reload once so the page and its scripts come from the same version
+  if(navigator.serviceWorker.controller){let reloaded=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(reloaded)return;reloaded=true;location.reload();});}
 }
 </script>
 </body>
