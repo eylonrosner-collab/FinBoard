@@ -2,7 +2,7 @@
    Navigations and index.html are network-first so a deploy is not stuck on a stale page.
    GitHub Gist responses, decrypted payloads, and other personal API calls are never cached. */
 'use strict';
-const CACHE = 'finboard-v2-shell-5';
+const CACHE = 'finboard-v2-shell-6';
 const SHELL = [
   './',
   './index.html',
@@ -33,7 +33,7 @@ function isDocument(req, url) {
 
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting())
+    caches.open(CACHE).then(cache => cache.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting())
   );
 });
 
@@ -57,7 +57,8 @@ async function networkFirst(req, fallbackDoc) {
   const cache = await caches.open(CACHE);
   const key = normalized(req);
   try {
-    const fresh = await fetch(req);
+    // bypass the browser HTTP cache (GitHub Pages sends max-age=600) so a deploy shows up immediately
+    const fresh = await fetch(req, { cache: 'no-cache' });
     if (fresh && fresh.ok && fresh.type !== 'opaque') cache.put(key, fresh.clone());
     return fresh;
   } catch (e) {
