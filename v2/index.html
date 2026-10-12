@@ -3799,6 +3799,25 @@ const pnPct=v=>v==null||!isFinite(+v)?'—':(+v).toLocaleString('he-IL',{maximum
 const pnDate=d=>{if(!d)return '—';const m=String(d).match(/^(\d{4})-(\d{2})-(\d{2})/);return m?`${m[3]}/${m[2]}/${m[1]}`:esc(d);};
 function pnExplain(k){return `<div class="faint" style="font-size:12px;margin-top:2px">${esc(FinPension.EXPLAIN[k]||'')}</div>`;}
 function pnAge(b){if(!b)return null;const d=new Date(b);if(isNaN(d))return null;return Math.floor((TODAY-d)/(365.25*864e5));}
+function pnInsModal(N,keys){
+  const B=FinPension.insuranceBreakdown(N,keys);
+  const row=(l,v,st)=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:4px 0;${st||''}"><span>${l}</span><span class="num" style="white-space:nowrap">${ils(v)}</span></div>`;
+  const ppl=B.people.filter(p=>p.items.length).map(p=>`<div style="padding:10px 0;border-top:1px solid var(--line)">
+    ${row(`<b>${esc(p.name)}</b>`,p.total,'font-size:15px')}
+    ${p.items.map(it=>`<div style="padding:4px 0 4px 0;margin-inline-start:8px">${row(`${esc(it.label).replace(/\*+\d+/g,m=>`<bdi dir="ltr">${m}</bdi>`)}${it.claim?' <span class="chip ex" style="font-size:10.5px">תביעה פעילה</span>':''}`,it.cost,'font-weight:600')}
+      ${it.parts.length>1||it.fromDeposits?it.parts.map(x=>row(`<span class="dim">· ${esc(x.label)}</span>`,x.cost,'font-size:12.5px;margin-inline-start:12px')).join(''):''}
+      ${it.fromDeposits?'<div class="faint" style="font-size:11.5px;margin-inline-start:12px">נגבה מתוך ההפקדות לקרן, לא כתשלום נפרד</div>':''}</div>`).join('')}
+    ${p.hasClaim?'<div class="faint" style="font-size:12px;margin-top:4px">יש תביעה מאושרת: ייתכן שההפקדות והכיסויים ממומנים כעת דרך שחרור מתשלום פרמיה, כך שבפועל העלות לא יוצאת מהכיס.</div>':''}
+  </div>`).join('');
+  const joint=B.joint.count?`<div style="padding:10px 0;border-top:1px solid var(--line)">${row(`<span class="dim">לא נכלל: ביטוחי חיים למשכנתא (משותף, ${B.joint.count} פוליסות${B.joint.sum?`, כיסוי ${ilsT(B.joint.sum)}`:''})</span>`,B.joint.cost)}</div>`:'';
+  const body=`<div dir="rtl" style="font-size:13.5px;max-width:560px">
+    ${ppl||'<p class="dim">אין עלויות ביטוח בנתונים.</p>'}
+    <div style="padding:10px 0;border-top:2px solid var(--line)">${row('<b>סה״כ (כמו בכרטיס)</b>',B.total,'font-size:15px')}</div>
+    ${joint}
+    ${B.joint.count?`<div style="padding:6px 0">${row('<b>סה״כ כולל ביטוחי משכנתא</b>',B.grand)}</div>`:''}
+    <p class="faint mt" style="font-size:11.5px">עלויות הביטוח בקרנות הפנסיה מנוכות מההפקדות החודשיות. הנתונים לפי דוח המסלקה האחרון (${pnDate(N.asOf)}).</p></div>`;
+  openModal('פירוט עלות ביטוחים חודשית',body,[{label:'סגור',cls:'btn',fn:closeModal}]);
+}
 let PENSION_WHO='all';
 function renderPension(){
   const el=$('#pnBody');if(!el)return;
@@ -3817,12 +3836,12 @@ function renderPension(){
   const tot=k=>sel.reduce((a,p)=>a+(stats[p.key][k]||0),0);
   const tabs=`<div class="chips-row" style="margin-bottom:12px">${[['all','משק הבית'],...people.map(p=>[p.key,p.name])].map(([k,n])=>`<button type="button" class="btn ${PENSION_WHO===k?'':'ghost'} sm" data-pn-who="${esc(k)}">${esc(n)}</button>`).join('')}</div>`;
   const alerts=N.alerts.filter(a=>PENSION_WHO==='all'||a.who===PENSION_WHO);
-  const alertHtml=alerts.length?`<div class="card mt"><h3>⚠️ דברים לבדוק</h3>${alerts.map(a=>`<div style="padding:8px 0;border-top:1px solid var(--line)"><b class="${a.level==='err'?'neg':'warn'}">${esc(a.title)}</b><div class="dim" style="font-size:13px;margin-top:2px">${esc(a.body)}</div></div>`).join('')}</div>`:'';
+  const alertHtml=alerts.length?`<div class="card mt"><h3>⚠️ דברים לבדוק</h3>${alerts.map(a=>`<div style="padding:8px 0;border-top:1px solid var(--line)"><b class="${a.level==='err'?'neg':a.level==='info'?'':'warn'}">${a.level==='info'?'ℹ️ ':''}${esc(a.title)}</b><div class="dim" style="font-size:13px;margin-top:2px">${esc(a.body)}</div></div>`).join('')}</div>`:'';
   const kpis=`<div class="grid g4">
     <div class="card kpi hero"><div class="lbl">צבירה בפנסיה ובביטוח מנהלים</div><div class="val">${ils(tot('balance'))}</div><div class="foot">קרנות פנסיה ${ils(tot('fundBalance'))} · ביטוח מנהלים ${ils(tot('mgrBalance'))}</div></div>
     <div class="card kpi"><div class="lbl">קצבה חזויה בגיל 67 — עם הפקדות</div><div class="val">${ils(tot('withDep'))}</div><div class="foot">לחודש, ברוטו</div></div>
     <div class="card kpi"><div class="lbl">קצבה חזויה בגיל 67 — בלי הפקדות</div><div class="val">${ils(tot('noDep'))}</div><div class="foot">רק מה שכבר נצבר</div></div>
-    <div class="card kpi"><div class="lbl">עלות ביטוחים חודשית</div><div class="val">${ils(tot('fundInsCost')+tot('policyPremium'))}</div><div class="foot">בקרן ${ils(tot('fundInsCost'))} · פוליסות ${ils(tot('policyPremium'))}</div></div>
+    <div class="card kpi" id="pnInsKpi" role="button" tabindex="0" style="cursor:pointer" title="לחצו לפירוט"><div class="lbl">עלות ביטוחים חודשית ⓘ</div><div class="val" style="text-decoration:underline dotted;text-underline-offset:5px">${ils(tot('fundInsCost')+tot('policyPremium'))}</div><div class="foot">בקרן ${ils(tot('fundInsCost'))} · פוליסות ${ils(tot('policyPremium'))}</div></div>
   </div><p class="faint mt" style="font-size:12px">${esc(FinPension.EXPLAIN.projection)} לא נכלל בסיכום ההון ובתחזית החיסכון. נכון ל-${pnDate(N.asOf)}.</p>`;
   const kindHe={pension_fund:'קרן פנסיה',manager_insurance:'ביטוח מנהלים',risk_policy:'ביטוח ריסק / אכ"ע',collective_risk:'ביטוח קבוצתי',mortgage_life:'ביטוח משכנתא'};
   const prodRows=sel.flatMap(p=>p.products.filter(x=>x.kind==='pension_fund'||x.kind==='manager_insurance').map(x=>{
@@ -3852,6 +3871,7 @@ function renderPension(){
   el.innerHTML=tabs+kpis+alertHtml+prodHtml+`<div class="grid ${sel.length>1?'g2':''}">${sel.map(covCard).join('')}</div>`+joint+
     `<p class="faint mt" style="font-size:12px">${PENSION_STATE==='demo'?'נתוני הדגמה בדויים. ':''}מקור: דוח המסלקה הפנסיונית. ${N.excluded} מוצרים (השתלמות וגמל) לא מוצגים כאן כי הם כבר באתר.</p>`;
   el.querySelectorAll('[data-pn-who]').forEach(b=>b.onclick=()=>{PENSION_WHO=b.dataset.pnWho;renderPension();});
+  const ik=$('#pnInsKpi');if(ik){const go=()=>pnInsModal(N,sel.map(p=>p.key));ik.onclick=go;ik.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}};}
 }
 function renderPensionCard(){
   const el=$('#pensionCard');if(!el)return;
