@@ -321,7 +321,7 @@ pre.json{max-height:320px;overflow:auto;direction:ltr;text-align:left;font-size:
   .task-row input[type=checkbox]{width:22px;height:22px}
   .task-x{width:44px;height:44px}
   .bottom-nav{display:flex;flex-wrap:wrap;position:fixed;bottom:0;left:0;right:0;z-index:30;background:var(--bg2);border-top:1px solid var(--line);overflow:hidden;padding:4px 4px calc(4px + env(safe-area-inset-bottom));padding-left:max(4px,env(safe-area-inset-left));padding-right:max(4px,env(safe-area-inset-right))}
-  .bottom-nav button{flex:1 1 20%;max-width:20%;min-width:0;min-height:48px;border:0;background:none;color:var(--dim);font:inherit;font-size:10px;line-height:1.15;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px 2px;cursor:pointer;white-space:normal}
+  .bottom-nav button{flex:1 1 16.66%;max-width:16.66%;min-width:0;min-height:48px;border:0;background:none;color:var(--dim);font:inherit;font-size:10px;line-height:1.15;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px 2px;cursor:pointer;white-space:normal}
   .bottom-nav button.active{color:var(--pri)}
   .bottom-nav .nav-ic{font-size:17px}
 }
@@ -808,6 +808,11 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
       <div class="tz-wrap" id="tzBody"></div>
     </section>
 
+    <!-- PENSION -->
+    <section class="page" id="p-pension">
+      <div id="pnBody"></div>
+    </section>
+
     <!-- SETTINGS -->
     <section class="page" id="p-settings">
       <div class="grid g2">
@@ -824,6 +829,7 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
       <div class="card mt" id="taxRulesCard"></div>
       <div class="card mt" id="calcSyncCard"></div>
       <div class="card mt" id="snapHistCard"></div>
+      <div class="card mt" id="pensionCard"></div>
       <div class="card mt" id="gistCard"><h3>☁ חיבור Gist — סנכרון עם האתר המקורי</h3>
         <div id="gistStatus" style="font-size:13px;margin-bottom:10px"></div>
         <div class="form">
@@ -873,6 +879,7 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
 <div class="modal-bg" id="modal"><div class="modal-box" role="dialog" aria-modal="true"><div class="modal-head"><b id="mdTitle"></b><button id="mdX" aria-label="סגור">✕</button></div><div class="modal-body" id="mdBody"></div><div class="modal-foot" id="mdFoot"></div></div></div>
 <div class="toast" id="toast"></div>
 <script src="lookthrough.js"></script>
+<script src="pension.js"></script>
 <script>
 /* Demo mode must be sealed before crypto or the app reads localStorage.
    Safari keeps setItem as an own property of localStorage, so a prototype
@@ -2767,6 +2774,7 @@ const PAGES=[
   ['perf','ביצועים','📊','תשואה ותרומה לפי אחזקה'],['forecast','תחזית','🔮','חיסכון ותשואה לתאריך שתבחר'],
   ['recs','המלצות','💡','תובנות מבוססות כללים + AI'],['loans','הלוואות','🏦','לוח סילוק, עלות ריבית ופירעון מוקדם'],
   ['savings','חיסכון','💰','קצב הפקדות ומגמות'],['tzofik','סיכום צופיק','💛','תמצית לשיתוף — חיסכון, תחזית ויתרות'],
+  ['pension','פנסיה','🧓','קרנות פנסיה, ביטוח מנהלים וכיסויים ביטוחיים'],
   ['settings','הגדרות','⚙️','יעדים, הנחות ומקור נתונים']];
 const PAGE_ALIASES={'סיכום-צופיק':'tzofik','סיכום_צופיק':'tzofik','tzofík':'tzofik'};
 let CUR='overview';
@@ -3763,6 +3771,110 @@ function renderSnapHist(){
     </table></div>`;
   el.querySelectorAll('[data-snap-del]').forEach(b=>{b.onclick=()=>deleteSnapPoint(b.dataset.snapDel);});
 }
+
+/* PENSION (כרטסת פנסיה) — pension funds + manager's insurance + their insurance cover.
+   Data: encrypted Gist file pension.json (uploaded manually from Settings or via scripts/finboard-vault.mjs).
+   Never part of totals(), the overview, or the savings forecast. Demo mode uses FinPension.demoDoc() only. */
+const PENSION_FILE='pension.json';
+const KEY_PENSION='fin26_pension'; // sealed envelope cache only — never plaintext
+let PENSION_DOC=null,PENSION_STATE='';
+async function loadPensionDoc(){
+  PENSION_DOC=null;PENSION_STATE='';
+  if(!window.FinPension){PENSION_STATE='missing';return;}
+  if(DEMO){PENSION_DOC=FinPension.demoDoc();PENSION_STATE='demo';return;}
+  if(SRC==='example'){PENSION_STATE='example';return;}
+  let raw=LAST_GIST_PARSED&&LAST_GIST_PARSED[PENSION_FILE];
+  const FC=window.FinCrypto;
+  if(raw&&FC&&FC.isEnvelope(raw)){try{localStorage.setItem(KEY_PENSION,JSON.stringify(raw));}catch(e){}}
+  if(!raw){try{const c=JSON.parse(localStorage.getItem(KEY_PENSION)||'null');if(c&&FC&&FC.isEnvelope(c))raw=c;}catch(e){}}
+  if(!raw){PENSION_STATE='missing';return;}
+  if(FC&&FC.isEnvelope(raw)){
+    if(!FC.unlocked()){PENSION_STATE='locked';return;}
+    try{PENSION_DOC=await FC.open(raw);PENSION_STATE='ok';}catch(e){PENSION_STATE='error';}
+    return;
+  }
+  PENSION_STATE='plain'; // never render plaintext personal pension data from a public-ish Gist
+}
+const pnPct=v=>v==null||!isFinite(+v)?'—':(+v).toLocaleString('he-IL',{maximumFractionDigits:3})+'%';
+const pnDate=d=>{if(!d)return '—';const m=String(d).match(/^(\d{4})-(\d{2})-(\d{2})/);return m?`${m[3]}/${m[2]}/${m[1]}`:esc(d);};
+function pnExplain(k){return `<div class="faint" style="font-size:12px;margin-top:2px">${esc(FinPension.EXPLAIN[k]||'')}</div>`;}
+function pnAge(b){if(!b)return null;const d=new Date(b);if(isNaN(d))return null;return Math.floor((TODAY-d)/(365.25*864e5));}
+let PENSION_WHO='all';
+function renderPension(){
+  const el=$('#pnBody');if(!el)return;
+  if(!PENSION_STATE){el.innerHTML='<div class="card">טוען…</div>';loadPensionDoc().then(()=>{if(CUR==='pension')renderPension();});return;}
+  const empty=msg=>{el.innerHTML=`<div class="card"><h3>כרטסת פנסיה</h3><p>${msg}</p><p class="dim mt" style="font-size:12.5px">הכרטסת מציגה רק קרנות פנסיה, ביטוח מנהלים והכיסויים הביטוחיים שלהם. קרנות השתלמות וקופות גמל כבר מופיעות בשאר האתר ולא מוצגות כאן. הנתונים האלה לא נכנסים לסיכום ההון ולתחזית החיסכון.</p></div>`;};
+  if(PENSION_STATE==='example')return empty('אין נתונים אמיתיים במכשיר הזה. כדי לראות את הכרטסת, התחברו ל-Gist. אפשר גם לפתוח את <span class="num">?demo=1</span> כדי לראות דוגמה.');
+  if(PENSION_STATE==='missing')return empty('עדיין אין קובץ <span class="num">pension.json</span> ב-Gist. אפשר להעלות אותו מוצפן מההגדרות («נתוני פנסיה»).');
+  if(PENSION_STATE==='locked')return empty('נתוני הפנסיה מוצפנים. פתחו את הנעילה (סיסמה, מפתח שחזור או כניסה ביומטרית) כדי לראות אותם.');
+  if(PENSION_STATE==='error')return empty('לא הצלחתי לפענח את <span class="num">pension.json</span>. ייתכן שהוא הוצפן במפתח אחר.');
+  if(PENSION_STATE==='plain')return empty('ב-Gist יש <span class="num">pension.json</span> לא מוצפן, ולכן הוא לא מוצג. העלו אותו מחדש מההגדרות כשההצפנה פתוחה.');
+  const N=FinPension.normalize(PENSION_DOC);
+  const people=N.people.filter(p=>p.products.length);
+  const stats=Object.fromEntries(people.map(p=>[p.key,FinPension.personStats(p)]));
+  if(PENSION_WHO!=='all'&&!stats[PENSION_WHO])PENSION_WHO='all';
+  const sel=PENSION_WHO==='all'?people:people.filter(p=>p.key===PENSION_WHO);
+  const tot=k=>sel.reduce((a,p)=>a+(stats[p.key][k]||0),0);
+  const tabs=`<div class="chips-row" style="margin-bottom:12px">${[['all','משק הבית'],...people.map(p=>[p.key,p.name])].map(([k,n])=>`<button type="button" class="btn ${PENSION_WHO===k?'':'ghost'} sm" data-pn-who="${esc(k)}">${esc(n)}</button>`).join('')}</div>`;
+  const alerts=N.alerts.filter(a=>PENSION_WHO==='all'||a.who===PENSION_WHO);
+  const alertHtml=alerts.length?`<div class="card mt"><h3>⚠️ דברים לבדוק</h3>${alerts.map(a=>`<div style="padding:8px 0;border-top:1px solid var(--line)"><b class="${a.level==='err'?'neg':'warn'}">${esc(a.title)}</b><div class="dim" style="font-size:13px;margin-top:2px">${esc(a.body)}</div></div>`).join('')}</div>`:'';
+  const kpis=`<div class="grid g4">
+    <div class="card kpi hero"><div class="lbl">צבירה בפנסיה ובביטוח מנהלים</div><div class="val">${ils(tot('balance'))}</div><div class="foot">קרנות פנסיה ${ils(tot('fundBalance'))} · ביטוח מנהלים ${ils(tot('mgrBalance'))}</div></div>
+    <div class="card kpi"><div class="lbl">קצבה חזויה בגיל 67 — עם הפקדות</div><div class="val">${ils(tot('withDep'))}</div><div class="foot">לחודש, ברוטו</div></div>
+    <div class="card kpi"><div class="lbl">קצבה חזויה בגיל 67 — בלי הפקדות</div><div class="val">${ils(tot('noDep'))}</div><div class="foot">רק מה שכבר נצבר</div></div>
+    <div class="card kpi"><div class="lbl">עלות ביטוחים חודשית</div><div class="val">${ils(tot('fundInsCost')+tot('policyPremium'))}</div><div class="foot">בקרן ${ils(tot('fundInsCost'))} · פוליסות ${ils(tot('policyPremium'))}</div></div>
+  </div><p class="faint mt" style="font-size:12px">${esc(FinPension.EXPLAIN.projection)} לא נכלל בסיכום ההון ובתחזית החיסכון. נכון ל-${pnDate(N.asOf)}.</p>`;
+  const kindHe={pension_fund:'קרן פנסיה',manager_insurance:'ביטוח מנהלים',risk_policy:'ביטוח ריסק / אכ"ע',collective_risk:'ביטוח קבוצתי',mortgage_life:'ביטוח משכנתא'};
+  const prodRows=sel.flatMap(p=>p.products.filter(x=>x.kind==='pension_fund'||x.kind==='manager_insurance').map(x=>{
+    const f=x.fees||{},pr=x.projection||{},cl=(x.claims||[]).length;
+    return `<tr><td><b>${esc(kindHe[x.kind])}</b>${cl?' <span class="chip ex" style="font-size:11px">תביעה פתוחה — לא להעביר</span>':''}<div class="faint" style="font-size:11px">${esc(x.manager||'')} · ${esc(String(x.plan_name||'').trim())} · ${esc(x.account_masked||'')}${PENSION_WHO==='all'?' · '+esc(p.name):''}</div></td>
+      <td class="n">${x.balance!=null?ils(x.balance):'—'}</td><td class="n hide-m">${pnPct(f.balance_pct)} / ${pnPct(f.deposit_pct)}</td>
+      <td class="n">${pr.monthly_pension_with_deposits!=null?ils(pr.monthly_pension_with_deposits):'—'}</td><td class="n">${pr.monthly_pension_no_deposits!=null?ils(pr.monthly_pension_no_deposits):'—'}</td></tr>`;}));
+  const prodHtml=`<div class="card mt"><h3>מוצרים <span class="sub">קרנות פנסיה וביטוח מנהלים</span></h3><div class="tbl-wrap"><table><tr><th>מוצר</th><th class="n">צבירה</th><th class="n hide-m">דמי ניהול (צבירה / הפקדה)</th><th class="n">קצבה עם הפקדות</th><th class="n">בלי הפקדות</th></tr>${prodRows.join('')||'<tr><td colspan="5" class="dim">אין מוצרים</td></tr>'}</table></div>${pnExplain('fees')}</div>`;
+  const covCard=p=>{const s=stats[p.key];const age=pnAge(p.birth);
+    const row=(lbl,val,k,extra='')=>`<div style="padding:8px 0;border-top:1px solid var(--line)"><div style="display:flex;justify-content:space-between;gap:8px"><b>${lbl}</b><span>${val}</span></div>${extra}${pnExplain(k)}</div>`;
+    const pol=p.products.filter(x=>x.kind!=='pension_fund'&&x.kind!=='manager_insurance');
+    const polRows=pol.map(x=>`<div style="padding:6px 0;border-top:1px dashed var(--line);font-size:13px"><b>${esc(kindHe[x.kind]||x.kind)}</b> ${esc(x.manager||((x.insurance||{}).coverages||[]).map(c=>c.insurer).filter(Boolean)[0]||'')} ${esc(x.account_masked||'')} ${x.active?'':'<span class="faint">(מבוטלת)</span>'}
+      <div class="dim">${x.lossOfWork?`אכ"ע ${ils(x.lossOfWork)} לחודש · `:''}${x.death?`במוות ${ils(x.death)} · `:''}פרמיה ${ils(x.premium)} לחודש${x.beneficiaries&&x.kind==='risk_policy'?` · מוטבים: ${x.beneficiaries.count?x.beneficiaries.count:'לא רשומים (0%)'}`:''}</div></div>`).join('');
+    const claims=s.claims.map(c=>`<div style="padding:6px 0;border-top:1px dashed var(--line);font-size:13px"><b class="neg">תביעה פעילה</b> · ${esc(c.coverage_name||'')} · ${esc(c.product.account_masked||'')}<div class="dim">${c.approved_amount?`מאושר ${ils(c.approved_amount)} לחודש · `:''}${c.disability_pct?`${c.disability_pct}% · `:''}משולם מ-${pnDate(c.payment_start)}. לא להעביר, לבטל או להקפיא את המוצר.</div></div>`).join('');
+    return `<div class="card mt"><h3>${esc(p.name)} <span class="sub">${age!=null?'גיל '+age+' · ':''}כיסויים ביטוחיים</span></h3>
+      ${row('נכות מקרן הפנסיה',`${ils(s.disabilityFund)} לחודש`,'disability',s.insuredSalary?`<div class="faint" style="font-size:12px">שכר מבוטח ${ils(s.insuredSalary)}</div>`:'')}
+      ${s.lossOfWork?row('אובדן כושר עבודה (פוליסה)',`${ils(s.lossOfWork)} לחודש`,'lossOfWork'):''}
+      ${row('קצבת שאירים לבן/בת זוג',`${ils(s.spouse)} לחודש`,'spouse')}
+      ${row('קצבת יתומים',`${ils(s.orphan)} לחודש`,'orphan')}
+      ${s.parent?row('קצבת הורה נתמך',`${ils(s.parent)} לחודש`,'parent'):''}
+      ${row('סכום חד-פעמי במוות',ils(s.death),'death')}
+      ${row('שחרור מתשלום פרמיה',p.products.some(x=>x.kind==='pension_fund')?'כלול בקרן':'—','waiver')}
+      ${claims?`<div class="mt"><b>תביעות</b>${claims}</div>`:''}
+      ${polRows?`<div class="mt"><b>פוליסות ביטוח</b>${polRows}</div>`:''}</div>`;};
+  const joint=N.joint.length&&PENSION_WHO==='all'?`<div class="card mt"><h3>ביטוח חיים למשכנתא <span class="sub">משותף, מוצג פעם אחת</span></h3>
+    <div style="display:flex;justify-content:space-between"><b>${N.joint.length} פוליסות</b><span>במוות ${ils(N.joint.reduce((a,x)=>a+(x.death||0),0))} · פרמיה ${ils(N.joint.reduce((a,x)=>a+(x.premium||0),0))} לחודש</span></div>${pnExplain('mortgage')}</div>`:'';
+  el.innerHTML=tabs+kpis+alertHtml+prodHtml+`<div class="grid ${sel.length>1?'g2':''}">${sel.map(covCard).join('')}</div>`+joint+
+    `<p class="faint mt" style="font-size:12px">${PENSION_STATE==='demo'?'נתוני הדגמה בדויים. ':''}מקור: דוח המסלקה הפנסיונית. ${N.excluded} מוצרים (השתלמות וגמל) לא מוצגים כאן כי הם כבר באתר.</p>`;
+  el.querySelectorAll('[data-pn-who]').forEach(b=>b.onclick=()=>{PENSION_WHO=b.dataset.pnWho;renderPension();});
+}
+function renderPensionCard(){
+  const el=$('#pensionCard');if(!el)return;
+  if(DEMO||SRC==='example'){el.hidden=true;return;}
+  el.hidden=false;
+  const st={ok:'נטען מ-Gist (מוצפן).',missing:'אין עדיין pension.json ב-Gist.',locked:'מוצפן — פתחו נעילה כדי לראות.',plain:'ב-Gist יש קובץ לא מוצפן. העלו מחדש.',error:'הפענוח נכשל.'}[PENSION_STATE]||'לא נטען עדיין.';
+  const can=!!canWriteGist()&&!!(window.FinCrypto&&FinCrypto.unlocked());
+  el.innerHTML=`<h3>נתוני פנסיה (pension.json)</h3>
+    <p class="dim" style="font-size:12.5px">קובץ נפרד ב-Gist, מוצפן באותו מפתח כמו שאר הקבצים. ההעלאה ידנית. בחרו את קובץ ה-JSON הממוסך (בלי מספרי זהות). הנתונים לא נכנסים לסיכום ההון ולתחזית.</p>
+    <p class="mt">מצב: ${esc(st)}</p>
+    <div class="mt"><input type="file" id="pensionFile" accept="application/json,.json" hidden><button class="btn" id="pensionUpload" type="button" ${can?'':'disabled'}>העלה pension.json מוצפן ל-Gist</button></div>
+    ${can?'':'<p class="dim mt">צריך token עם הרשאת gist והצפנה פתוחה כדי להעלות. נתוני פנסיה לא נשמרים בלי הצפנה.</p>'}`;
+  const b=$('#pensionUpload'),f=$('#pensionFile');
+  if(b&&!b.disabled){b.onclick=()=>f.click();f.onchange=async()=>{const file=f.files&&f.files[0];if(!file)return;
+    let doc;try{doc=JSON.parse(await file.text());}catch(e){toast('הקובץ אינו JSON תקין','err');return;}
+    if(window.FinCrypto&&FinCrypto.isEnvelope(doc)){try{doc=await FinCrypto.open(doc);}catch(e){toast('קובץ מוצפן במפתח אחר','err');return;}}
+    const bad=FinPension.validate(doc);if(bad){toast(bad,'err',8000);return;}
+    const c=canWriteGist();if(!c||!FinCrypto.unlocked()){toast('אין הרשאה או שההצפנה נעולה','err');return;}
+    try{await patchSharedFile(c,PENSION_FILE,doc);
+      try{localStorage.setItem(KEY_PENSION,JSON.stringify(LAST_GIST_PARSED[PENSION_FILE]));}catch(e){}
+      PENSION_DOC=doc;PENSION_STATE='ok';toast('נתוני הפנסיה הועלו מוצפנים ל-Gist','ok');renderPensionCard();}
+    catch(e){toast('ההעלאה נכשלה: '+(e&&e.message?e.message:e),'err',8000);}};}
+}
 function renderSettings(){
   const nSn=SNAPS.length;
   const ha=v2raw().histAssets;
@@ -3780,6 +3892,7 @@ function renderSettings(){
   }
   if($('#setSrc'))$('#setSrc').insertAdjacentHTML('beforeend',syncOriginHtml());
   renderCalcSync();renderSnapHist();
+  if(!PENSION_STATE)loadPensionDoc().then(()=>{if(CUR==='settings')renderPensionCard();});renderPensionCard();
   renderGistCard();renderBackups();
   const bind=(id,k,parse=Number)=>{const el=$('#'+id);el.value=P[k]??'';el.oninput=()=>{P[k]=el.value===''?null:parse(el.value);savePrefs();};};
   bind('sExp','monthlyExpenses');bind('sEmMonths','emMonths');bind('sConc','concPct');bind('sDrift','driftPct');bind('sFee','feeHigh');
@@ -3805,7 +3918,7 @@ function renderSettings(){
   $('#resetPrefs').onclick=()=>{if(confirm('לאפס את הגדרות FinBoard 2.0 במכשיר הזה? (פרטי ה-Gist נשמרים). settings.json ב-Gist לא משתנה עד שלוחצים «העלה את הגדרות החישוב של המכשיר הזה ל-Gist».')){const v=v2raw();const keep={};V2_META.forEach(k=>{if(v[k]!==undefined)keep[k]=v[k];});writeV2(keep);loadPrefs();savePrefs();applyTheme();show(CUR);}};
   if(window.refreshBioSettings) window.refreshBioSettings();
 }
-const RENDER={update:renderUpdate,overview:renderOverview,alloc:renderAlloc,perf:renderPerf,forecast:()=>renderForecast(true),recs:renderRecs,loans:renderLoans,savings:renderSavings,tzofik:renderTzofik,settings:renderSettings};
+const RENDER={update:renderUpdate,overview:renderOverview,alloc:renderAlloc,perf:renderPerf,forecast:()=>renderForecast(true),recs:renderRecs,loans:renderLoans,savings:renderSavings,tzofik:renderTzofik,pension:renderPension,settings:renderSettings};
 
 /* =====================================================================
    EDITING — writes the ORIGINAL format so v1 and v2 stay in sync:
@@ -4530,7 +4643,7 @@ function applySource(){
 async function reloadData(){
   SESSION_BACKED=false;
   Object.keys(charts).forEach(k=>{charts[k].destroy();delete charts[k];});
-  await loadData();loadPrefs({keepPrivacy:true});await syncSharedState();applySource();show(CUR);
+  await loadData();PENSION_STATE='';PENSION_DOC=null;loadPrefs({keepPrivacy:true});await syncSharedState();applySource();show(CUR);
 }
 async function loadPublicFile(){
   try{
@@ -5020,7 +5133,7 @@ async function boot(){
     if (!c || !c.token) return;
     const raw = await fetchGistRaw(c);
     const map = {};
-    ['finance_data.json', 'tasks.json', 'snaps.json', 'settings.json'].forEach(name => {
+    ['finance_data.json', 'tasks.json', 'snaps.json', 'settings.json', 'pension.json'].forEach(name => {
       const cur = raw.parsed[name];
       if (FC.isEnvelope(cur)) map[name] = JSON.stringify(FC.applyWraps(cur, w), null, 2);
     });
