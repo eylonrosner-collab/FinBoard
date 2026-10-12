@@ -80,6 +80,37 @@
     };
   }
 
+  /* Monthly insurance cost breakdown, per person and per product/coverage. Generic over pension.json. */
+  function insuranceBreakdown(n, keys) {
+    const KIND = { pension_fund: 'קרן פנסיה', manager_insurance: 'ביטוח מנהלים', risk_policy: 'ביטוח ריסק', collective_risk: 'ביטוח קבוצתי' };
+    const people = n.people.filter(p => !keys || keys.includes(p.key)).map(person => {
+      const items = [];
+      for (const p of person.products) {
+        const label = `${KIND[p.kind] || p.product_type_he || p.kind} · ${String(p.manager || '').replace(/ חברה לביטוח| בע"?מ| פנסיה וגמל/g, '').trim()}${p.plan_name ? ' · ' + String(p.plan_name).trim() : ''}${p.account_masked ? ' · ' + p.account_masked : ''}`;
+        if (p.kind === 'pension_fund') {
+          const f = (p.insurance && p.insurance.pension_fund) || {};
+          const parts = [['נכות', f.disability_cost_monthly], ['שאירים', f.survivors_cost_monthly], ['שחרור מתשלום פרמיה', f.waiver_of_premium_cost_monthly]]
+            .map(([l, v]) => ({ label: l, cost: num(v) || 0 })).filter(x => x.cost > 0);
+          const cost = parts.reduce((a, x) => a + x.cost, 0);
+          if (cost > 0) items.push({ label, kind: p.kind, cost, parts, fromDeposits: true, claim: (p.claims || []).length > 0 });
+        } else if (p.active) {
+          const parts = coverages(p).filter(c => num(c.premium_monthly) > 0).map(c => ({
+            label: /אכ"ע|work capacity|collective_5/i.test(String(c.coverage_type || '')) ? 'אובדן כושר עבודה' + (num(c.sum_insured) ? ` (₪${Math.round(c.sum_insured).toLocaleString('he-IL')} לחודש)` : '')
+              : /death|מוות/i.test(String(c.coverage_type || '')) ? 'ריסק מוות' + (p.death ? ` (₪${Math.round(p.death).toLocaleString('he-IL')})` : '') : String(c.coverage_type || 'כיסוי'),
+            cost: num(c.premium_monthly) }));
+          const cost = parts.reduce((a, x) => a + x.cost, 0);
+          if (cost > 0) items.push({ label, kind: p.kind, cost, parts, fromDeposits: false, claim: (p.claims || []).length > 0 });
+        }
+      }
+      return { key: person.key, name: person.name, items, total: items.reduce((a, x) => a + x.cost, 0),
+        hasClaim: person.products.some(p => (p.claims || []).length) };
+    });
+    const jointList = (n.joint || []).filter(p => p.active !== false);
+    const joint = { count: jointList.length, cost: sumOf(jointList, p => p.premium), sum: sumOf(jointList, p => p.death) };
+    const total = people.reduce((a, p) => a + p.total, 0);
+    return { people, joint, total, grand: total + joint.cost };
+  }
+
   function deriveAlerts(n) {
     const A = [];
     for (const person of n.people) {
@@ -90,9 +121,8 @@
           body: `יש תביעה פעילה במוצרים ${accs}. העברה, ביטול או הקפאה של המוצרים האלה עלולים לפגוע בתביעה ובתשלום החודשי. כל שינוי רק אחרי בירור מול הגוף המנהל.` });
       }
       if (st.disabilityFund > 0 && st.lossOfWork > 0 && !st.claims.length) { // never nudge cancelling cover that is paying a claim
-        const tot = st.disabilityFund + st.lossOfWork;
-        A.push({ level: 'warn', who: person.key, title: `${person.name}: ייתכן כפל ביטוח אובדן כושר עבודה`,
-          body: `קרן הפנסיה מבטחת נכות בכ-₪${Math.round(st.disabilityFund).toLocaleString('he-IL')} לחודש, ופוליסת אכ"ע נוספת מוסיפה ₪${Math.round(st.lossOfWork).toLocaleString('he-IL')}. יחד כ-₪${Math.round(tot).toLocaleString('he-IL')}${st.insuredSalary ? `, מול שכר מבוטח של כ-₪${Math.round(st.insuredSalary).toLocaleString('he-IL')}` : ''}. מבטחים בדרך כלל מקזזים מעל 75%–100% מההכנסה. כדאי לבדוק סעיף קיזוז בפוליסה לפני שממשיכים לשלם עליה.` });
+        A.push({ level: 'info', who: person.key, title: `${person.name}: אכ"ע עיסוקי משלים לקרן — לבדוק תיאום`,
+          body: `פוליסת אכ"ע נוספת (₪${Math.round(st.lossOfWork).toLocaleString('he-IL')} לחודש) היא כיסוי עיסוקי (למשל אובדן רישיון טיס) שמשלים את כיסוי הנכות הכללי בקרן (₪${Math.round(st.disabilityFund).toLocaleString('he-IL')} לחודש), ולא כפילות. כדאי רק לוודא שאין סעיף קיזוז או תקרת פיצוי משותפת בין השניים.` });
       }
       for (const p of person.products) {
         if (p.active && p.kind === 'risk_policy' && p.death > 0 && !(p.beneficiaries && p.beneficiaries.count > 0)) {
@@ -170,7 +200,7 @@
     return '';
   }
 
-  const api = { normalize, personStats, deriveAlerts, demoDoc, validate, EXPLAIN, INCLUDE, EXCLUDE };
+  const api = { normalize, personStats, insuranceBreakdown, deriveAlerts, demoDoc, validate, EXPLAIN, INCLUDE, EXCLUDE };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.FinPension = api;
 })(typeof window !== 'undefined' ? window : globalThis);
