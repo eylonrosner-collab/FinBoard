@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generatedAt": "2026-10-08T10:42:27Z",
+  "generatedAt": "2026-10-20T09:48:28Z",
   "note": "Public fund exposures from data.gov.il. No personal holdings, balances, or account numbers. stock/foreign/fx are fractions of TOTAL_ASSETS (may exceed 1 when the reported exposure is leveraged).",
   "sources": [
     {
@@ -3384,7 +3384,7 @@
     {
       "source": "gemelnet",
       "fundId": 418,
-      "name": "יהב-קרן השתלמות וחיסכון לאחים ואחיות בע\"מ - מסלול כללי",
+      "name": "יהב אחים ואחיות - קרן השתלמות מסלול כללי",
       "manager": "יהב אחים ואחיות - חברה לניהול קופות גמל בע\"מ",
       "classification": "קרנות השתלמות",
       "specialization": "כללי",
@@ -5652,7 +5652,7 @@
     {
       "source": "gemelnet",
       "fundId": 1456,
-      "name": "יהב - קרן השתלמות וחיסכון לאחים ואחיות בע\"מ - מסלול אשראי ואג\"ח",
+      "name": "יהב אחים ואחיות - קרן השתלמות מסלול אשראי ואג\"ח",
       "manager": "יהב אחים ואחיות - חברה לניהול קופות גמל בע\"מ",
       "classification": "קרנות השתלמות",
       "specialization": "מתמחים בניהול אקטיבי",
