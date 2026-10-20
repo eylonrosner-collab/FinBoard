@@ -1769,7 +1769,7 @@ function saveModal(){
           inv.lastChange=Math.abs(rawDiff)<100?0:rawDiff;
           inv.lastChangePct=inv.bal?((rawDiff/inv.bal)*100):0;
         }
-        // Apply form fields but preserve history/lastChange
+        // Apply form fields but preserve history/lastChange and additive keys (liq, liquid, openedAt, …)
         Object.assign(inv,d);
         // Restore persisted fields that d doesn't carry
         if(!inv.history)inv.history=[];

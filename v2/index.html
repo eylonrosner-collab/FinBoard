@@ -436,6 +436,32 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
 .liq-tog{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--dim);cursor:pointer;user-select:none;white-space:nowrap}
 .liq-tog input{width:16px;height:16px;accent-color:var(--pos)}
 .liq-tog.locked{color:var(--warn)}
+.liq-badge{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin-top:4px;font-size:11px;line-height:1.35;max-width:100%}
+.liq-badge .tag{white-space:normal}
+.liq-dot{color:var(--faint)}
+.liq-when{font-size:11px}
+.liq-rows{display:flex;flex-direction:column;gap:8px;margin:8px 0}
+.liq-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.2fr) 40px;gap:8px;align-items:end}
+.liq-row label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--dim);min-width:0}
+.liq-row input{width:100%;height:36px;border-radius:9px;border:1px solid var(--line2);background:var(--card2);color:var(--text);padding:0 8px;font:inherit}
+.liq-row .liq-amt{direction:ltr;text-align:left}
+.ov-liq{display:flex;flex-wrap:wrap;gap:8px 28px;align-items:flex-start}
+.ov-liq-kpi{min-width:min(100%,180px)}
+.ov-liq-kpi .lbl{font-size:12px;color:var(--dim)}
+.ov-liq-kpi .val{font-size:26px;font-weight:800;letter-spacing:-.4px;line-height:1.15;margin-top:2px}
+.ov-liq-kpi .foot{font-size:12px;margin-top:4px;max-width:36ch}
+.ov-liq-next{flex:1 1 240px;min-width:0}
+.ov-liq-ev{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline;font-size:13px;padding:6px 0;border-bottom:1px solid var(--line)}
+.ov-liq-ev:last-child{border-bottom:0}
+.ov-liq-ev .nm{font-weight:600;min-width:0}
+body.privacy:not(.tz-recipient) .liq-amt{color:transparent;text-shadow:0 0 8px var(--text);caret-color:var(--text)}
+@media(max-width:760px){
+  .liq-row{grid-template-columns:1fr 1fr}
+  .liq-row .liq-note-lab{grid-column:1 / -1}
+  .liq-row .liq-del{grid-column:1 / -1;justify-self:start}
+  .liq-row input{height:44px;font-size:16px}
+  .ov-liq-kpi .val{font-size:24px}
+}
 .mgr-box{display:flex;flex-direction:column;gap:8px;margin-top:6px;padding:10px 12px;border:1px dashed var(--line2);border-radius:12px;background:color-mix(in srgb,var(--card) 92%,var(--pri))}
 .mgr-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .mgr-row .btn{flex:1;min-width:160px}
@@ -587,6 +613,16 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
           <div class="split" id="ovFinSplit"></div><div class="legend" id="ovFinLeg"></div></div>
         <div class="card kpi"><div class="lbl">רווח מצטבר מתחילת המעקב</div><div class="val" id="ovGain"></div><div class="foot" id="ovGainFoot"></div></div>
         <div class="card kpi"><div class="lbl">התחייבויות</div><div class="val neg" id="ovDebt"></div><div class="foot" id="ovDebtFoot"></div></div>
+      </div>
+      <div class="card mt ov-liq-card" id="ovLiqCard" hidden>
+        <div class="ov-liq">
+          <div class="ov-liq-kpi">
+            <div class="lbl">סה״כ נזיל היום</div>
+            <div class="val" id="ovLiqToday"></div>
+            <div class="foot dim" id="ovLiqFoot"></div>
+          </div>
+          <div class="ov-liq-next" id="ovLiqNext"></div>
+        </div>
       </div>
       <div class="card mt ov-fee" id="ovFeeCard">
         <div class="ov-fee-main">
@@ -880,6 +916,7 @@ body.share-view #srcChip{background:#1e3a5f;color:#e2e8f0;border-color:#1e3a5f;f
 <div class="toast" id="toast"></div>
 <script src="lookthrough.js"></script>
 <script src="pension.js"></script>
+<script src="liquidity.js"></script>
 <script>
 /* Demo mode must be sealed before crypto or the app reads localStorage.
    Safari keeps setItem as an own property of localStorage, so a prototype
@@ -1025,6 +1062,17 @@ function makeExample(){
   for(let k=36;k>=1;k--){const d=addMonths(TODAY,-k);d.setDate(8);dates.push(iso(d));}
   dates.push(iso(TODAY));
   const n=dates.length;
+  /* Fictional schedules so ?demo=1 shows a liquid badge, a future date, and a partial split.
+     Dates move with today so a future slice does not silently become liquid in a later year. */
+  function demoLiquidity(id){
+    if(id==='e3')return [{amt:null,date:iso(addMonths(TODAY,-18))}];
+    if(id==='e4')return [{amt:null,date:iso(addMonths(TODAY,28))}];
+    if(id==='e5')return [
+      {amt:null,date:null,note:'החלק שנפתח קודם'},
+      {amt:42800,date:iso(addMonths(TODAY,4)),note:'חשבון מאוחר'}
+    ];
+    return null;
+  }
   const investments=spec.map(h=>{
     const start=Math.round(h.bal*h.start);
     const history=dates.map((date,i)=>{
@@ -1041,6 +1089,8 @@ function makeExample(){
     if(h.openedAt)o.openedAt=h.openedAt;
     if(h.taxableShare!=null)o.taxableShare=h.taxableShare;
     if(typeof h.liquid==='boolean')o.liquid=h.liquid;
+    const demoSched=demoLiquidity(h.id);
+    if(demoSched)o.liq=demoSched;
     if(h.currency){o.currency=h.currency;o.foreignAmt=Math.round(h.bal/3.64*100)/100;}
     if(h.cryptoSymbol){o.cryptoSymbol=h.cryptoSymbol;o.cryptoAmt=h.cryptoAmt;}
     if(h.id!=='e13'&&h.id!=='e15')o.pulledAt=iso(addMonths(TODAY,-2));
@@ -1461,6 +1511,38 @@ const isFin=i=>i.cat!=='realestate';
 /* Default liquidity by category (kupa locked); override with additive holding.liquid boolean. */
 const defaultLiquid=i=>LIQ_CATS.includes(i.cat);
 const isLiq=i=>{if(!isFin(i))return false;return typeof i.liquid==='boolean'?!!i.liquid:defaultLiquid(i);};
+function liqAsOf(){return iso(new Date());}
+function liqBadgeHtml(inv){
+  const FL=window.FinLiq;if(!FL||!inv)return '';
+  const v=FL.view(inv,liqAsOf());if(!v)return '';
+  if(v.mode==='liquid')return '<div class="liq-badge"><span class="tag pos">נזיל</span></div>';
+  if(v.mode==='future'){
+    const f=v.future[0];
+    return `<div class="liq-badge"><span class="tag warn">נזיל מ־${FL.dmy(f.date)}</span><span class="liq-when faint">${esc(FL.countdown(f.date,liqAsOf()))}</span></div>`;
+  }
+  const bits=[];
+  if(v.now>=0.5)bits.push(`<span class="tag pos">${ils(v.now)} נזיל</span>`);
+  v.future.forEach(f=>bits.push(`<span class="tag warn">${ils(f.amt)} מ־${FL.dmy(f.date)}</span>`));
+  const cd=v.future[0]?`<span class="liq-when faint">${esc(FL.countdown(v.future[0].date,liqAsOf()))}</span>`:'';
+  return `<div class="liq-badge">${bits.join('<span class="liq-dot">·</span>')}${cd}</div>`;
+}
+function renderOvLiq(){
+  const card=$('#ovLiqCard');if(!card||!window.FinLiq)return;
+  const asOf=liqAsOf();
+  const fin=S.investments.filter(isFin);
+  const any=fin.some(i=>FinLiq.normalize(i.liq));
+  if(!any){card.hidden=true;return;}
+  card.hidden=false;
+  const today=fin.reduce((s,i)=>s+FinLiq.liquidNow(i,asOf,isLiq(i)),0);
+  $('#ovLiqToday').innerHTML=ils(today);
+  $('#ovLiqFoot').textContent='לפי לוח הנזילות כשיש באחזקה. בלי לוח — לפי הסימון נזיל.';
+  const allEv=FinLiq.events(fin,asOf);
+  const ev=allEv.slice(0,4);
+  const more=allEv.length-ev.length;
+  $('#ovLiqNext').innerHTML=ev.length
+    ? `<div class="dim" style="font-size:12px">נזילות קרובה</div>`+ev.map(e=>`<div class="ov-liq-ev"><span class="m">${esc(FinLiq.dmy(e.date))}</span><span class="nm">${esc(e.name)}</span><span>${ils(e.amt)}</span><span class="faint">${esc(e.countdown)}</span></div>`).join('')+(more>0?`<div class="faint" style="font-size:12px;margin-top:4px">ועוד ${more}</div>`:'')
+    : '<div class="dim">אין תאריכי נזילות עתידיים.</div>';
+}
 const sum=(a,f=x=>x)=>a.reduce((s,x)=>s+f(x),0);
 function totals(){
   const finH=S.investments.filter(isFin);
@@ -2804,6 +2886,7 @@ function renderOverview(){
   $('#ovFin').innerHTML=ils(T.fin);
   $('#ovFinSplit').innerHTML=`<div style="width:${T.liq/T.fin*100}%;background:var(--pri)"></div><div style="width:${T.locked/T.fin*100}%;background:var(--pri2)"></div>`;
   $('#ovFinLeg').innerHTML=`<span><i style="background:var(--pri)"></i>נזיל ${ils(T.liq)}</span><span><i style="background:var(--pri2)"></i>לא נזיל ${ils(T.locked)}</span>`;
+  renderOvLiq();
   const all=periodReturn(new Date(1900,0,1));
   if(all){$('#ovGain').innerHTML=`<span class="${all.gain>=0?'pos':'neg'}">${ilsSigned(all.gain)}</span>`;
     $('#ovGainFoot').innerHTML=`${pct(all.r)} מצטבר${all.ann!=null?` · ${pct(all.ann)} לשנה`:''} · מ-${heDate(all.from)} · הפקדות נטו ${ils(all.C)}`;}
@@ -2932,7 +3015,7 @@ function renderPerf(){
   bits.push('אחזקה בלי principal מוצגת כלא ידוע בעמודות הקרן/רווח ולא נכנסת לסיכום הקרן. תשואות התקופה בסקירה נשארות Modified Dietz על כל התיק');
   $('#perfMethod').textContent=bits.join('. ')+'.';
   $('#tblPerf').innerHTML=`<tr><th>אחזקה</th><th class="hide-m">מסלול</th><th class="n">יתרה</th><th class="n">קרן</th><th class="n">רווח</th><th class="n">משקל</th><th class="n">תשואה</th><th class="n hide-m">תרומה לתשואה</th><th class="n hide-m">דמי ניהול</th><th class="n hide-m">עלות שנתית</th><th class="hide-m">בסיס חישוב</th><th>עדכון</th></tr>`+
-    hs.sort((a,b)=>b.i.bal-a.i.bal).map(({i,p})=>{const lu=lastUpdate(i);const stale=lu&&daysBetween(lu,TODAY)>60;return `<tr><td><b>${esc(i.name)}</b><div class="faint" style="font-size:11px">${esc(CATS[i.cat]||i.cat)} · ${esc(i.inst||'')}</div></td><td class="hide-m"><span class="tag">${esc(i.track)}</span></td>
+    hs.sort((a,b)=>b.i.bal-a.i.bal).map(({i,p})=>{const lu=lastUpdate(i);const stale=lu&&daysBetween(lu,TODAY)>60;return `<tr><td><b>${esc(i.name)}</b><div class="faint" style="font-size:11px">${esc(CATS[i.cat]||i.cat)} · ${esc(i.inst||'')}</div>${liqBadgeHtml(i)}</td><td class="hide-m"><span class="tag">${esc(i.track)}</span></td>
     <td class="n">${ils(i.bal)}</td><td class="n">${pgPrinCell(i)}</td><td class="n">${pgGainCell(i)}</td><td class="n m">${(i.bal/T.fin*100).toFixed(1)}%</td><td class="n">${p&&isFinite(p.r)?pct(p.r):'—'}</td>
     <td class="n hide-m">${p&&base?`<span class="m">${(p.gain/base*100).toFixed(2)}</span> נק׳`:'—'}</td>
     <td class="n hide-m">${isFinite(i.feePct)?`<span class="m ${i.feePct>=P.feeHigh?'warn':''}">${i.feePct.toFixed(2)}%</span>`:'—'}</td><td class="n hide-m">${isFinite(i.feePct)?ils(i.bal*i.feePct/100):'—'}</td>
@@ -3908,7 +3991,7 @@ function renderSettings(){
   $('#setSrc').innerHTML=SRC==='gist'?`<div class="chip gist">☁ Gist (live)</div><p class="mt">נטען עכשיו מ-GitHub Gist (<span class="num">${GIST_FILENAME}</span>, עודכן ב-GitHub: ${GIST_META&&GIST_META.gistUpdated?heDate(GIST_META.gistUpdated):'—'}). ${cnt}</p>${ro}`
    :SRC==='gistCache'?`<div class="chip gist">☁ Gist (עותק שמור)</div><p class="mt">${cnt}</p>${ro}`
    :SRC==='local'?`<div class="chip real">💾 נתוני דפדפן מקומיים</div><p class="mt">נקרא מ-<span class="num">localStorage['fin26']</span>: ${cnt}</p>${ro}`
-   :`<div class="chip ex">נתוני דוגמה ${SRC_NOTE}</div><p class="mt">הנתונים סינתטיים, באותו מבנה של FinBoard (tracks / investments / loans / slog / set) + שדות חדשים אופציונליים: <span class="num">costBasis</span>, <span class="num">feePct</span>, <span class="num">principal</span>, <span class="num">principalNote</span>, <span class="num">principalAsOf</span>, <span class="num">pulledAt</span>, <span class="num">openedAt</span>, <span class="num">liquidAt</span>, <span class="num">taxKind</span>, <span class="num">taxableShare</span>. בהלוואה גם <span class="num">group</span>, <span class="num">loanNo</span>, <span class="num">startDate</span>, <span class="num">endDate</span>, <span class="num">linkage</span>, <span class="num">balAsOf</span>.</p><p class="dim">כדי לראות נתונים אמיתיים: פתח באותו דפדפן שבו האתר המקורי מחובר, או הזן Gist ID למטה. <span class="num">?demo=1</span> מכריח נתוני דוגמה.</p>`;
+   :`<div class="chip ex">נתוני דוגמה ${SRC_NOTE}</div><p class="mt">הנתונים סינתטיים, באותו מבנה של FinBoard (tracks / investments / loans / slog / set) + שדות חדשים אופציונליים: <span class="num">costBasis</span>, <span class="num">feePct</span>, <span class="num">principal</span>, <span class="num">principalNote</span>, <span class="num">principalAsOf</span>, <span class="num">pulledAt</span>, <span class="num">openedAt</span>, <span class="num">liquidAt</span>, <span class="num">liq</span>, <span class="num">taxKind</span>, <span class="num">taxableShare</span>. בהלוואה גם <span class="num">group</span>, <span class="num">loanNo</span>, <span class="num">startDate</span>, <span class="num">endDate</span>, <span class="num">linkage</span>, <span class="num">balAsOf</span>.</p><p class="dim">כדי לראות נתונים אמיתיים: פתח באותו דפדפן שבו האתר המקורי מחובר, או הזן Gist ID למטה. <span class="num">?demo=1</span> מכריח נתוני דוגמה.</p>`;
   }
   if($('#setSrc'))$('#setSrc').insertAdjacentHTML('beforeend',syncOriginHtml());
   renderCalcSync();renderSnapHist();
@@ -4144,6 +4227,10 @@ function editHolding(id,cat){
     <div class="field" style="grid-column:1/-1"><label>נזילות</label>
       <label class="liq-tog ${isLiq(inv||{cat:c})?'':'locked'}" id="eLiqLab" style="margin-top:6px"><input type="checkbox" id="eLiq" ${isLiq(inv||{cat:c})?'checked':''}> נזיל</label>
       <div class="hint">מסומן = נזיל. לא מסומן = סגור לפרישה. ברירת מחדל לפי קטגוריה; נשמר ב־<span class="num">liquid</span> (האתר המקורי מתעלם).</div></div>
+    <div class="field" style="grid-column:1/-1"><label>לוח נזילות</label>
+      <div class="hint">שדה <span class="num">liq</span>. שורה עם תאריך בלי סכום = כל היתרה (או מה שנשאר). סכום בלי תאריך, או תאריך שעבר = נזיל היום. כמה שורות = חלקים עם תאריכים שונים, למשל קרן שמאגדת כמה חשבונות. בלי שורות — לא מוצג תג.</div>
+      <div class="liq-rows" id="eLiqRows">${liqEditorRows(inv)}</div>
+      <button type="button" class="btn ghost sm" id="eLiqAdd">+ שורה</button></div>
     <div class="field" style="grid-column:1/-1"><label>הערות</label><textarea id="eNotes">${esc(inv?inv.notes||'':'')}</textarea></div>
     <div class="field" style="grid-column:1/-1"><label>כניסה לאתר הגוף המנהל</label>
       <div class="mgr-box">
@@ -4185,6 +4272,7 @@ function editHolding(id,cat){
   ['ePrinNote','ePrinAsOf'].forEach(id=>{const el=document.getElementById(id);if(el)el.oninput=paintHoldPg;});
   const syncLiqLab=()=>{$('#eLiqLab').classList.toggle('locked',!$('#eLiq').checked);};
   $('#eLiq').onchange=syncLiqLab;
+  bindLiqEditor();
   const refreshMgr=()=>{
     const portal=resolveManagerPortal({inst:fv('eInst'),name:fv('eName'),managerUrl:fv('eMgrUrl')});
     const btn=$('#eMgrOpen'), st=$('#eMgrStatus');
@@ -4219,8 +4307,52 @@ function editHolding(id,cat){
   if(histAll.length>=1){requestAnimationFrame(()=>mk('cHoldHist',{type:'line',data:{datasets:[{label:'יתרה ₪',data:histAll.map(h=>({x:h.date,y:+h.bal})),borderColor:cv('--pri'),backgroundColor:cv('--pri')+'22',fill:true,tension:.25,pointRadius:histAll.length<20?3:0,borderWidth:2}]},
     options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${ilsT(c.raw.y)}`}}},scales:{x:xTime(histAll.length>24?'month':'day'),y:yMoney}}}));}
 }
+function liqRowHtml(row){
+  const r=row||{};
+  const amt=r.amt==null||r.amt===''?'':String(r.amt);
+  return `<div class="liq-row">
+    <label>סכום ₪<input class="liq-amt" inputmode="decimal" autocomplete="off" placeholder="כל היתרה" value="${esc(amt)}"></label>
+    <label>נזיל מתאריך<input class="liq-date" type="date" value="${esc(r.date||'')}"></label>
+    <label class="liq-note-lab">הערה<input class="liq-note" maxlength="80" autocomplete="off" placeholder="אופציונלי" value="${esc(r.note||'')}"></label>
+    <button type="button" class="edit-ic liq-del" aria-label="הסר שורה">✕</button>
+  </div>`;
+}
+function liqEditorRows(inv){
+  const rows=window.FinLiq?FinLiq.normalize(inv&&inv.liq):null;
+  const list=rows&&rows.length?rows:[{amt:null,date:null}];
+  return list.map(liqRowHtml).join('');
+}
+function bindLiqEditor(){
+  const box=$('#eLiqRows');if(!box)return;
+  const addBtn=$('#eLiqAdd');
+  if(addBtn)addBtn.onclick=()=>box.insertAdjacentHTML('beforeend',liqRowHtml(null));
+  box.onclick=ev=>{const b=ev.target.closest&&ev.target.closest('.liq-del');if(b)b.closest('.liq-row')?.remove();};
+}
+function readLiqForm(){
+  const rows=[...document.querySelectorAll('#eLiqRows .liq-row')];
+  const out=[];let opens=0;
+  for(const row of rows){
+    const amtRaw=row.querySelector('.liq-amt').value.trim();
+    const dateRaw=row.querySelector('.liq-date').value.trim();
+    const note=row.querySelector('.liq-note').value.replace(/[\u0000-\u001f]/g,'').trim().slice(0,80);
+    if(!amtRaw&&!dateRaw&&!note)continue;
+    let amt=null;
+    if(amtRaw){
+      const n=parseNum(amtRaw);
+      if(!isFinite(n)||n<=0)return {err:'סכום בלוח הנזילות לא תקין'};
+      amt=Math.round(n*100)/100;
+    }else opens++;
+    if(dateRaw&&!/^\d{4}-\d{2}-\d{2}$/.test(dateRaw))return {err:'תאריך בלוח הנזילות לא תקין'};
+    const item={amt,date:dateRaw||null};
+    if(note)item.note=note;
+    out.push(item);
+  }
+  if(opens>1)return {err:'רק שורה אחת יכולה להיות בלי סכום — היא מקבלת את שאר היתרה'};
+  return {rows:out};
+}
 function saveHolding(id){
   const name=fv('eName').trim();if(!name){toast('חובה להזין שם','err');return;}
+  const liqForm=readLiqForm();if(liqForm.err){toast(liqForm.err,'err');return;}
   const num=k=>{const v=parseNum(fv(k));return isFinite(v)?v:0;},opt=k=>{const v=parseNum(fv(k));return isFinite(v)?v:null;};
   const cat=fv('eCat');if(cat==='realestate'){toast('נדל\"ן לא נשמר ב-v2','err');return;}
   const d={name,cat,track:fv('eTrack'),bal:num('eBal'),inst:fv('eInst'),owner:fv('eOwner'),accNum:fv('eAcc'),notes:fv('eNotes'),
@@ -4247,6 +4379,7 @@ function saveHolding(id){
     const liqAt=fv('eLiquidAt').trim();if(/^\d{4}-\d{2}-\d{2}$/.test(liqAt))inv.liquidAt=liqAt;else delete inv.liquidAt;
     const sharePct=parseNum(fv('eTaxShare'));if(isFinite(sharePct)&&sharePct>0)inv.taxableShare=clamp(sharePct/100,0,1);else delete inv.taxableShare;
     inv.liquid=liquid; // additive field; original site ignores unknown keys
+    if(liqForm.rows.length)inv.liq=liqForm.rows;else delete inv.liq; // optional schedule; v1 Object.assign keeps it
     if(mgr)inv.managerUrl=mgr;else delete inv.managerUrl; // additive; original site ignores
   },id?`עריכת ${name}`:`הוספת ${name}`);
 }
@@ -4389,7 +4522,7 @@ function renderUpdate(){
     const savedP=readPrincipal(i);
     const gainPh=savedP==null?'או רווח':String(roundMoney((+i.bal||0)-savedP));
     return `<div class="urow ${draftTouched(d)?'dirty':''}" data-row="${esc(i.id)}">
-      <div class="nmw"><div class="nm">${esc(i.name)}</div><div class="meta">${esc([i.inst,i.track,i.owner].filter(Boolean).join(' · '))}</div></div>
+      <div class="nmw"><div class="nm">${esc(i.name)}</div><div class="meta">${esc([i.inst,i.track,i.owner].filter(Boolean).join(' · '))}</div>${liqBadgeHtml(i)}</div>
       <div class="lu ${stale?'warn':''}" title="${esc(updateDateText(i))}">${updateDateHtml(i)}${days!=null?`<div class="faint">${days===0?'היום':days===1?'אתמול':`לפני ${Math.round(days)} ימים`}</div>`:''}</div>
       <div class="liqw"><label class="liq-tog ${liq?'':'locked'}"><input type="checkbox" data-liq="${esc(i.id)}" ${liq?'checked':''} ${ed?'':'disabled'}> נזיל</label></div>
       <div class="cur"><span class="lbl dim">נוכחי: </span>${curTxt}</div>
