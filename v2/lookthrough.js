@@ -133,6 +133,8 @@
 
   function matchFund(inv, funds) {
     funds = funds || [];
+    /* A TASE security number is not a Gemel-Net / Bituach-Net fund id. */
+    if (inv && inv.trackSource === 'tase') return {fund: null, why: 'tase'};
     const product = holdingProduct(inv);
     const explicit = explicitTrackId(inv);
     const src = trackSourceOf(inv);

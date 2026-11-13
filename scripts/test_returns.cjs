@@ -66,4 +66,47 @@ assert.strictEqual(thin.t12, null);
 /* No point on or before the window start. */
 assert.strictEqual(FinReturns.windowReturn([{date:'2026-03-01', bal:10}], [], '2026-01-01', '2026-11-01'), null);
 
-console.log('ok returns', {ytd: cur.ytd, t12: +cur.t12.toFixed(6), adj: +adj.r.toFixed(4)});
+/* Close-to-close. 121/110 − 1 = 10% YTD, 121/100 − 1 = 21% over 12 months. */
+const px = FinReturns.fromPrices([
+  [20261113, 121],
+  [20251113, 100],
+  [20251231, 110]
+], '2026-11-13');
+assert.ok(px);
+assert.strictEqual(px.asOf, '2026-11-13');
+assert.ok(Math.abs(px.ytd - 0.1) < 1e-12, px.ytd);
+assert.ok(Math.abs(px.t12 - 0.21) < 1e-12, px.t12);
+
+/* A spring price is not the previous year's last close. June is also too far from a year earlier. */
+const gap = FinReturns.fromPrices([[20250601, 100], [20261113, 110]], '2026-11-13');
+assert.strictEqual(gap.ytd, null);
+assert.strictEqual(gap.t12, null);
+
+/* 10 December counts as year-end. 12 days before the 12m target still counts. */
+const edge = FinReturns.fromPrices([[20251101, 80], [20251210, 90], [20261113, 99]], '2026-11-13');
+assert.ok(Math.abs(edge.ytd - (99 / 90 - 1)) < 1e-12);
+assert.ok(Math.abs(edge.t12 - (99 / 80 - 1)) < 1e-12);
+
+/* 9 December is before the year-end floor. */
+const earlyDec = FinReturns.fromPrices([[20251209, 90], [20261113, 99]], '2026-11-13');
+assert.strictEqual(earlyDec.ytd, null);
+
+/* A base more than 18 days before the target is not "about a year ago". */
+const far = FinReturns.fromPrices([[20251020, 50], [20251231, 60], [20261113, 70]], '2026-11-13');
+assert.ok(far.ytd != null);
+assert.strictEqual(far.t12, null);
+
+/* Zero and blank prices are ignored. ISO dates and {date, price} both work. */
+const mixed = FinReturns.fromPrices([
+  {date: '2025-11-13', price: 0},
+  {date: '2025-11-12', price: 200},
+  ['20251231', '210'],
+  {date: '2026-11-13', px: 231}
+], '2026-11-13');
+assert.ok(Math.abs(mixed.ytd - (231 / 210 - 1)) < 1e-12);
+assert.ok(Math.abs(mixed.t12 - (231 / 200 - 1)) < 1e-9);
+
+assert.strictEqual(FinReturns.fromPrices([], '2026-11-13'), null);
+assert.strictEqual(FinReturns.fromPrices([[20261113, 10]], '2026-01-01'), null);
+
+console.log('ok returns', {ytd: cur.ytd, t12: +cur.t12.toFixed(6), adj: +adj.r.toFixed(4), px: +px.ytd.toFixed(4)});
