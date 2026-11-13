@@ -33,7 +33,7 @@
     if (!inv) return null;
     const n = normHe(inv.name);
     const cat = inv.cat || '';
-    if (cat === 'policy' || cat === 'bituach' || /פוליס|ביטוח מנהלים/.test(n)) return 'policy';
+    if (cat === 'policy' || cat === 'bituach' || /פוליס|ביטוח מנהלים|חי?סכון פיננסי/.test(n)) return 'policy';
     if (cat === 'pensia' || (/פנסיה/.test(n) && !/גמל|השתלמות|קה"ש|קהש/.test(n))) return 'pensia';
     if (cat === 'gamel' || /גמל להשקעה/.test(n)) return 'gemel-invest';
     if (/השתלמות|קה"ש|קהש/.test(n)) return 'hishtalmut';
@@ -54,6 +54,11 @@
     if (sub === 'כללי' || /(?:מסלול|[-–])\s*כללי$/.test(name)) return 'klali';
     if (/אג"ח ממשלות/.test(blob) && !/מניות/.test(blob)) return 'bonds-gov';
     if ((sub === 'אג"ח' || /(?:מסלול|[-–])\s*אג"ח$/.test(name)) && !/מניות/.test(blob)) return 'bonds';
+    /* Bituach-Net does not publish SUB_SPECIALIZATION, so the track is the last word. */
+    if (!sub) {
+      if (!/עוקב/.test(name) && /(?:^|\s)מניות$/.test(name)) return 'stocks';
+      if (/(?:^|\s)כללי$/.test(name)) return 'klali';
+    }
     return null;
   }
 
@@ -89,42 +94,78 @@
     const hay = policy ? manager + ' ' + name : manager;
     if (/מור|more/i.test(s)) return hasToken(hay, 'מור') || hasToken(hay, 'more');
     if (/ילין|לפידות/.test(s)) return hasToken(hay, 'ילין') || hasToken(hay, 'לפידות');
+    /* "כלל" is three letters, so the 4-letter token rule would miss Clal. */
+    if (hasToken(s, 'כלל') || /\bclal\b/i.test(s)) return hasToken(hay, 'כלל') || hasToken(hay, 'clal');
     const words = distinctive(s);
     if (!words.length) return false;
     return words.every(w => hasToken(manager, w));
   }
 
+  function explicitTrackId(inv) {
+    if (!inv) return NaN;
+    if (inv.trackId != null && inv.trackId !== '') return +inv.trackId;
+    if (inv.fundId != null && inv.fundId !== '') return +inv.fundId;
+    return NaN;
+  }
+  function trackSourceOf(inv) {
+    if (!inv) return null;
+    if (inv.trackSource === 'bituach') return 'bituach';
+    if (inv.trackSource === 'gemel') return 'gemelnet';
+    return null;
+  }
+
+  function kindHits(inv, funds) {
+    const product = holdingProduct(inv);
+    const kind = holdingTrackKind(inv && inv.track);
+    if (!product || !kind) return {hits: [], why: !kind ? 'no-track' : 'private'};
+    const mgrHits = (funds || []).filter(f => productOf(f) === product && managerMatches(inv.inst, f));
+    if (!mgrHits.length) return {hits: [], why: 'no-manager'};
+    let hits;
+    if (kind === 'bonds') {
+      const gov = mgrHits.filter(f => trackKindOfFund(f) === 'bonds-gov');
+      const plain = mgrHits.filter(f => trackKindOfFund(f) === 'bonds');
+      hits = gov.length ? gov : plain;
+    } else hits = mgrHits.filter(f => trackKindOfFund(f) === kind);
+    if (!hits.length) return {hits: [], why: 'no-fund'};
+    if (hits.length > 1) hits = narrowByName(inv, hits);
+    return {hits: hits, why: hits.length === 1 ? 'matched' : 'ambiguous'};
+  }
+
   function matchFund(inv, funds) {
     funds = funds || [];
     const product = holdingProduct(inv);
-    const explicit = inv && inv.fundId != null && inv.fundId !== '' ? +inv.fundId : NaN;
+    const explicit = explicitTrackId(inv);
+    const src = trackSourceOf(inv);
     if (isFinite(explicit)) {
       let hits = funds.filter(f => +f.fundId === explicit);
+      if (src) hits = hits.filter(f => f.source === src);
       if (product) {
         const narrowed = hits.filter(f => productOf(f) === product);
         if (narrowed.length) hits = narrowed;
       }
-      if (inv.inst) {
+      if (inv && inv.inst) {
         const mgr = hits.filter(f => managerMatches(inv.inst, f));
         if (mgr.length) hits = mgr;
       }
       if (hits.length === 1) return {fund: hits[0], why: 'fundId'};
       if (hits.length > 1) return {fund: null, why: 'ambiguous'};
+      if (src && inv && inv.trackId != null && inv.trackId !== '') return {fund: null, why: 'no-fund'};
     }
-    const kind = holdingTrackKind(inv && inv.track);
-    if (!product || !kind) return {fund: null, why: !kind ? 'no-track' : 'private'};
-    const mgrHits = funds.filter(f => productOf(f) === product && managerMatches(inv.inst, f));
-    if (!mgrHits.length) return {fund: null, why: 'no-manager'};
-    let kindHits;
-    if (kind === 'bonds') {
-      const gov = mgrHits.filter(f => trackKindOfFund(f) === 'bonds-gov');
-      const plain = mgrHits.filter(f => trackKindOfFund(f) === 'bonds');
-      kindHits = gov.length ? gov : plain;
-    } else kindHits = mgrHits.filter(f => trackKindOfFund(f) === kind);
-    if (kindHits.length > 1) kindHits = narrowByName(inv, kindHits);
-    if (kindHits.length === 1) return {fund: kindHits[0], why: 'matched'};
-    if (kindHits.length > 1) return {fund: null, why: 'ambiguous'};
-    return {fund: null, why: 'no-fund'};
+    const found = kindHits(inv, funds);
+    if (found.hits.length === 1) return {fund: found.hits[0], why: 'matched'};
+    if (found.hits.length > 1) return {fund: null, why: 'ambiguous'};
+    return {fund: null, why: found.why};
+  }
+
+  /* Public gemel-net / bituach tracks a holding could be. One hit is a unique
+     suggestion; several means the user has to pick a FUND_ID. */
+  function suggestFunds(inv, funds) {
+    const list = funds || [];
+    const hit = matchFund(inv, list);
+    const ok = f => f && (f.source === 'gemelnet' || f.source === 'bituach');
+    if (hit.fund) return ok(hit.fund) ? [hit.fund] : [];
+    if (hit.why !== 'ambiguous') return [];
+    return kindHits(inv, list).hits.filter(ok);
   }
 
   /* When one manager publishes two funds of the same kind (מקיפה vs כללית),
@@ -239,6 +280,6 @@
 
   return {
     SRC_HE, normHe, productOf, holdingProduct, trackKindOfFund, holdingTrackKind,
-    managerMatches, matchFund, composePublic, periodLabel, sourceLabel, fromCkan, WHY_HE
+    managerMatches, matchFund, suggestFunds, composePublic, periodLabel, sourceLabel, fromCkan, WHY_HE
   };
 });

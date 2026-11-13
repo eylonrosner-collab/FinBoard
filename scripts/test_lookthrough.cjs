@@ -112,6 +112,31 @@ assert.strictEqual(byId.fund.fundId, 12535);
 const notAcc = FinLook.matchFund({cat:'gamel', name:'גמל להשקעה', inst:'מור בית השקעות', track:'S&P 500', accNum:'100000001'}, pub.funds);
 assert.strictEqual(notAcc.fund.fundId, 7958);
 
+/* Harel gemel-lehashkaa S&P is a unique public track. */
+const harel = FinLook.matchFund({cat:'gamel', name:'גמל להשקעה', inst:'הראל', track:'S&P 500'}, pub.funds);
+assert.ok(harel.fund && harel.fund.source === 'gemelnet' && harel.fund.fundId === 13414, JSON.stringify(harel));
+
+/* Clal savings policy ("חסכון פיננסי לעתיד") is Bituach-Net. Plain "מניות" is ambiguous
+   (the house track and a State Street track), so the id is not guessed. */
+assert.strictEqual(FinLook.holdingProduct({cat:'kupa', name:'חסכון פיננסי לעתיד', inst:'כלל', track:'מניות'}), 'policy');
+const clal = FinLook.matchFund({cat:'kupa', name:'חסכון פיננסי לעתיד', inst:'כלל', track:'מניות'}, pub.funds);
+assert.strictEqual(clal.fund, null);
+assert.strictEqual(clal.why, 'ambiguous');
+const clalSug = FinLook.suggestFunds({cat:'kupa', name:'חסכון פיננסי לעתיד', inst:'כלל', track:'מניות'}, pub.funds);
+assert.ok(clalSug.some(f => f.fundId === 9 && f.source === 'bituach'), JSON.stringify(clalSug.map(f => f.fundId)));
+assert.ok(clalSug.length > 1);
+
+/* A saved trackId + source wins, including when the name alone is ambiguous. */
+const clalId = FinLook.matchFund({cat:'kupa', name:'חסכון פיננסי לעתיד', inst:'כלל', track:'מניות', trackId:9, trackSource:'bituach'}, pub.funds);
+assert.strictEqual(clalId.why, 'fundId');
+assert.strictEqual(clalId.fund.fundId, 9);
+assert.strictEqual(clalId.fund.source, 'bituach');
+
+/* trackId is the same explicit id as fundId. */
+const byTrack = FinLook.matchFund({cat:'kupa', name:'קה"ש', inst:'מור בית השקעות', track:'כללי', trackId:12535, trackSource:'gemel'}, pub.funds);
+assert.strictEqual(byTrack.why, 'fundId');
+assert.strictEqual(byTrack.fund.fundId, 12535);
+
 const periods = [...new Set(pub.sources.map(s => s.period))];
 assert.ok(periods.every(p => p >= 202601), 'snapshot should be a 2026 report');
 assert.ok(pub.funds.length > 1000);
