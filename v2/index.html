@@ -230,6 +230,14 @@ pre.json{max-height:320px;overflow:auto;direction:ltr;text-align:left;font-size:
 .urow:last-child{border-bottom:0}
 .urow.dirty{background:color-mix(in srgb,var(--pri) 9%,transparent)}
 .urow .nm{font-weight:600}.urow .meta{font-size:11px;color:var(--faint)}
+.fund-rets{display:flex;flex-wrap:wrap;gap:2px 10px;align-items:baseline;margin-top:3px;max-width:100%;font-size:11.5px;line-height:1.35}
+.fund-ret{cursor:help}
+.fund-ret .k{color:var(--dim);font-weight:500}
+.ret-pct{font-weight:700;font-variant-numeric:tabular-nums}
+.ret-pct.pos{color:var(--pos)}.ret-pct.neg{color:var(--neg)}
+.ret-na{color:var(--faint);font-weight:650}
+.ret-tip{display:none;flex:1 1 100%;font-size:10.5px;color:var(--dim);font-weight:400;line-height:1.35}
+.fund-rets.on .ret-tip{display:block}
 .urow .cur{font-size:13px}.urow .cur .lbl{display:none}
 .uin{display:flex;align-items:center;gap:6px}
 .uin input{width:100%;height:38px;border-radius:9px;border:1px solid var(--line2);background:var(--bg2);color:var(--text);padding:0 10px;font:inherit;direction:ltr;text-align:left}
@@ -472,6 +480,10 @@ body.privacy:not(.tz-recipient) .liq-amt{color:transparent;text-shadow:0 0 8px v
 @media(max-width:760px){
   .urow{grid-template-areas:"nm ed" "lu lu" "liq liq" "cur cur" "in in" "dl dl"}
   .urow .liqw{grid-area:liq}
+  /* Name cell spans the row so the two return figures are not squeezed beside the edit button. */
+  .urow .nmw{grid-column:1 / -1;padding-inline-end:52px}
+  .urow .edw{z-index:1;align-self:start}
+  .fund-rets{font-size:12.5px;gap:1px 12px}
 }
 /* principal (קרן) vs gain (רווח) */
 .pgline{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;padding-top:2px}
@@ -915,6 +927,7 @@ body.privacy:not(.tz-recipient) .liq-amt{color:transparent;text-shadow:0 0 8px v
 <div class="modal-bg" id="modal"><div class="modal-box" role="dialog" aria-modal="true"><div class="modal-head"><b id="mdTitle"></b><button id="mdX" aria-label="סגור">✕</button></div><div class="modal-body" id="mdBody"></div><div class="modal-foot" id="mdFoot"></div></div></div>
 <div class="toast" id="toast"></div>
 <script src="lookthrough.js"></script>
+<script src="returns.js"></script>
 <script src="pension.js"></script>
 <script src="liquidity.js"></script>
 <script>
@@ -4206,6 +4219,9 @@ function editHolding(id,cat){
     <div class="field" style="grid-column:1/-1"><label>שם</label><input id="eName" value="${esc(inv?inv.name:'')}"></div>
     <div class="field"><label>קטגוריה</label><select id="eCat">${optList(Object.entries(FIN_CATS),c)}</select></div>
     <div class="field"><label>מסלול השקעה</label><select id="eTrack">${optList(tracks,inv?inv.track:(S.tracks[0]||{}).name)}</select></div>
+    <div class="field"><label>מקור תשואה רשמי</label><select id="eTrackSrc">${optList([['','ללא — מההיסטוריה'],['gemel','גמל-נט'],['bituach','ביטוח-נט']],inv&&(inv.trackSource==='gemel'||inv.trackSource==='bituach')?inv.trackSource:'')}</select><div class="hint">נשמר ב־<span class="num">trackSource</span></div></div>
+    <div class="field"><label>מספר מסלול (FUND_ID)</label><input id="eTrackId" inputmode="numeric" autocomplete="off" value="${esc(inv&&inv.trackId!=null&&inv.trackId!==''?inv.trackId:(inv&&inv.fundId!=null?inv.fundId:''))}" placeholder="לא חובה" style="direction:ltr"><div class="hint" id="eTrackHint">מזהה ציבורי בגמל-נט או ביטוח-נט. לא מספר חשבון.</div></div>
+    <div class="field" style="grid-column:1/-1"><div class="chips-row" id="eTrackPicks"></div></div>
     <div class="field"><label>בית השקעות / גוף</label><input id="eInst" value="${esc(inv?inv.inst||'':'')}"></div>
     <div class="field"><label>בעלים</label><input id="eOwner" value="${esc(inv?inv.owner||'':'')}"></div>
     <div class="field"><label>יתרה (₪)</label><input id="eBal" inputmode="decimal" value="${inv?inv.bal:0}" style="direction:ltr"></div>
@@ -4249,7 +4265,29 @@ function editHolding(id,cat){
     {label:'שמור',cls:'btn',id:'eSave',fn:()=>saveHolding(id)},{label:'ביטול',cls:'btn ghost',fn:closeModal},
     ...(inv?[{label:'מחק אחזקה',cls:'btn danger sp',id:'eDel',fn:()=>{if(confirm(`למחוק את "${inv.name}"? (נשמר גיבוי)`)){closeModal();commit(x=>{x.investments=x.investments.filter(i=>i.id!==id);},`מחיקת ${inv.name}`);}}}]:[])]);
   const tog=()=>{const k=fv('eCat');document.querySelectorAll('.fxf').forEach(e=>e.style.display=k==='forex'?'':'none');document.querySelectorAll('.crf').forEach(e=>e.style.display=k==='crypto'?'':'none');};
-  $('#eCat').onchange=tog;tog();
+  $('#eCat').onchange=()=>{tog();paintTrack();};tog();
+  const paintTrack=()=>{
+    const hint=$('#eTrackHint'),picks=$('#eTrackPicks');if(!hint||!picks)return;
+    const idRaw=fv('eTrackId').trim(),src=fv('eTrackSrc');
+    if(idRaw&&(src==='gemel'||src==='bituach')){
+      const f=pubFund(src,+idRaw);
+      hint.textContent=f?('מסלול: '+f.name):'המספר יישמר. אם הוא קיים במאגר הציבורי, השם יופיע כאן.';
+      picks.innerHTML='';return;
+    }
+    const draft={cat:fv('eCat'),name:fv('eName'),inst:fv('eInst'),track:fv('eTrack')};
+    const sug=window.FinLook&&FinLook.suggestFunds?FinLook.suggestFunds(draft,PUB.funds||[]):[];
+    const usable=sug.filter(f=>f.source==='gemelnet'||f.source==='bituach').slice(0,6);
+    if(!usable.length){hint.textContent='אין מסלול ציבורי יחיד תואם. בלי מספר מסלול התשואה מחושבת מההיסטוריה.';picks.innerHTML='';return;}
+    hint.textContent=usable.length===1?'הצעה לפי שם המסלול והגוף:':'כמה מסלולים תואמים — בחרו מספר:';
+    picks.innerHTML=usable.map(f=>{
+      const s=f.source==='bituach'?'bituach':'gemel';
+      const label=(s==='bituach'?'ביטוח-נט':'גמל-נט')+' · '+f.fundId+' · '+f.name;
+      return `<button type="button" class="qchip" data-pick-src="${s}" data-pick-id="${f.fundId}">${esc(label)}</button>`;
+    }).join('');
+    picks.querySelectorAll('[data-pick-id]').forEach(b=>b.onclick=()=>{$('#eTrackSrc').value=b.dataset.pickSrc;$('#eTrackId').value=b.dataset.pickId;paintTrack();});
+  };
+  ['eName','eInst','eTrackId'].forEach(id=>{const el=document.getElementById(id);if(el)el.oninput=()=>{if(id==='eInst'||id==='eName')refreshMgr();paintTrack();};});
+  $('#eTrack').onchange=paintTrack;$('#eTrackSrc').onchange=paintTrack;paintTrack();
   const paintHoldPg=()=>{
     const box=$('#ePgSum');if(!box)return;
     const bal=parseNum(fv('eBal'));const b=isFinite(bal)?bal:(inv?+inv.bal||0:0);
@@ -4286,7 +4324,7 @@ function editHolding(id,cat){
       st.className='hint';
     }
   };
-  $('#eInst').oninput=refreshMgr;$('#eName').oninput=refreshMgr;$('#eMgrUrl').oninput=refreshMgr;refreshMgr();
+  $('#eMgrUrl').oninput=refreshMgr;refreshMgr();
   $('#eMgrOpen').onclick=()=>{
     const portal=resolveManagerPortal({inst:fv('eInst'),name:fv('eName'),managerUrl:fv('eMgrUrl')});
     if(!portal||!portal.url){toast('אין קישור עדיין — הזיני URL מותאם','warn');return;}
@@ -4352,6 +4390,14 @@ function readLiqForm(){
 }
 function saveHolding(id){
   const name=fv('eName').trim();if(!name){toast('חובה להזין שם','err');return;}
+  const trackSource=fv('eTrackSrc');
+  const trackRaw=fv('eTrackId').trim();
+  let trackId=null;
+  if(trackRaw){
+    if(!/^\d{1,9}$/.test(trackRaw)){toast('מספר מסלול צריך להיות המזהה הציבורי (FUND_ID), לא מספר חשבון','err');return;}
+    trackId=+trackRaw;
+  }
+  if(trackId!=null&&trackSource!=='gemel'&&trackSource!=='bituach'){toast('בחרו מקור: גמל-נט או ביטוח-נט','err');return;}
   const liqForm=readLiqForm();if(liqForm.err){toast(liqForm.err,'err');return;}
   const num=k=>{const v=parseNum(fv(k));return isFinite(v)?v:0;},opt=k=>{const v=parseNum(fv(k));return isFinite(v)?v:null;};
   const cat=fv('eCat');if(cat==='realestate'){toast('נדל\"ן לא נשמר ב-v2','err');return;}
@@ -4381,6 +4427,8 @@ function saveHolding(id){
     inv.liquid=liquid; // additive field; original site ignores unknown keys
     if(liqForm.rows.length)inv.liq=liqForm.rows;else delete inv.liq; // optional schedule; v1 Object.assign keeps it
     if(mgr)inv.managerUrl=mgr;else delete inv.managerUrl; // additive; original site ignores
+    if(trackId!=null){inv.trackId=trackId;inv.trackSource=trackSource;inv.fundId=trackId;}
+    else{delete inv.trackId;delete inv.trackSource;delete inv.fundId;}
   },id?`עריכת ${name}`:`הוספת ${name}`);
 }
 function applyLoanFields(row, d, opt, isNew){
@@ -4499,16 +4547,188 @@ function pgLiveHtml(i){
   const how=res.src==='gain'?'מרווח':res.src==='dep'?'כולל הפקדה':res.src==='prin'?'קרן שהוזנה':held?'הקרן נשארת':'';
   return `${how?`<span class="faint">${esc(how)} · </span>`:''}<span class="dim">קרן </span>${ils(res.p)} <span class="dim">רווח </span>${ilsSigned(res.gain)}${r==null?'':' '+pct(r)} ${pgCaveat({note,asOf})}`;
 }
+/* YTD + trailing 12m on the update page. Public yields are cached in a key that
+   is not part of the encrypted book. Demo never reads or writes that cache. */
+const YIELD_LS='finboard_yield_v1';
+const YIELD_TTL=12*60*60*1000;
+let retGen=0;
+function pubFund(source,id){
+  const s=source==='bituach'?'bituach':'gemelnet';
+  return (PUB.funds||[]).find(f=>f.source===s&&+f.fundId===+id)||null;
+}
+function publicTrackOf(inv){
+  if(!inv||!window.FinLook)return null;
+  const srcRaw=inv.trackSource==='bituach'?'bituach':inv.trackSource==='gemel'?'gemel':null;
+  let id=NaN;
+  if(inv.trackId!=null&&inv.trackId!=='')id=+inv.trackId;
+  else if(!srcRaw&&inv.fundId!=null&&inv.fundId!=='')id=+inv.fundId;
+  if(srcRaw&&isFinite(id)&&id>0){
+    const meta=pubFund(srcRaw,id);
+    return {source:srcRaw,id,stored:true,name:meta?meta.name:'',auto:false};
+  }
+  if(isFinite(id)&&id>0){
+    const meta=(PUB.funds||[]).find(f=>(f.source==='gemelnet'||f.source==='bituach')&&+f.fundId===id);
+    if(meta)return {source:meta.source==='bituach'?'bituach':'gemel',id,stored:true,name:meta.name||'',auto:false};
+  }
+  const list=FinLook.suggestFunds?FinLook.suggestFunds(inv,PUB.funds||[]):[];
+  if(list.length===1){
+    const f=list[0];
+    return {source:f.source==='bituach'?'bituach':'gemel',id:+f.fundId,stored:false,name:f.name||'',auto:true};
+  }
+  return null;
+}
+function holdingFlows(inv){
+  return (S.slog||[]).filter(s=>s&&s.invId===inv.id&&s.date).map(s=>({date:String(s.date).slice(0,10),amount:+s.amount||0}));
+}
+function historyFig(inv){
+  const h=FinReturns.historyReturns(inv.history,inv.bal,holdingFlows(inv),TODAY);
+  if(h.ytd==null&&h.t12==null)return {kind:'none',ytd:null,t12:null};
+  return {kind:'history',ytd:h.ytd,t12:h.t12};
+}
+function returnTip(r){
+  if(!r)return '';
+  if(r.demo)return 'נתוני הדגמה · מחושב מהיסטוריה';
+  if(r.kind==='public'&&r.period){
+    const src=r.source==='bituach'?'ביטוח-נט':'גמל-נט';
+    const name=r.name?(' — '+r.name):'';
+    const how=r.auto?' · התאמה לפי שם':'';
+    return 'נכון לסוף '+FinReturns.periodLabel(r.period)+', '+src+name+how;
+  }
+  if(r.kind==='history')return 'מחושב מהיסטוריה';
+  if(r.pending)return 'טוען נתונים ציבוריים…';
+  return 'אין מספיק היסטוריה';
+}
+function fmtRetPct(v){
+  if(v==null||!isFinite(v))return '<span class="ret-na">—</span>';
+  const cls=v>5e-7?'pos':v<-5e-7?'neg':'';
+  const t=(v>0?'+':v<0?'−':'')+Math.abs(v*100).toFixed(1)+'%';
+  return `<b class="ret-pct ${cls}" dir="ltr">${t}</b>`;
+}
+function fundRetHtml(r){
+  const y=r.pending&&r.ytd==null?'<span class="dim">…</span>':fmtRetPct(r.ytd);
+  const m=r.pending&&r.t12==null?'<span class="dim">…</span>':fmtRetPct(r.t12);
+  return `<span class="fund-ret"><span class="k">מתחילת השנה: </span>${y}</span><span class="fund-ret"><span class="k">12 חודשים: </span>${m}</span><span class="ret-tip">${esc(returnTip(r))}</span>`;
+}
+function paintRet(el,fig){
+  if(!el)return;
+  el.title=returnTip(fig);
+  el.classList.remove('on');
+  el.innerHTML=fundRetHtml(fig);
+}
+async function yieldResource(source){
+  const pubId=source==='bituach'?'bituach':'gemelnet';
+  const known=(PUB.sources||[]).find(s=>s.id===pubId&&s.resource_id);
+  if(known)return known.resource_id;
+  const pkg=await ckanGet('package_show',{id:source==='bituach'?'insurance':'gemelnet'});
+  const csv=(pkg.resources||[]).filter(r=>r.datastore_active&&String(r.format||'').toUpperCase()==='CSV');
+  const today=csv.filter(r=>(r.name||'').includes('היום'));
+  const res=(today.length?today:csv).slice(-1)[0];
+  if(!res)throw new Error('no yield resource');
+  return res.id;
+}
+async function fetchYieldMap(source,ids,year){
+  const rid=await yieldResource(source);
+  const fields='FUND_ID,FUND_NAME,REPORT_PERIOD,MONTHLY_YIELD,YEAR_TO_DATE_YIELD';
+  const records=[];
+  let offset=0;
+  for(let page=0;page<8;page++){
+    const res=await ckanGet('datastore_search',{
+      resource_id:rid,filters:{FUND_ID:ids.map(n=>+n)},fields,sort:'REPORT_PERIOD desc',limit:'1000',offset:String(offset)
+    });
+    const rows=res.records||[];
+    records.push(...rows);
+    if(rows.length<1000||FinReturns.covered(records,ids))break;
+    offset+=1000;
+  }
+  const grouped={};
+  records.forEach(r=>{const id=+r.FUND_ID;(grouped[id]=grouped[id]||[]).push(r);});
+  const out={};
+  ids.forEach(id=>{
+    const calc=FinReturns.fromRecords(grouped[id]||[],year);
+    if(calc)out[source+':'+id]=calc;
+  });
+  return out;
+}
+async function ensureYields(pairs){
+  const year=TODAY.getFullYear();
+  let cache=null;
+  try{cache=JSON.parse(localStorage.getItem(YIELD_LS)||'null');}catch(e){}
+  const sameYear=cache&&cache.year===year&&cache.items;
+  const fresh=!!(sameYear&&cache.at&&Date.now()-cache.at<YIELD_TTL);
+  const items=sameYear?{...cache.items}:{};
+  const missing={gemel:[],bituach:[]};
+  const seen=new Set();
+  pairs.forEach(p=>{
+    if(!p||(p.source!=='gemel'&&p.source!=='bituach')||!(p.id>0))return;
+    const k=p.source+':'+p.id;
+    if(seen.has(k))return;seen.add(k);
+    if(fresh&&items[k])return;
+    missing[p.source].push(p.id);
+  });
+  let fetched=false;
+  for(const source of ['gemel','bituach']){
+    const ids=[...new Set(missing[source])];
+    if(!ids.length)continue;
+    try{
+      Object.assign(items,await fetchYieldMap(source,ids,year));
+      fetched=true;
+    }catch(e){console.warn('yields '+source,e);}
+  }
+  if(fetched){
+    try{localStorage.setItem(YIELD_LS,JSON.stringify({v:1,at:Date.now(),year,items}));}catch(e){}
+  }
+  return items;
+}
+async function fillUpdateReturns(){
+  const gen=++retGen;
+  const nodes=[...document.querySelectorAll('#updGroups [data-rets]')];
+  if(!nodes.length||!window.FinReturns)return;
+  if(DEMO){
+    nodes.forEach(el=>{
+      const inv=S.investments.find(i=>i.id===el.dataset.rets);
+      if(!inv)return;
+      const fig=historyFig(inv);
+      fig.demo=true;
+      paintRet(el,fig);
+    });
+    return;
+  }
+  const plans=nodes.map(el=>{
+    const inv=S.investments.find(i=>i.id===el.dataset.rets);
+    return {el,inv,spec:inv?publicTrackOf(inv):null};
+  });
+  plans.forEach(p=>{
+    if(!p.inv)return;
+    paintRet(p.el,p.spec?{pending:true,kind:'pending',ytd:null,t12:null}:historyFig(p.inv));
+  });
+  const want=plans.filter(p=>p.spec).map(p=>p.spec);
+  if(!want.length)return;
+  try{
+    const items=await ensureYields(want);
+    if(gen!==retGen)return;
+    plans.forEach(p=>{
+      if(!p.spec||!p.inv)return;
+      const row=items[p.spec.source+':'+p.spec.id];
+      if(row&&(row.ytd!=null||row.t12!=null)){
+        paintRet(p.el,{kind:'public',source:p.spec.source,period:row.period,ytd:row.ytd,t12:row.t12,name:row.name||p.spec.name,auto:!p.spec.stored});
+      }else paintRet(p.el,historyFig(p.inv));
+    });
+  }catch(e){
+    console.warn('yields',e);
+    if(gen!==retGen)return;
+    plans.forEach(p=>{if(p.spec&&p.inv)paintRet(p.el,historyFig(p.inv));});
+  }
+}
 function renderUpdate(){
   const ed=canEdit();
   if(DEMO){
     $('#updLock').style.display='none';
-    $('#updWhere').textContent='מצב הדגמה: שינויים נשמרים רק בזיכרון של הטאב הזה ומתאפסים ברענון. אין חיבור ל-Gist ואין גישה לנתונים אמיתיים.';
+    $('#updWhere').textContent='מצב הדגמה: שינויים נשמרים רק בזיכרון של הטאב הזה ומתאפסים ברענון. אין חיבור ל-Gist ואין גישה לנתונים אמיתיים. תשואות מתחילת השנה ו-12 חודשים כאן בדויות, מחושבות מהיסטוריית ספר ההדגמה.';
   }else{
   $('#updLock').style.display=ed?'none':'';$('#updLock').innerHTML='<b>עריכה מושבתת:</b> מוצגים נתוני דוגמה. כדי לעדכן יתרות, טען את הנתונים שלך (מהאתר המקורי בדפדפן הזה או דרך חיבור Gist ב<a href="#settings">הגדרות</a>).';
   const di=$('#updDate');if(!di.value)di.value=iso(new Date());
   const c=getCreds();
-  $('#updWhere').innerHTML=`השמירה נכתבת בפורמט של האתר המקורי ל-<span class="num">localStorage['fin26']</span>${c&&c.token?' <b>וגם ל-Gist</b> (finance_data.json) — האתר המקורי יראה את העדכון':c?' — <span class="warn">ה-Gist לא יתעדכן: אין token עם הרשאת gist</span>':' — אין חיבור Gist (דפדפן זה בלבד)'}. כל אחזקה — גם עדכון ידני (בנק, דולר, ברוקר, קריפטו) — יכולה לקבל קרן או רווח בש״ח. מזינים <b>או</b> קרן <b>או</b> רווח; השני מחושב מהיתרה (קרן = יתרה − רווח) ונשמר ב־<span class="num">principal</span>. עדכון יתרה לבד לא משנה את הקרן. הפקדה לקרן מוסיפה עליה. תאריך היתרה הוא „נכון ל־”; <span class="num">pulledAt</span> („נמשך ב־”) נרשם להיום בשמירת יתרה. למט״ח ולקריפטו מזינים כמות ביתרה; הקרן והרווח תמיד בש״ח.`;
+  $('#updWhere').innerHTML=`השמירה נכתבת בפורמט של האתר המקורי ל-<span class="num">localStorage['fin26']</span>${c&&c.token?' <b>וגם ל-Gist</b> (finance_data.json) — האתר המקורי יראה את העדכון':c?' — <span class="warn">ה-Gist לא יתעדכן: אין token עם הרשאת gist</span>':' — אין חיבור Gist (דפדפן זה בלבד)'}. כל אחזקה — גם עדכון ידני (בנק, דולר, ברוקר, קריפטו) — יכולה לקבל קרן או רווח בש״ח. מזינים <b>או</b> קרן <b>או</b> רווח; השני מחושב מהיתרה (קרן = יתרה − רווח) ונשמר ב־<span class="num">principal</span>. עדכון יתרה לבד לא משנה את הקרן. הפקדה לקרן מוסיפה עליה. תאריך היתרה הוא „נכון ל־”; <span class="num">pulledAt</span> („נמשך ב־”) נרשם להיום בשמירת יתרה. למט״ח ולקריפטו מזינים כמות ביתרה; הקרן והרווח תמיד בש״ח. תשואה מתחילת השנה ו-12 חודשים נטענות מגמל-נט או ביטוח-נט לפי מספר המסלול (או התאמה לפי שם). בלי מסלול ציבורי — מההיסטוריה.`;
   }
   const diDate=$('#updDate');if(diDate&&!diDate.value)diDate.value=iso(new Date());
   const cats=[...Object.keys(FIN_CATS),...new Set(S.investments.filter(isFin).map(i=>i.cat).filter(k=>!FIN_CATS[k]&&k!=='realestate'))];
@@ -4522,7 +4742,7 @@ function renderUpdate(){
     const savedP=readPrincipal(i);
     const gainPh=savedP==null?'או רווח':String(roundMoney((+i.bal||0)-savedP));
     return `<div class="urow ${draftTouched(d)?'dirty':''}" data-row="${esc(i.id)}">
-      <div class="nmw"><div class="nm">${esc(i.name)}</div><div class="meta">${esc([i.inst,i.track,i.owner].filter(Boolean).join(' · '))}</div>${liqBadgeHtml(i)}</div>
+      <div class="nmw"><div class="nm">${esc(i.name)}</div><div class="meta">${esc([i.inst,i.track,i.owner].filter(Boolean).join(' · '))}</div><div class="fund-rets" data-rets="${esc(i.id)}"></div>${liqBadgeHtml(i)}</div>
       <div class="lu ${stale?'warn':''}" title="${esc(updateDateText(i))}">${updateDateHtml(i)}${days!=null?`<div class="faint">${days===0?'היום':days===1?'אתמול':`לפני ${Math.round(days)} ימים`}</div>`:''}</div>
       <div class="liqw"><label class="liq-tog ${liq?'':'locked'}"><input type="checkbox" data-liq="${esc(i.id)}" ${liq?'checked':''} ${ed?'':'disabled'}> נזיל</label></div>
       <div class="cur"><span class="lbl dim">נוכחי: </span>${curTxt}</div>
@@ -4611,6 +4831,9 @@ function renderUpdate(){
   $('#sbCancel').onclick=()=>{DRAFT={inv:{},loan:{}};renderUpdate();};
   $('#sbSave').onclick=saveDraft;
   updDeltas();
+  if(!renderUpdate._retTap){renderUpdate._retTap=true;
+    $('#updGroups').addEventListener('click',e=>{const box=e.target.closest&&e.target.closest('.fund-rets');if(box)box.classList.toggle('on');});}
+  fillUpdateReturns();
   if(!renderUpdate._rates){renderUpdate._rates=true;loadRates().then(()=>{if(CUR==='update')renderUpdate();});}
 }
 function updDeltas(){
