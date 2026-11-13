@@ -158,7 +158,63 @@
     return p;
   }
 
+  /* YYYYMMDD, 'YYYY-MM-DD', or {date, price}. Invalid rows are dropped. */
+  function pricePoint(p) {
+    let raw, px;
+    if (Array.isArray(p)) { raw = p[0]; px = num(p[1]); }
+    else if (p && typeof p === 'object') { raw = p.date; px = num(p.price != null ? p.price : p.px); }
+    else return null;
+    let date = '';
+    if (typeof raw === 'number' || (typeof raw === 'string' && /^\d{8}$/.test(raw))) {
+      const s = String(raw);
+      date = s.slice(0, 4) + '-' + s.slice(4, 6) + '-' + s.slice(6, 8);
+    } else if (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}/.test(raw)) date = raw.slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || px == null || px <= 0) return null;
+    return {date: date, price: px};
+  }
+
+  /* YTD = last close / last close of the previous calendar year − 1.
+     The previous-year close has to fall on or after 10 December, so a price
+     from the spring is not treated as year-end.
+     Trailing 12m = last close / close on or before the same calendar day a
+     year earlier − 1. That base has to sit within 18 days of the target
+     (weekends and the longer Israeli holidays). Otherwise that leg is null. */
+  function fromPrices(points, today) {
+    const rows = [];
+    (points || []).forEach(p => {
+      const row = pricePoint(p);
+      if (row) rows.push(row);
+    });
+    rows.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+    const dedup = [];
+    rows.forEach(p => {
+      if (dedup.length && dedup[dedup.length - 1].date === p.date) dedup[dedup.length - 1] = p;
+      else dedup.push(p);
+    });
+    const todayIso = today ? isoDate(today) : '';
+    let last = null;
+    for (let i = 0; i < dedup.length; i++) {
+      if (!todayIso || dedup[i].date <= todayIso) last = dedup[i];
+    }
+    if (!last) return null;
+    const year = +last.date.slice(0, 4);
+    const floor = (year - 1) + '-12-10';
+    const cap = (year - 1) + '-12-31';
+    let y0 = null;
+    const target = addMonths(last.date, -12);
+    let y1 = null;
+    for (let i = 0; i < dedup.length; i++) {
+      const d = dedup[i].date;
+      if (d >= floor && d <= cap) y0 = dedup[i];
+      if (d <= target) y1 = dedup[i];
+    }
+    const ytd = y0 ? last.price / y0.price - 1 : null;
+    let t12 = null;
+    if (y1 && daysBetween(y1.date, target) <= 18) t12 = last.price / y1.price - 1;
+    return {ytd: ytd, t12: t12, asOf: last.date};
+  }
+
   return {
-    compoundPct, fromRecords, covered, pointsOf, windowReturn, historyReturns, periodLabel
+    compoundPct, fromRecords, covered, pointsOf, windowReturn, historyReturns, periodLabel, fromPrices
   };
 });

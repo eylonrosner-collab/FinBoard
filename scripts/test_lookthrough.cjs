@@ -137,6 +137,12 @@ const byTrack = FinLook.matchFund({cat:'kupa', name:'קה"ש', inst:'מור בי
 assert.strictEqual(byTrack.why, 'fundId');
 assert.strictEqual(byTrack.fund.fundId, 12535);
 
+/* A TASE security number must not be looked up as a pension-fund id. */
+const taseId = FinLook.matchFund({cat:'forex', name:'קרן סל', inst:'בורסה', track:'מניות', trackId:1159250, trackSource:'tase'}, pub.funds);
+assert.strictEqual(taseId.fund, null);
+assert.strictEqual(taseId.why, 'tase');
+assert.deepStrictEqual(FinLook.suggestFunds({cat:'forex', name:'קרן סל', track:'מניות', trackId:1159250, trackSource:'tase'}, pub.funds), []);
+
 const periods = [...new Set(pub.sources.map(s => s.period))];
 assert.ok(periods.every(p => p >= 202601), 'snapshot should be a 2026 report');
 assert.ok(pub.funds.length > 1000);

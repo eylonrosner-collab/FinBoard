@@ -4219,8 +4219,8 @@ function editHolding(id,cat){
     <div class="field" style="grid-column:1/-1"><label>שם</label><input id="eName" value="${esc(inv?inv.name:'')}"></div>
     <div class="field"><label>קטגוריה</label><select id="eCat">${optList(Object.entries(FIN_CATS),c)}</select></div>
     <div class="field"><label>מסלול השקעה</label><select id="eTrack">${optList(tracks,inv?inv.track:(S.tracks[0]||{}).name)}</select></div>
-    <div class="field"><label>מקור תשואה רשמי</label><select id="eTrackSrc">${optList([['','ללא — מההיסטוריה'],['gemel','גמל-נט'],['bituach','ביטוח-נט']],inv&&(inv.trackSource==='gemel'||inv.trackSource==='bituach')?inv.trackSource:'')}</select><div class="hint">נשמר ב־<span class="num">trackSource</span></div></div>
-    <div class="field"><label>מספר מסלול (FUND_ID)</label><input id="eTrackId" inputmode="numeric" autocomplete="off" value="${esc(inv&&inv.trackId!=null&&inv.trackId!==''?inv.trackId:(inv&&inv.fundId!=null?inv.fundId:''))}" placeholder="לא חובה" style="direction:ltr"><div class="hint" id="eTrackHint">מזהה ציבורי בגמל-נט או ביטוח-נט. לא מספר חשבון.</div></div>
+    <div class="field"><label>מקור תשואה רשמי</label><select id="eTrackSrc">${optList([['','ללא — מההיסטוריה'],['gemel','גמל-נט'],['bituach','ביטוח-נט'],['tase','בורסה (TASE)']],inv&&(inv.trackSource==='gemel'||inv.trackSource==='bituach'||inv.trackSource==='tase')?inv.trackSource:'')}</select><div class="hint">נשמר ב־<span class="num">trackSource</span></div></div>
+    <div class="field"><label id="eTrackIdLab">מספר מסלול / מספר נייר ערך</label><input id="eTrackId" inputmode="numeric" autocomplete="off" value="${esc(inv&&inv.trackId!=null&&inv.trackId!==''?inv.trackId:(inv&&inv.fundId!=null&&inv.trackSource!=='tase'?inv.fundId:''))}" placeholder="לא חובה" style="direction:ltr"><div class="hint" id="eTrackHint">מזהה ציבורי. לא מספר חשבון.</div></div>
     <div class="field" style="grid-column:1/-1"><div class="chips-row" id="eTrackPicks"></div></div>
     <div class="field"><label>בית השקעות / גוף</label><input id="eInst" value="${esc(inv?inv.inst||'':'')}"></div>
     <div class="field"><label>בעלים</label><input id="eOwner" value="${esc(inv?inv.owner||'':'')}"></div>
@@ -4266,9 +4266,28 @@ function editHolding(id,cat){
     ...(inv?[{label:'מחק אחזקה',cls:'btn danger sp',id:'eDel',fn:()=>{if(confirm(`למחוק את "${inv.name}"? (נשמר גיבוי)`)){closeModal();commit(x=>{x.investments=x.investments.filter(i=>i.id!==id);},`מחיקת ${inv.name}`);}}}]:[])]);
   const tog=()=>{const k=fv('eCat');document.querySelectorAll('.fxf').forEach(e=>e.style.display=k==='forex'?'':'none');document.querySelectorAll('.crf').forEach(e=>e.style.display=k==='crypto'?'':'none');};
   $('#eCat').onchange=()=>{tog();paintTrack();};tog();
+  let taseHintGen=0;
   const paintTrack=()=>{
-    const hint=$('#eTrackHint'),picks=$('#eTrackPicks');if(!hint||!picks)return;
+    const hint=$('#eTrackHint'),picks=$('#eTrackPicks'),lab=$('#eTrackIdLab'),box=$('#eTrackId');if(!hint||!picks)return;
     const idRaw=fv('eTrackId').trim(),src=fv('eTrackSrc');
+    if(lab) lab.textContent=src==='tase'?'מספר נייר ערך':(src==='gemel'||src==='bituach')?'מספר מסלול':'מספר מסלול / מספר נייר ערך';
+    if(box) box.placeholder=src==='tase'?'למשל 1159250':(src==='gemel'||src==='bituach')?'FUND_ID':'לא חובה';
+    if(src==='tase'){
+      picks.innerHTML='';
+      if(!idRaw){hint.textContent='מספר נייר ערך בבורסה — מניה, קרן סל או קרן נאמנות. לא מספר חשבון.';return;}
+      if(!/^\d{1,9}$/.test(idRaw)){hint.textContent='מספר נייר ערך הוא ספרות בלבד.';return;}
+      if(DEMO){hint.textContent='במצב הדגמה לא נטען שם הנייר מהבורסה.';return;}
+      const gen=++taseHintGen;
+      hint.textContent='בודק מול נתוני הבורסה…';
+      taseBook().then(book=>{
+        if(gen!==taseHintGen)return;
+        const row=book&&book.items&&book.items[String(+idRaw)];
+        if(!row){hint.textContent='המספר לא נמצא בקובץ הבורסה. הוא יישמר, והתשואה תוצג אם יופיע שם.';return;}
+        const how=row.k==='r'?'מחיר פדיון':'שער נעילה';
+        hint.textContent='נייר: '+row.n+' · '+how;
+      }).catch(()=>{if(gen===taseHintGen) hint.textContent='נתוני הבורסה לא נטענו. המספר יישמר.';});
+      return;
+    }
     if(idRaw&&(src==='gemel'||src==='bituach')){
       const f=pubFund(src,+idRaw);
       hint.textContent=f?('מסלול: '+f.name):'המספר יישמר. אם הוא קיים במאגר הציבורי, השם יופיע כאן.';
@@ -4394,10 +4413,10 @@ function saveHolding(id){
   const trackRaw=fv('eTrackId').trim();
   let trackId=null;
   if(trackRaw){
-    if(!/^\d{1,9}$/.test(trackRaw)){toast('מספר מסלול צריך להיות המזהה הציבורי (FUND_ID), לא מספר חשבון','err');return;}
+    if(!/^\d{1,9}$/.test(trackRaw)){toast('המספר צריך להיות ספרות בלבד — מזהה ציבורי, לא מספר חשבון','err');return;}
     trackId=+trackRaw;
   }
-  if(trackId!=null&&trackSource!=='gemel'&&trackSource!=='bituach'){toast('בחרו מקור: גמל-נט או ביטוח-נט','err');return;}
+  if(trackId!=null&&trackSource!=='gemel'&&trackSource!=='bituach'&&trackSource!=='tase'){toast('בחרו מקור: גמל-נט, ביטוח-נט או בורסה','err');return;}
   const liqForm=readLiqForm();if(liqForm.err){toast(liqForm.err,'err');return;}
   const num=k=>{const v=parseNum(fv(k));return isFinite(v)?v:0;},opt=k=>{const v=parseNum(fv(k));return isFinite(v)?v:null;};
   const cat=fv('eCat');if(cat==='realestate'){toast('נדל\"ן לא נשמר ב-v2','err');return;}
@@ -4427,7 +4446,11 @@ function saveHolding(id){
     inv.liquid=liquid; // additive field; original site ignores unknown keys
     if(liqForm.rows.length)inv.liq=liqForm.rows;else delete inv.liq; // optional schedule; v1 Object.assign keeps it
     if(mgr)inv.managerUrl=mgr;else delete inv.managerUrl; // additive; original site ignores
-    if(trackId!=null){inv.trackId=trackId;inv.trackSource=trackSource;inv.fundId=trackId;}
+    if(trackId!=null){
+      inv.trackId=trackId;inv.trackSource=trackSource;
+      if(trackSource==='tase') delete inv.fundId;
+      else inv.fundId=trackId;
+    }
     else{delete inv.trackId;delete inv.trackSource;delete inv.fundId;}
   },id?`עריכת ${name}`:`הוספת ${name}`);
 }
@@ -4552,12 +4575,36 @@ function pgLiveHtml(i){
 const YIELD_LS='finboard_yield_v1';
 const YIELD_TTL=12*60*60*1000;
 let retGen=0;
+let taseBookP=null;
+function taseBook(){
+  if(DEMO) return Promise.resolve(null);
+  if(!taseBookP){
+    taseBookP=fetch('tase-prices.json',{cache:'no-cache'}).then(r=>{
+      if(!r.ok) throw new Error('tase '+r.status);
+      return r.json();
+    }).catch(e=>{taseBookP=null;throw e;});
+  }
+  return taseBookP;
+}
+function taseCalc(row){
+  if(!row||!row.p||!row.p.length) return {kind:'tase',ytd:null,t12:null,reason:'הנייר לא נמצא בנתוני הבורסה'};
+  const calc=FinReturns.fromPrices(row.p,TODAY);
+  const name=row.n||'', px=row.k==='r'?'r':'c';
+  if(!calc||(calc.ytd==null&&calc.t12==null)) return {kind:'tase',ytd:null,t12:null,asOf:calc&&calc.asOf||'',name,px,reason:'אין מספיק היסטוריית שערים'};
+  return {kind:'tase',ytd:calc.ytd,t12:calc.t12,asOf:calc.asOf,name,px};
+}
 function pubFund(source,id){
   const s=source==='bituach'?'bituach':'gemelnet';
   return (PUB.funds||[]).find(f=>f.source===s&&+f.fundId===+id)||null;
 }
 function publicTrackOf(inv){
-  if(!inv||!window.FinLook)return null;
+  if(!inv)return null;
+  if(inv.trackSource==='tase'){
+    const tid=+inv.trackId;
+    if(isFinite(tid)&&tid>0) return {source:'tase',id:tid,stored:true,name:'',auto:false};
+    return null;
+  }
+  if(!window.FinLook)return null;
   const srcRaw=inv.trackSource==='bituach'?'bituach':inv.trackSource==='gemel'?'gemel':null;
   let id=NaN;
   if(inv.trackId!=null&&inv.trackId!=='')id=+inv.trackId;
@@ -4585,9 +4632,23 @@ function historyFig(inv){
   if(h.ytd==null&&h.t12==null)return {kind:'none',ytd:null,t12:null};
   return {kind:'history',ytd:h.ytd,t12:h.t12};
 }
+function dmy(iso){
+  if(!iso||!/^\d{4}-\d{2}-\d{2}$/.test(iso))return '';
+  return iso.slice(8,10)+'/'+iso.slice(5,7)+'/'+iso.slice(0,4);
+}
 function returnTip(r){
   if(!r)return '';
   if(r.demo)return 'נתוני הדגמה · מחושב מהיסטוריה';
+  if(r.kind==='tase'){
+    const name=r.name?(' — '+r.name):'';
+    const px=r.px==='r'?' (מחיר פדיון)':'';
+    const when=r.asOf?('נכון ל־'+dmy(r.asOf)+', הבורסה'):'';
+    if(r.ytd==null&&r.t12==null){
+      const why=r.reason||'אין נתון מהבורסה';
+      return when?(why+' · '+when+px+name):(why+name);
+    }
+    return (when||'הבורסה')+px+name;
+  }
   if(r.kind==='public'&&r.period){
     const src=r.source==='bituach'?'ביטוח-נט':'גמל-נט';
     const name=r.name?(' — '+r.name):'';
@@ -4656,13 +4717,13 @@ async function ensureYields(pairs){
   const sameYear=cache&&cache.year===year&&cache.items;
   const fresh=!!(sameYear&&cache.at&&Date.now()-cache.at<YIELD_TTL);
   const items=sameYear?{...cache.items}:{};
-  const missing={gemel:[],bituach:[]};
+  const missing={gemel:[],bituach:[],tase:[]};
   const seen=new Set();
   pairs.forEach(p=>{
-    if(!p||(p.source!=='gemel'&&p.source!=='bituach')||!(p.id>0))return;
+    if(!p||(p.source!=='gemel'&&p.source!=='bituach'&&p.source!=='tase')||!(p.id>0))return;
     const k=p.source+':'+p.id;
     if(seen.has(k))return;seen.add(k);
-    if(fresh&&items[k])return;
+    if(fresh&&items[k]&&!items[k].nocache)return;
     missing[p.source].push(p.id);
   });
   let fetched=false;
@@ -4674,8 +4735,22 @@ async function ensureYields(pairs){
       fetched=true;
     }catch(e){console.warn('yields '+source,e);}
   }
+  const taseIds=[...new Set(missing.tase)];
+  if(taseIds.length){
+    try{
+      const book=await taseBook();
+      const got=book&&book.items||{};
+      taseIds.forEach(id=>{items['tase:'+id]=taseCalc(got[String(id)]);});
+      fetched=true;
+    }catch(e){
+      console.warn('tase book',e);
+      taseIds.forEach(id=>{items['tase:'+id]={kind:'tase',ytd:null,t12:null,reason:'נתוני הבורסה לא נטענו',nocache:true};});
+    }
+  }
   if(fetched){
-    try{localStorage.setItem(YIELD_LS,JSON.stringify({v:1,at:Date.now(),year,items}));}catch(e){}
+    const stored={};
+    Object.keys(items).forEach(k=>{if(items[k]&&!items[k].nocache) stored[k]=items[k];});
+    try{localStorage.setItem(YIELD_LS,JSON.stringify({v:1,at:Date.now(),year,items:stored}));}catch(e){}
   }
   return items;
 }
@@ -4709,6 +4784,10 @@ async function fillUpdateReturns(){
     plans.forEach(p=>{
       if(!p.spec||!p.inv)return;
       const row=items[p.spec.source+':'+p.spec.id];
+      if(p.spec.source==='tase'){
+        paintRet(p.el,row||{kind:'tase',ytd:null,t12:null,reason:'נתוני הבורסה לא נטענו'});
+        return;
+      }
       if(row&&(row.ytd!=null||row.t12!=null)){
         paintRet(p.el,{kind:'public',source:p.spec.source,period:row.period,ytd:row.ytd,t12:row.t12,name:row.name||p.spec.name,auto:!p.spec.stored});
       }else paintRet(p.el,historyFig(p.inv));
@@ -4716,7 +4795,11 @@ async function fillUpdateReturns(){
   }catch(e){
     console.warn('yields',e);
     if(gen!==retGen)return;
-    plans.forEach(p=>{if(p.spec&&p.inv)paintRet(p.el,historyFig(p.inv));});
+    plans.forEach(p=>{
+      if(!p.spec||!p.inv)return;
+      if(p.spec.source==='tase') paintRet(p.el,{kind:'tase',ytd:null,t12:null,reason:'נתוני הבורסה לא נטענו'});
+      else paintRet(p.el,historyFig(p.inv));
+    });
   }
 }
 function renderUpdate(){
@@ -4728,7 +4811,7 @@ function renderUpdate(){
   $('#updLock').style.display=ed?'none':'';$('#updLock').innerHTML='<b>עריכה מושבתת:</b> מוצגים נתוני דוגמה. כדי לעדכן יתרות, טען את הנתונים שלך (מהאתר המקורי בדפדפן הזה או דרך חיבור Gist ב<a href="#settings">הגדרות</a>).';
   const di=$('#updDate');if(!di.value)di.value=iso(new Date());
   const c=getCreds();
-  $('#updWhere').innerHTML=`השמירה נכתבת בפורמט של האתר המקורי ל-<span class="num">localStorage['fin26']</span>${c&&c.token?' <b>וגם ל-Gist</b> (finance_data.json) — האתר המקורי יראה את העדכון':c?' — <span class="warn">ה-Gist לא יתעדכן: אין token עם הרשאת gist</span>':' — אין חיבור Gist (דפדפן זה בלבד)'}. כל אחזקה — גם עדכון ידני (בנק, דולר, ברוקר, קריפטו) — יכולה לקבל קרן או רווח בש״ח. מזינים <b>או</b> קרן <b>או</b> רווח; השני מחושב מהיתרה (קרן = יתרה − רווח) ונשמר ב־<span class="num">principal</span>. עדכון יתרה לבד לא משנה את הקרן. הפקדה לקרן מוסיפה עליה. תאריך היתרה הוא „נכון ל־”; <span class="num">pulledAt</span> („נמשך ב־”) נרשם להיום בשמירת יתרה. למט״ח ולקריפטו מזינים כמות ביתרה; הקרן והרווח תמיד בש״ח. תשואה מתחילת השנה ו-12 חודשים נטענות מגמל-נט או ביטוח-נט לפי מספר המסלול (או התאמה לפי שם). בלי מסלול ציבורי — מההיסטוריה.`;
+  $('#updWhere').innerHTML=`השמירה נכתבת בפורמט של האתר המקורי ל-<span class="num">localStorage['fin26']</span>${c&&c.token?' <b>וגם ל-Gist</b> (finance_data.json) — האתר המקורי יראה את העדכון':c?' — <span class="warn">ה-Gist לא יתעדכן: אין token עם הרשאת gist</span>':' — אין חיבור Gist (דפדפן זה בלבד)'}. כל אחזקה — גם עדכון ידני (בנק, דולר, ברוקר, קריפטו) — יכולה לקבל קרן או רווח בש״ח. מזינים <b>או</b> קרן <b>או</b> רווח; השני מחושב מהיתרה (קרן = יתרה − רווח) ונשמר ב־<span class="num">principal</span>. עדכון יתרה לבד לא משנה את הקרן. הפקדה לקרן מוסיפה עליה. תאריך היתרה הוא „נכון ל־”; <span class="num">pulledAt</span> („נמשך ב־”) נרשם להיום בשמירת יתרה. למט״ח ולקריפטו מזינים כמות ביתרה; הקרן והרווח תמיד בש״ח. תשואה מתחילת השנה ו-12 חודשים נטענות מגמל-נט, מביטוח-נט, או מקובץ שערי הבורסה לפי מספר נייר ערך. בלי מקור ציבורי — מההיסטוריה.`;
   }
   const diDate=$('#updDate');if(diDate&&!diDate.value)diDate.value=iso(new Date());
   const cats=[...Object.keys(FIN_CATS),...new Set(S.investments.filter(isFin).map(i=>i.cat).filter(k=>!FIN_CATS[k]&&k!=='realestate'))];
